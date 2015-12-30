@@ -26,6 +26,7 @@ src/render/camera.c
 
 ## Thirdparty static libs
 src/thirdparty/lodepng.c
+src/thirdparty/stb_vorbis.c
 )
 
 ## Includes
@@ -39,6 +40,9 @@ src/thirdparty
 
 # Set Executable Target
 add_executable(${TARGET_NAME} ${SOURCES})
+
+# Add custom flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 
 # Set up Libraries
 find_package(SDL2 REQUIRED)
