@@ -1,0 +1,16 @@
+## CMake specifics
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+## Mac stuff
+.DS_Store
+
+## Ignore builds
+build/
+
+## Ignore YCM compiled conf
+.ycm_extra_conf.pyc

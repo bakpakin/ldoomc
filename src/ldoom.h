@@ -1,0 +1,24 @@
+#ifndef LDOOM_HEADER
+#define LDOOM_HEADER
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stddef.h>
+
+#include "config.h"
+#include SDL_H
+#include OPENGL_H
+#include "util.h"
+#include "ldmath.h"
+#include "geom.h"
+#include "opool.h"
+#include "vector.h"
+#include "gamestate.h"
+#include "shader.h"
+#include "mesh.h"
+#include "texture.h"
+#include "camera.h"
+#include "lodepng.h"
+
+#endif
