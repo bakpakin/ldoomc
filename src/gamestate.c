@@ -1,8 +1,11 @@
 #include "gamestate.h"
 
+#include "vector.h"
 #include "util.h"
 #include <stdint.h>
 #include <stdlib.h>
+
+VECTOR_STATIC_GENERATE(int, int)
 
 #define MAX_STATE_STACK 32
 
@@ -26,6 +29,7 @@ void gamestate_switch(Gamestate * gs) {
     stack[current_index] = gs;
     current_state = *gs;
     if (current_state.init) current_state.init();
+    if (current_state.show) current_state.show();
 }
 
 /*
@@ -34,10 +38,11 @@ void gamestate_switch(Gamestate * gs) {
 void gamestate_jump(unsigned index) {
     if (index > current_index)
         uerr("Invalid gamestate jump index.");
-    if (current_state.deinit) current_state.deinit();
-    current_index = index;
-    current_state = *stack[index];
-    if (current_state.init) current_state.init();
+    for (int i = current_index; i > index; i--) {
+        if (stack[i]->deinit)
+            stack[i]->deinit();
+    }
+    if (current_state.show) current_state.show();
 }
 
 /*
@@ -46,10 +51,7 @@ void gamestate_jump(unsigned index) {
 void gamestate_jump_back(unsigned index) {
     if (index > current_index)
         uerr("Invalid gamestate jump index.");
-    if (current_state.deinit) current_state.deinit();
-    current_index -= index;
-    current_state = *stack[index];
-    if (current_state.init) current_state.init();
+    gamestate_jump(current_index - index);
 }
 
 /*
@@ -59,10 +61,11 @@ void gamestate_push(Gamestate * gs) {
     if (current_index == MAX_STATE_STACK) {
         uerr("Gamestate stack overflow.");
     }
-    if (current_state.deinit) current_state.deinit();
+    if (current_state.hide) current_state.hide();
     stack[current_index++] = gs;
     current_state = *gs;
     if (current_state.init) current_state.init();
+    if (current_state.show) current_state.show();
 }
 
 /*
@@ -78,62 +81,47 @@ void gamestate_pop() {
 }
 
 static void gamestate_update(double dt) {
-    if (current_state.update != NULL) {
+    if (current_state.update) {
         current_state.update(dt);
     }
 }
 
 static void gamestate_draw() {
-    if (current_state.draw != NULL) {
+    if (current_state.draw) {
         current_state.draw();
     }
 }
 
-static inline void handle_window_event(SDL_WindowEvent e) {
-    switch (e.event) {
-    case SDL_WINDOWEVENT_RESIZED:
-        break;
-    case SDL_WINDOWEVENT_CLOSE:
-        game_exit();
-        break;
-    default:
-        break;
+static Vector downKeys;
+
+static int find_key(int key) {
+    for (int i = 0; i < downKeys.count; i++) {
+        if (vector_get_int(&downKeys, i) == key)
+            return i;
     }
+    return -1;
 }
 
-void gamestate_poll_input() {
-    SDL_Event e;
-    Gamestate gs = current_state;
-    while (SDL_PollEvent(&e)) {
-        switch (e.type) {
-            case SDL_KEYDOWN:
-                if (e.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
-                    game_exit();
-                if (gs.keydown && !e.key.repeat)
-                    gs.keydown(e.key, e.key.keysym.sym);
+static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_ESCAPE) {
+        game_exit();
+    } else {
+        Gamestate gs = current_state;
+        switch(action) {
+            case GLFW_PRESS:
+                if (gs.keydown) {
+                    gs.keydown(key);
+                }
+                vector_push_int(&downKeys, key);
                 break;
-            case SDL_KEYUP:
-                if (gs.keyup && !e.key.repeat)
-                    gs.keyup(e.key, e.key.keysym.sym);
-                break;
-            case SDL_MOUSEMOTION:
-                if (gs.mousemoved)
-                    gs.mousemoved(e.motion, e.motion.x, e.motion.y, e.motion.xrel, e.motion.yrel);
-                break;
-            case SDL_MOUSEBUTTONDOWN:
-                if (gs.mousedown)
-                    gs.mousedown(e.button, e.button.button, e.button.x, e.button.y);
-                break;
-            case SDL_MOUSEBUTTONUP:
-                if (gs.mouseup)
-                    gs.mouseup(e.button, e.button.button, e.button.x, e.button.y);
-                break;
-            case SDL_MOUSEWHEEL:
-                if (gs.mousewheel)
-                    gs.mousewheel(e.wheel, e.wheel.y);
-                break;
-            case SDL_WINDOWEVENT:
-                handle_window_event(e.window);
+            case GLFW_RELEASE:
+                if (gs.keyup) {
+                    gs.keyup(key);
+                }
+                int index = find_key(key);
+                if (index != -1) {
+                    vector_bag_remove_int(&downKeys, index);
+                }
                 break;
             default:
                 break;
@@ -141,52 +129,98 @@ void gamestate_poll_input() {
     }
 }
 
-unsigned game_fps = 60;
-SDL_Window * game_window = NULL;
-SDL_GLContext * game_gl = NULL;
-float game_delta;
+static double cursor_old_xpos = 0;
+static double cursor_old_ypos = 0;
+static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
+    if (xpos != cursor_old_xpos || ypos != cursor_old_ypos) {
+        if (current_state.mousemoved){
+            current_state.mousemoved(xpos, ypos, xpos - cursor_old_xpos, ypos - cursor_old_ypos);
+        }
+    }
+    cursor_old_xpos = xpos;
+    cursor_old_ypos = ypos;
+}
+
+static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods) {
+    Gamestate gs = current_state;
+    switch(action) {
+        case GLFW_PRESS:
+            if (gs.mousedown)
+                gs.mousedown(button, cursor_old_xpos, cursor_old_ypos);
+            break;
+        case GLFW_RELEASE:
+            if (gs.mouseup)
+                gs.mouseup(button, cursor_old_xpos, cursor_old_ypos);
+            break;
+        default:
+            break;
+    }
+}
+
+static void process_down_keys() {
+    if (current_state.key) {
+        for (int i = 0; i < downKeys.count; i++) {
+            int key = vector_get_int(&downKeys, i);
+            current_state.key(key);
+        }
+    }
+}
+
+static void error_callback(int error, const char * message) {
+    uerr(message);
+}
+
+double game_delta;
+static GLFWwindow * game_window;
 
 void game_init() {
-    SDL_Init(SDL_INIT_VIDEO);
 
-	// Set SDL and GL settings
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetSwapInterval(1);
+    glfwInit();
 
-    SDL_DisplayMode dm;
-    SDL_GetDesktopDisplayMode(0, &dm);
+    glfwSetErrorCallback(&error_callback);
 
-    unsigned flags = SDL_WINDOW_OPENGL |
-        SDL_WINDOW_ALLOW_HIGHDPI |
-        SDL_WINDOW_FULLSCREEN;
+    // GLFW window and context creation
+    GLFWmonitor * monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode * vmode = glfwGetVideoMode(monitor);
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
+	game_window = glfwCreateWindow(vmode->width, vmode->height, "Ldoom", NULL, NULL);
+	if (!game_window) {
+	    glfwTerminate();
+    }
+    glfwMakeContextCurrent(game_window);
+    glfwSwapInterval(1);
 
-	game_window = SDL_CreateWindow("Ldoom",
-				   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-				   dm.w,
-				   dm.h,
-				   flags);
-	game_gl = SDL_GL_CreateContext(game_window);
-
-    SDL_SetRelativeMouseMode(SDL_TRUE);
-
+    // GL initializing
+    int width, height;
+    glfwGetFramebufferSize(game_window, &width, &height);
+    glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Initialize input
+    vector_init_int(&downKeys, 128);
+    glfwSetKeyCallback(game_window, &key_callback);
+    glfwSetMouseButtonCallback(game_window, &mouse_button_callback);
+    glfwSetCursorPosCallback(game_window, &cursor_position_callback);
+    glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
-static int game_done = 0;
-
 void game_exit() {
-    game_done = 1;
+    glfwSetWindowShouldClose(game_window, GL_TRUE);
 }
 
 static void game_quit() {
     if (current_state.deinit) current_state.deinit();
-    SDL_Quit();
+    vector_deinit_int(&downKeys);
+    glfwDestroyWindow(game_window);
+    glfwTerminate();
 }
 
 void game_exit_now() {
@@ -194,32 +228,21 @@ void game_exit_now() {
 }
 
 void game_mainloop(Gamestate * initial_state) {
-    game_done = 0;
     current_index = 0;
     memset(&current_state, 0, sizeof(Gamestate));
     gamestate_switch(initial_state);
-    uint32_t frametime, last_frametime = 0;
-    const unsigned char * keystates;
-    int keystates_length;
-    while (!game_done) {
+    double frametime = 0;
+    double last_frametime = 0;
+    while (!glfwWindowShouldClose(game_window)) {
         last_frametime = frametime;
-        frametime = SDL_GetTicks();
-        gamestate_poll_input();
-        keystates = SDL_GetKeyboardState(&keystates_length);
-        if (current_state.key)
-            for (int i = 0; i < keystates_length; i++) {
-                if (keystates[i])
-                    current_state.key(i);
-            }
-        if (last_frametime > frametime) { // we have wrapped
-            game_delta = (4294967295 - last_frametime + frametime) / 1000.0;
-        } else {
-            game_delta = (frametime - last_frametime) / 1000.0;
-        }
+        frametime = glfwGetTime();
+        glfwSwapBuffers(game_window);
+        glfwPollEvents();
+        process_down_keys();
+        game_delta = frametime - last_frametime;
         gamestate_update(game_delta);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         gamestate_draw();
-        SDL_GL_SwapWindow(game_window);
     }
     game_quit();
 }

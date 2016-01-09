@@ -1,6 +1,6 @@
 #include "camera.h"
 
-#include OPENGL_H
+#include "glfw.h"
 
 #define PROJECTION_DIRTY_BIT 0x01
 #define LOOKAT_DIRTY_BIT 0x02
@@ -33,7 +33,7 @@ void camera_frustum_bounds(Camera * c, aabb3 out) {
 
                 break;
             case CAMERATYPE_ORTHOGRAPHIC:
-                
+
                 break;
         }
     }
@@ -92,7 +92,7 @@ static void cam_init(Camera * c) {
     c->dirty = PROJECTION_DIRTY_BIT | LOOKAT_DIRTY_BIT;
 }
 
-Camera * camera_init_ortho(Camera * c, 
+Camera * camera_init_ortho(Camera * c,
         float width, float height, float depth) {
     cam_init(c);
     camera_set_ortho(c, width, height, depth);
@@ -106,9 +106,8 @@ Camera * camera_init_perspective(Camera * c,
     return c;
 }
 
-
 void camera_apply(Camera * c, int matrix_uniform_location) {
-    unsigned char dirty = c->dirty; 
+    unsigned char dirty = c->dirty;
     if (dirty & PROJECTION_DIRTY_BIT) {
         camera_update_projection(c);
     }

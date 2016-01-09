@@ -1,7 +1,6 @@
 #ifndef GRID3D_HEADER
 #define GRID3D_HEADER
 
-#include "config.h"
 #include "ldmath.h"
 
 struct grid3d;

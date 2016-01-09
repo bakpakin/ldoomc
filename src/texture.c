@@ -3,14 +3,25 @@
 #include <stdlib.h>
 #include "lodepng.h"
 
-Texture * texture_init_file(Texture * t, const char * path) {
+Texture * texture_init_file(Texture * t, const char * path, int pathlen) {
 
     unsigned error;
     unsigned char* image;
     unsigned width, height;
 
+    #define BUFLEN 40
+    char buf[BUFLEN];
+
+    if (pathlen >= 0) {
+        if (pathlen + 1 > BUFLEN)
+            uerr("Pexture path buffer overflow.");
+        path = buf;
+        strncpy(buf, path, pathlen);
+    }
+
     error = lodepng_decode32_file(&image, &width, &height, path);
-    if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+    if(error)
+        uerr(lodepng_error_text(error));
 
     glGenTextures(1, &t->id);
     glBindTexture(GL_TEXTURE_2D, t->id);
@@ -26,6 +37,9 @@ Texture * texture_init_file(Texture * t, const char * path) {
     glGenerateMipmap(GL_TEXTURE_2D);
 
     free(image);
+
+    t->w = width;
+    t->h= height;
 
     return t;
 }

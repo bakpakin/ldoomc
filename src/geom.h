@@ -1,7 +1,6 @@
 #ifndef PH_MATH_HEADER
 #define PH_MATH_HEADER
 
-#include "config.h"
 #include "ldmath.h"
 
 #include <stdlib.h>

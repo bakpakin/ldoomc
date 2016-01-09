@@ -1,10 +1,8 @@
 #ifndef MESH_HEADER
 #define MESH_HEADER
 
-#include "config.h"
 #include "ldmath.h"
-
-#include OPENGL_H
+#include "glfw.h"
 
 /*
  * Represents the kind of vertices in the mesh.
@@ -53,7 +51,7 @@ typedef struct {
     MeshType mesh_type;
     DrawType draw_type;
     GLenum primitive_type;
-    char activated;
+    unsigned char flags;
     union {
         Vertex2D * v2d;
         SimpleVertex * sv;
@@ -102,6 +100,11 @@ void mesh_unload(Mesh * m);
  * Deinitializes a Mesh from the openGL context, and frees all vertex and other data.
  */
 void mesh_deinit(Mesh * m);
+
+/*
+ * Clears the memory in the CPU. The mesh can still be rendered on gpu, but can't be updated.
+ */
+void mesh_clearcpumem(Mesh * m);
 
 /*
  * Draws a mesh. Textures and shaders must be bound separately.

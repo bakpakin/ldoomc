@@ -1,12 +1,11 @@
 #ifndef CAMERA_HEADER
 #define CAMERA_HEADER
 
-#include "config.h"
 #include "ldmath.h"
 
 typedef enum {
-    
-    CAMERATYPE_PERSPECTIVE, 
+
+    CAMERATYPE_PERSPECTIVE,
     CAMERATYPE_ORTHOGRAPHIC
 
 } CameraType;
@@ -17,7 +16,7 @@ typedef struct {
     vec3 position;
     vec3 direction;
     vec3 upDirection;
-    
+
     // The projection type of tha camera. Orthographic or perspective
     CameraType type;
 
@@ -42,7 +41,7 @@ typedef struct {
             float znear;
             float zfar;
         } perspective;
-        
+
         // Data to construct an orthographic projection matrix.
         struct {
             float width;
@@ -54,7 +53,7 @@ typedef struct {
 
 } Camera;
 
-Camera * camera_init_ortho(Camera * c, 
+Camera * camera_init_ortho(Camera * c,
         float width, float height, float depth);
 
 Camera * camera_init_perspective(Camera * c,

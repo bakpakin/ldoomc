@@ -1,7 +1,6 @@
 #ifndef VECTOR_HEADER
 #define VECTOR_HEADER
 
-#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -30,7 +29,7 @@ MODIFIERS void vector_deinit_##NAME(Vector * v) { \
     v->data = NULL; \
 } \
 MODIFIERS void vector_resize_##NAME(Vector * v) { \
-    v->capacity *= 2; /* double capacity */ \
+    v->capacity = v->count * 2; /* double capacity */ \
     v->data = realloc(v->data, sizeof(TYPE) * v->capacity); \
     if (v->data == NULL) \
         uerr("Resize failed."); \
@@ -60,7 +59,7 @@ MODIFIERS TYPE vector_get_##NAME(Vector * v, unsigned index) { \
     return ((TYPE *)v->data)[index]; \
 } \
 MODIFIERS TYPE vector_push_##NAME(Vector * v, TYPE value) { \
-    if (v->count == v->capacity) \
+    if (v->count >= v->capacity) \
         vector_resize_##NAME(v); \
     return (((TYPE *)v->data)[v->count++] = value); \
 } \
@@ -96,7 +95,10 @@ MODIFIERS void vector_insert_##NAME(Vector * v, unsigned index, TYPE value) { \
     ((TYPE *)v->data)[index] = value; \
 } \
 MODIFIERS void vector_bag_remove_##NAME(Vector * v, unsigned index) { \
-    vector_set_##NAME(v, index, vector_pop_##NAME(v)); \
+    if (index == v->count - 1) \
+        vector_pop_##NAME(v); \
+    else \
+        vector_set_##NAME(v, index, vector_pop_##NAME(v)); \
 } \
 
 #define VECTOR_DECLARE(MODIFIERS, TYPE, NAME) \

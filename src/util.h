@@ -1,13 +1,16 @@
 #ifndef UTIL_HEADER__
 #define UTIL_HEADER__
 
-#include "config.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #define uerr(msg) do { \
     fprintf(stderr, "Error in %s, line %d, %s: %s\n", __FILE__, __LINE__, __func__, msg); \
+} while (0)
+
+#define uerr2(msg, args...) do { \
+    fprintf(stderr, "Error in %s, line %d, %s: " #msg "\n", __FILE__, __LINE__, __func__, __VA_ARGS__); \
 } while (0)
 
 #define uassert(expr) do { \

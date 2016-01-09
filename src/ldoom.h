@@ -6,9 +6,7 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "config.h"
-#include SDL_H
-#include OPENGL_H
+#include "glfw.h"
 #include "util.h"
 #include "ldmath.h"
 #include "geom.h"
@@ -20,5 +18,6 @@
 #include "texture.h"
 #include "camera.h"
 #include "lodepng.h"
+#include "fntdraw.h"
 
 #endif

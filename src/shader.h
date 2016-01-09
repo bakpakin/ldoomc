@@ -1,8 +1,7 @@
 #ifndef SHADER_HEADER
 #define SHADER_HEADER
 
-#include "config.h"
-#include OPENGL_H
+#include "glfw.h"
 #include "vector.h"
 
 typedef struct {
@@ -58,7 +57,7 @@ Program * program_init_quick(Program * p, const char * vert_source, const char *
 
 /*
  * Initializes a progam from a simgle file. Use defines to define multiple shaders
- * in one file. Surround the shaders with #ifdef VERTEX for the vertex shader, 
+ * in one file. Surround the shaders with #ifdef VERTEX for the vertex shader,
  * #ifdef FRAGMENT for the fragment shader, and #ifdef GEOMETRY geometry shaders.
  * Programs initialized this way can only have one shader of each type. For more
  * general loading, see program_init.

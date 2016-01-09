@@ -1,7 +1,6 @@
 #ifndef OPOOL_HEADER
 #define OPOOL_HEADER
 
-#include "config.h"
 #include <stddef.h>
 #include <stdlib.h>
 

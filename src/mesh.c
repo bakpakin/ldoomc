@@ -3,6 +3,9 @@
 #include "stddef.h"
 #include "stdio.h"
 
+#define ACTIVE_BIT 0x01
+#define MEMINITED_BIT 0x02
+
 /*
  * Unwrap the DrawType enum in the mesh.
  */
@@ -98,7 +101,7 @@ Mesh * mesh_init(Mesh * m,
         const GLushort * indices) {
 
     m->primitive_type = GL_TRIANGLES;
-    m->activated = 0;
+    m->flags= MEMINITED_BIT;
     m->draw_type = draw_type;
     m->mesh_type = mesh_type;
 
@@ -128,7 +131,7 @@ Mesh * mesh_init_floats(Mesh * m,
         const GLushort * indices) {
 
     m->primitive_type = GL_TRIANGLES;
-    m->activated = 0;
+    m->flags= MEMINITED_BIT;
     m->draw_type = draw_type;
     m->mesh_type = mesh_type;
 
@@ -158,7 +161,7 @@ static Mesh * mesh_init_nocopy(Mesh * m,
         GLushort * indices) {
 
     m->primitive_type = GL_TRIANGLES;
-    m->activated = 0;
+    m->flags = MEMINITED_BIT;
     m->draw_type = draw_type;
     m->mesh_type = mesh_type;
 
@@ -176,7 +179,7 @@ static Mesh * mesh_init_nocopy(Mesh * m,
 }
 
 void mesh_load(Mesh * m) {
-    if (m->activated)
+    if (m->flags & ACTIVE_BIT)
         return;
     generate_buffers(m);
     switch(m->mesh_type) {
@@ -191,24 +194,28 @@ void mesh_load(Mesh * m) {
             break;
     }
     glBindVertexArray(0);
-    m->activated = 1;
+    m->flags |= ACTIVE_BIT;
 }
 
 void mesh_unload(Mesh * m) {
-    if (!m->activated)
+    if (!(m->flags & ACTIVE_BIT))
         return;
     glDeleteVertexArrays(1, &m->VAO);
     glDeleteBuffers(1, &m->VBO);
     glDeleteBuffers(1, &m->EBO);
-    m->activated = 0;
+    m->flags &= ~ACTIVE_BIT;
+}
+
+void mesh_clearcpumem(Mesh * m) {
+    if (!(m->flags & MEMINITED_BIT))
+        return;
+    free(m->indices);
+    m->flags &= ~MEMINITED_BIT;
 }
 
 void mesh_deinit(Mesh * m) {
     mesh_unload(m);
-    m->VBO = 0;
-    m->VAO = 0;
-    m->EBO = 0;
-    free(m->indices);
+    mesh_clearcpumem(m);
 }
 
 void mesh_draw(Mesh * m) {
@@ -217,7 +224,6 @@ void mesh_draw(Mesh * m) {
     glDrawElements(m->primitive_type, m->icount, GL_UNSIGNED_SHORT, 0);
     glBindVertexArray(0);
 }
-
 
 static const GLfloat quad_verts[] = {
     0.5, 0.5, 1, 1,
@@ -381,3 +387,6 @@ Mesh * mesh_init_cylinder(Mesh * m, float height, float radius, int subdivisions
 
     return m;
 }
+
+#undef MEMINITED_BIT
+#undef ACTIVE_BIT

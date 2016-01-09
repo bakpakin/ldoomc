@@ -4,6 +4,8 @@ static Program p;
 static Mesh m;
 static Texture t;
 static Camera c;
+static FontDef fd;
+static Text txt;
 
 static Gamestate simple;
 
@@ -24,9 +26,10 @@ void init() {
     position[2] = -5;
     yaw = 0;
     program_init_file(&p, "../resources/basic.glsl");
-    texture_init_file(&t, "../resources/crate.png");
+    texture_init_file(&t, "../resources/crate.png", -1);
     mvpLoc = program_find_uniform(&p, "mvp");
     diffuseLoc = program_find_uniform(&p, "diffuse");
+    fnt_init(&fd, "../resources/font.fnt");
 }
 
 void draw() {
@@ -39,50 +42,50 @@ void draw() {
 }
 
 void update(double dt) {
-    direction[0] = sin(yaw) * cos(pitch);
-    direction[1] = sin(pitch);
-    direction[2] = cos(yaw) * cos(pitch);
+    direction[0] = sinf(yaw) * cosf(pitch);
+    direction[1] = sinf(pitch);
+    direction[2] = cosf(yaw) * cosf(pitch);
     camera_set_direction(&c, direction);
     camera_set_position(&c, position);
 }
 
-void mousemoved(SDL_MouseMotionEvent e, int x, int y, int dx, int dy) {
+void mousemoved(float x, float y, float dx, float dy) {
     float scale = 0.4;
     yaw += dx * game_delta * scale;
     pitch -= dy * game_delta * scale;
     pitch = ldm_clamp(pitch, LD_PI / -2.1, LD_PI / 2.1);
 }
 
-void key(SDL_Scancode key) {
+void key(int key) {
     float dp = game_delta * 4;
     switch(key) {
-    case SDL_SCANCODE_LEFT:
+    case GLFW_KEY_LEFT:
         yaw -= 0.3 * dp;
         break;
-    case SDL_SCANCODE_RIGHT:
+    case GLFW_KEY_RIGHT:
         yaw += 0.3 * dp;
         break;
-    case SDL_SCANCODE_E:
+    case GLFW_KEY_E:
         position[1] -= dp;
         break;
-    case SDL_SCANCODE_Q:
+    case GLFW_KEY_Q:
         position[1] += dp;
         break;
-    case SDL_SCANCODE_S:
-        position[0] -= sin(yaw) * dp;
-        position[2] -= cos(yaw) * dp;
+    case GLFW_KEY_S:
+        position[0] -= sinf(yaw) * dp;
+        position[2] -= cosf(yaw) * dp;
         break;
-    case SDL_SCANCODE_W:
-        position[0] += sin(yaw) * dp;
-        position[2] += cos(yaw) * dp;
+    case GLFW_KEY_W:
+        position[0] += sinf(yaw) * dp;
+        position[2] += cosf(yaw) * dp;
         break;
-    case SDL_SCANCODE_A:
-        position[0] -= cos(yaw) * dp;
-        position[2] += sin(yaw) * dp;
+    case GLFW_KEY_A:
+        position[0] -= cosf(yaw) * dp;
+        position[2] += sinf(yaw) * dp;
         break;
-    case SDL_SCANCODE_D:
-        position[0] += cos(yaw) * dp;
-        position[2] -= sin(yaw) * dp;
+    case GLFW_KEY_D:
+        position[0] += cosf(yaw) * dp;
+        position[2] -= sinf(yaw) * dp;
         break;
     default:
         break;
@@ -93,6 +96,7 @@ void deinit() {
     mesh_deinit(&m);
     program_deinit(&p);
     texture_deinit(&t);
+    fnt_deinit(&fd);
 }
 
 int main(int argc, char* argv[]) {
