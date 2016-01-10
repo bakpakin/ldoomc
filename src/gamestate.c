@@ -188,7 +188,7 @@ void game_init() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
-	game_window = glfwCreateWindow(vmode->width, vmode->height, "Ldoom", NULL, NULL);
+	game_window = glfwCreateWindow(1000, 600, "Ldoom", NULL, NULL);
 	if (!game_window) {
 	    glfwTerminate();
     }

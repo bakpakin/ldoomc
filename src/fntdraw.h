@@ -6,7 +6,6 @@
 #include "ldmath.h"
 
 typedef struct {
-    unsigned valid;
     unsigned x;
     unsigned y;
     unsigned w;
@@ -25,9 +24,12 @@ typedef struct {
     FontCharDef * chars;
 } FontDef;
 
+#define FNTDRAW_TEXT_LOADED_BIT 0x01
+
 typedef struct {
     const FontDef * fontdef;
     char * text;
+    unsigned flags;
     unsigned text_length;
     unsigned text_capacity;
     GLuint VBO;
@@ -35,6 +37,11 @@ typedef struct {
     GLuint VAO;
     GLushort * elementBuffer;
     GLfloat * vertexBuffer;
+
+    // Metrics
+    unsigned line_count;
+    unsigned * line_lengths;
+    float * line_widths;
 } Text;
 
 FontDef * fnt_init(FontDef * fd, const char * path);

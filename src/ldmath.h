@@ -17,7 +17,7 @@ static float ldm_min(float a, float b) {
 }
 
 static float ldm_max(float a, float b) {
-    return a < b ? b : a; 
+    return a < b ? b : a;
 }
 
 static float ldm_clamp(float x, float min, float max) {
@@ -32,11 +32,11 @@ static float ldm_lerp(float a, float b, float t) {
 }
 
 static float ldm_deg_to_rad(float deg) {
-    return deg * LD_PI_OVER_180;    
+    return deg * LD_PI_OVER_180;
 }
 
 static float ldm_rad_to_deg(float rad) {
-    return rad * LD_180_OVER_PI;    
+    return rad * LD_180_OVER_PI;
 }
 
 static float ldm_floor(float in) {
@@ -419,11 +419,11 @@ static inline void mat4_proj_perspective(mat4 out, float fovY, float aspect, flo
     out[8] = 0;
     out[9] = 0;
     out[10] = (zFar + zNear) / (zNear - zFar);
-    out[11] = -1;
+    out[11] = -1.0f;
 
     out[12] = 0;
     out[13] = 0;
-    out[14] = (2 * zFar * zNear) / (zNear - zFar);
+    out[14] = (2.0f * zFar * zNear) / (zNear - zFar);
     out[15] = 0;
 
 }
@@ -433,34 +433,34 @@ static inline void mat4_proj_ortho(mat4 out,
         float bottom, float top,
         float near, float far) {
 
-    out[0] = 2.0 / (right - left);
+    out[0] = 2.0f / (right - left);
     out[1] = 0;
     out[2] = 0;
     out[3] = 0;
 
     out[4] = 0;
-    out[5] = 2.0 / (top - bottom);
+    out[5] = 2.0f / (top - bottom);
     out[6] = 0;
     out[7] = 0;
 
     out[8] = 0;
     out[9] = 0;
-    out[10] = -2.0 / (far - near);
+    out[10] = -2.0f / (far - near);
     out[11] = 0;
 
     out[12] = -(right + left) / (right - left);
     out[13] = -(top + bottom) / (top - bottom);
-    out[14] = (far + near) / (far - near);
-    out[15] = 1;
+    out[14] = -(far + near) / (far - near);
+    out[15] = 1.0f;
 
 }
 
 static inline void mat4_look_vec(mat4 out, const vec3 eye, const vec3 direction, const vec3 up) {
 
-    vec3 d; 
+    vec3 d;
     vec3_norm(d, direction);
     vec3_scale(d, d, -1);
-    
+
     vec3 s;
     vec3_cross(s, d, up);
     vec3_norm(s, s);

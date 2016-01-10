@@ -5,40 +5,54 @@
 #include "mesh.h"
 #include "util.h"
 
+static void skip_whitespace(const char ** p) {
+    const char * c = *p;
+    while (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r')
+        c++;
+    *p = c;
+}
+
+static void skip_nonwhitespace(const char ** p) {
+    const char * c = *p;
+    while (*c != ' ' && *c != '\t' && *c != '\n' && *c != '\r')
+        c++;
+    *p = c;
+}
+
 static const char * line_find_value(const char * str, const char * key, char * buffer, unsigned buf_max_len) {
 	const char * c = str;
 	size_t len = strlen(key);
-	int keyfound = 0;
+	int keyfound;
 	for(;;) {
-		keyfound = 1;
+	    skip_whitespace(&c);
+	    keyfound = 1;
 		for (int i = 0; i < len; i++) {
 			if (c[i] != key[i])	{
 				keyfound = 0;
-				continue;
+				break;
 			}
 		}
 		if (keyfound) {
-			if (*(c + len) == '=') {
+			if (c[len] == '=') {
 				c += len + 1;
 				break;
 			}
 		}
-		while (*c++ != ' ' && *c != '\t' && *c != '\n')
-			;
+		skip_nonwhitespace(&c);
 	}
 	const char * end = c;
-	while (*++end != ' ' && *end != '\t' && *end != '\n')
-		;
-	end--;
+    skip_nonwhitespace(&end);
+    end--;
 	if ((*c == '"') && (*end == '"')) {
 		c++;
 		end--;
 	}
-	unsigned length = end - c;
-	if (length >= buf_max_len) {
+	unsigned length = end - c + 1;
+	if (length + 1 >= buf_max_len) {
 		uerr("String buffer overflow.");
 	}
 	strncpy(buffer, c, length);
+	buffer[length] = 0;
 	return end;
 }
 
@@ -59,16 +73,16 @@ static void resolve_path_name(const char * path, const char * file, char * buf, 
 	char sep = '/';
 	#endif
 	const char * c = path + pathlen;
-	while (*--c != sep && c != path)
-		;
+	while (*c != sep && c != path)
+		c--;
 	if (c == path)
         uerr("Could not find file from path.");
     int filelen = strlen(file);
     if (filelen + pathlen + 1 > max_len)
         uerr("Buffer overflow.");
 
-    strncpy(buf, path, c - path);
-    strncpy(buf + pathlen, file, filelen + 1);
+    strncpy(buf, path, max_len);
+    strncpy(buf + (c - path ) + 1, file, max_len - (c - path) - 1);
 }
 
 static int shader_tex_loc;
@@ -108,7 +122,6 @@ FontDef * fnt_init(FontDef * fd, const char * path) {
 	// Extract basic font def information.
 	line_find_value(srcp, "size", buf, BUFLEN);
 	fd->size = atoi(buf);
-	printf("%d\n", fd->size);
 	srcp = line_next(srcp);
 
 	// Get some more basic information on the next line.
@@ -126,9 +139,9 @@ FontDef * fnt_init(FontDef * fd, const char * path) {
 	texture_init_file(&fd->tex, buf2, -1);
 	srcp = line_next(srcp);
 
-	// Get the number of characters
-	line_find_value(srcp, "count", buf, BUFLEN);
-	fd->charcount = atoi(buf);
+    // Get the number of characters
+  	line_find_value(srcp, "count", buf, BUFLEN);
+ 	fd->charcount = atoi(buf);
 
 	FontCharDef * cd = fd->chars = calloc(128, sizeof(FontCharDef));
 
@@ -148,17 +161,15 @@ FontDef * fnt_init(FontDef * fd, const char * path) {
 		line_find_value(srcp, "yoffset", buf, BUFLEN); yoff = atof(buf);
 		line_find_value(srcp, "xadvance", buf, BUFLEN); xadvance = atof(buf);
 
-		cd[id] = (FontCharDef) {
-			x,
-			y,
-			w,
-			h,
-			xoff,
-			yoff,
-			xadvance
-		};
+		cd[id].x = x;
+		cd[id].y = y;
+		cd[id].w = w;
+		cd[id].h = h;
+		cd[id].xoffset = xoff;
+		cd[id].yoffset = yoff;
+		cd[id].xadvance = xadvance;
 
-	}
+    }
 
 	free(source);
 
@@ -173,9 +184,18 @@ void fnt_deinit(FontDef * fd) {
     }
 }
 
+static void calc_metrics(Text * t) {
+    int lines = 1;
+    for (int i = 0; i < t->text_length - 1; i++) {
+        if (t->text[i] == '\n') lines++;
+    }
+
+}
+
 static void fill_buffers(Text * t) {
 
     float xcurrent = 0;
+    float ycurrent = 0;
 
     unsigned slen = t->text_length;
     GLushort * els = t->elementBuffer;
@@ -183,55 +203,65 @@ static void fill_buffers(Text * t) {
 
     float tw = t->fontdef->tex.w;
     float th = t->fontdef->tex.h;
-    float invtw = 1 / tw;
-    float invth = 1 / th;
+    float invtw = 1.0f / tw;
+    float invth = 1.0f / th;
 
-    for (unsigned i = 0; i < slen; i++, vs += 16, els += 6) {
+    static const float scale = 4;
 
-        FontCharDef * fcd = &t->fontdef->chars[t->text[i]];
+    for (unsigned i = 0; i < slen; i++) {
 
-        vs[0] = xcurrent; vs[1] = 0; vs[2] = fcd->x * invtw; vs[3] = fcd->y * invth;
-        vs[4] = xcurrent; vs[5] = fcd->h; vs[6] = fcd->x * invtw; vs[7] = fcd->y * invth + fcd->h * invth;
-        vs[8] = xcurrent + fcd->w; vs[9] = 0; vs[10] = fcd->x * invtw + fcd->w * invtw; vs[11] = fcd->y * invth;
-        vs[12] = xcurrent + fcd->w; vs[13] = fcd->h; vs[14] = fcd->x * invtw + fcd->w * invtw; vs[15] = fcd->y * invth + fcd->h * invth;
+        vs = t->vertexBuffer + 16 * i;
+        els = t->elementBuffer + 6 * i;
 
-        els[0] = i;
-        els[1] = els[3] = i + 1;
-        els[2] = els[4] = i + 2;
-        els[5] = i + 3;
+        char c = t->text[i];
+        FontCharDef * fcd = &t->fontdef->chars[c];
 
-        xcurrent += fcd->xadvance;
+        float x1 = xcurrent + fcd->xoffset * scale;
+        float x2 = x1 + fcd->w * scale;
+        float y1 = ycurrent + fcd->yoffset * scale;
+        float y2 = y1 + fcd->h * scale;
+
+        float u1 = fcd->x * invtw;
+        float u2 = u1 + fcd->w * invtw;
+        float v1 = fcd->y * invth;
+        float v2 = v1 + fcd->h * invth;
+
+        // Neg x, Neg y corner
+        vs[0] = x1; vs[1] = y1; vs[2] = u1; vs[3] = v1;
+
+        // Neg x, Pos y corner
+        vs[4] = x1; vs[5] = y2; vs[6] = u1; vs[7] = v2;
+
+        // Pos x, Neg y corner
+        vs[8] = x2; vs[9] = y1; vs[10] = u2; vs[11] = v1;
+
+        // Pos x, Pos y corner
+        vs[12] = x2; vs[13] = y2; vs[14] = u2; vs[15] = v2;
+
+        els[0] = 4 * i + 0;
+        els[1] = 4 * i + 1;
+        els[2] = 4 * i + 2;
+        els[3] = 4 * i + 1;
+        els[4] = 4 * i + 3;
+        els[5] = 4 * i + 2;
+
+        if (c == '\n') {
+            ycurrent += t->fontdef->lineHeight * scale;
+            xcurrent = 0;
+        } else {
+            xcurrent += fcd->xadvance * scale;
+        }
     }
 }
 
 void text_loadbuffer(Text * t) {
 
-    size_t slen = t->text_length;
+    if (t->flags & FNTDRAW_TEXT_LOADED_BIT) {
+        return;
+    }
 
-    glGenBuffers(1, &t->VBO);
-    glGenBuffers(1, &t->EBO);
-    glGenVertexArrays(1, &t->VAO);
-
-    //TODO
-}
-
-void text_unloadbuffer(Text * t) {
-    //TODO
-}
-
-Text * text_init(Text * t, const FontDef * fd, const char * text) {
-
-    size_t slen = strlen(text);
-
-    t->fontdef = fd;
-    t->text = malloc(slen + 1);
-    strcpy(t->text, text);
-    t->vertexBuffer = malloc(sizeof(GLfloat) * 16 * slen);
-    t->elementBuffer = malloc(sizeof(GLushort) * 6 * slen);
-    t->text_capacity = slen;
-    t->text_length = slen;
-
-    fill_buffers(t);
+    t->flags |= FNTDRAW_TEXT_LOADED_BIT;
+    unsigned slen = t->text_length;
 
     glGenBuffers(1, &t->VBO);
     glGenBuffers(1, &t->EBO);
@@ -241,8 +271,8 @@ Text * text_init(Text * t, const FontDef * fd, const char * text) {
 
     glBindBuffer(GL_ARRAY_BUFFER, t->VBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, t->EBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLushort) * 4 * slen, t->vertexBuffer, GL_STATIC_DRAW);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * 4 * slen, t->elementBuffer, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16 * slen, t->vertexBuffer, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * 6 * slen, t->elementBuffer, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GL_FLOAT), 0);
@@ -252,16 +282,52 @@ Text * text_init(Text * t, const FontDef * fd, const char * text) {
 
     glBindVertexArray(0);
 
-    t->text_length = 0;
-    t->text_capacity = 0;
+}
 
-    text_append(t, text);
+void text_unloadbuffer(Text * t) {
+
+    if (!(t->flags & FNTDRAW_TEXT_LOADED_BIT)) {
+        return;
+    }
+
+    t->flags &= ~FNTDRAW_TEXT_LOADED_BIT;
+
+    glBindVertexArray(0);
+    glDeleteBuffers(1, &t->VBO);
+    glDeleteBuffers(1, &t->EBO);
+    glDeleteVertexArrays(1, &t->VAO);
+
+}
+
+Text * text_init(Text * t, const FontDef * fd, const char * text) {
+
+    size_t slen = strlen(text);
+
+    t->flags = 0;
+    t->fontdef = fd;
+    t->text = malloc(slen + 1);
+    strcpy(t->text, text);
+    t->vertexBuffer = malloc(sizeof(GLfloat) * 16 * slen);
+    t->elementBuffer = malloc(sizeof(GLushort) * 6 * slen);
+    t->text_capacity = slen;
+    t->text_length = slen;
+
+    calc_metrics(t);
+
+    fill_buffers(t);
+
+    text_loadbuffer(t);
 
     return t;
 }
 
 void text_deinit(Text * t) {
 
+    text_unloadbuffer(t);
+
+    free(t->vertexBuffer);
+    free(t->elementBuffer);
+    free(t->text);
 }
 
 void text_draw(Text * t, mat4 mvp, vec4 color) {
@@ -271,11 +337,10 @@ void text_draw(Text * t, mat4 mvp, vec4 color) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
     glUniform1i(shader_tex_loc, 0);
-    glUniform4f(shader_color_loc, color[0], color[1], color[2], color[3]);
+    glUniform4fv(shader_color_loc, 1, color);
     glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
 
     glBindVertexArray(t->VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, t->VBO);
     glDrawElements(GL_TRIANGLES, t->text_length * 6, GL_UNSIGNED_SHORT, 0);
     glBindVertexArray(0);
 

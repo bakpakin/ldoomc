@@ -36,7 +36,7 @@ include_directories(src)
 add_executable(${TARGET_NAME} ${SOURCES})
 
 # Add custom flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g")
 
 # Set up Libraries
 find_package(glfw3 REQUIRED)

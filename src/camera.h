@@ -63,7 +63,7 @@ CameraType camera_get_type(const Camera * c);
 
 void camera_frustum_bounds(Camera * m, aabb3 out);
 
-void camera_apply(Camera * m, int matrix_uniform_location);
+void camera_update(Camera * c);
 
 void camera_set_perspective(Camera * c, float fovY, float aspect, float zNear, float zFar);
 

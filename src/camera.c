@@ -1,7 +1,5 @@
 #include "camera.h"
 
-#include "glfw.h"
-
 #define PROJECTION_DIRTY_BIT 0x01
 #define LOOKAT_DIRTY_BIT 0x02
 
@@ -106,7 +104,7 @@ Camera * camera_init_perspective(Camera * c,
     return c;
 }
 
-void camera_apply(Camera * c, int matrix_uniform_location) {
+void camera_update(Camera * c) {
     unsigned char dirty = c->dirty;
     if (dirty & PROJECTION_DIRTY_BIT) {
         camera_update_projection(c);
@@ -115,7 +113,6 @@ void camera_apply(Camera * c, int matrix_uniform_location) {
         camera_update_matrix(c);
     }
     c->dirty = 0;
-    glUniformMatrix4fv(matrix_uniform_location, 1, GL_FALSE, c->matrix);
 }
 
 #undef PROJECTION_DIRTY_BIT

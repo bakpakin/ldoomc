@@ -1,4 +1,4 @@
-#version 330 core
+#version 330
 
 uniform mat4 mvp;
 uniform sampler2D tex;
@@ -22,14 +22,13 @@ void main() {
 
 in vec2 vtexcoord;
 
-const float smoothing = 1.0/16.0;
-
 out vec4 fragcolor;
 
+const float smoothing = 1.0 / 16.0;
+
 void main() {
-    vec4 dandcolor = texture(tex, vtexcoord);
-    float alpha = smoothstep(0.5 - smoothing, 0.5 + smoothing, dandcolor.a) * color.a;
-    fragcolor = vec4(color.rgb, alpha);
+    float a = texture(tex, vtexcoord).a;
+    fragcolor = vec4(1, 1,1 , smoothstep(0.5 - smoothing, 0.5 + smoothing, a) * 1);
 }
 
 #endif
