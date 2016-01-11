@@ -69,24 +69,4 @@ Program * program_init_file(Program * p, const char * path);
  */
 void program_deinit(Program * p);
 
-/*
- * Gets the program atribute associated with the given index.
- */
-ProgramAttribute * program_attribute(Program * p, unsigned index);
-
-/*
- * Gets the program uniform associated with the given index.
- */
-ProgramUniform * program_uniform(Program * p, unsigned index);
-
-/*
- * Find an attribute by name. Similar to glGetUniformLocation.
- */
-int program_find_attribute(Program * p, const char * name);
-
-/*
- * Find a uniform by name. Equivalent to glGetUniformLocation.
- */
-int program_find_uniform(Program * p, const char * name);
-
 #endif

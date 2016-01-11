@@ -41,8 +41,8 @@ static GLuint shader_create_shader(const GLchar * source, GLint type, const GLch
     };
 
     const GLchar * sources[4] = {
-        source, 
-        get_source_header(type), 
+        source,
+        get_source_header(type),
         prepend,
         split_ptr
     };
@@ -80,7 +80,7 @@ void shader_deinit(Shader * s) {
 }
 
 Program * program_init(Program * p, int shader_count, ...) {
-    
+
     va_list l;
     GLuint prg = glCreateProgram();
     int j;
@@ -114,54 +114,6 @@ Program * program_init(Program * p, int shader_count, ...) {
 
     p->id = prg;
 
-    // Get Attribute information
-    GLint numAttributes;
-    GLint attribBufferLength;
-    glGetProgramiv(prg, GL_ACTIVE_ATTRIBUTES, &numAttributes);
-    glGetProgramiv(prg, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attribBufferLength);
-    attribBufferLength++;
-    vector_init_A(&p->attributes, numAttributes);
-    char * buf = malloc(sizeof(char) * attribBufferLength * numAttributes);
-    char * bufstart = buf;
-    for (int i = 0; i < numAttributes; i++) {
-        GLsizei length;
-        GLenum type;
-        GLint size;
-        glGetActiveAttrib(prg, i, attribBufferLength, &length, &size, &type, buf);
-        ProgramAttribute a = {
-            buf,
-            type, 
-            size
-        };
-        buf = buf + length + 1;
-        vector_push_A(&p->attributes, a);
-    }
-    realloc(bufstart, buf - bufstart + 1);
-    
-    // Get Uniform information
-    GLint numUniforms;
-    GLint uniformBufferLength;
-    glGetProgramiv(prg, GL_ACTIVE_UNIFORMS, &numUniforms);
-    glGetProgramiv(prg, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniformBufferLength);
-    uniformBufferLength++;
-    vector_init_U(&p->uniforms, numUniforms);
-    buf = malloc(sizeof(char) * uniformBufferLength * numUniforms);
-    bufstart = buf;
-    for (int i = 0; i < numUniforms; i++) {
-        GLsizei length;
-        GLenum type;
-        GLint size;
-        glGetActiveUniform(prg, i, uniformBufferLength, &length, &size, &type, buf);
-        ProgramUniform u = {
-            buf,
-            type, 
-            size
-        };
-        buf = buf + length + 1;
-        vector_push_U(&p->uniforms, u);
-    }
-    realloc(bufstart, buf - bufstart + 1);
-
     return p;
 }
 
@@ -192,28 +144,4 @@ void program_deinit(Program * p) {
     vector_deinit_A(&p->attributes);
     vector_deinit_U(&p->uniforms);
     glDeleteProgram(p->id);
-}
-
-ProgramAttribute * program_attribute(Program * p, unsigned index) {
-    return vector_ptr_A(&p->attributes, index);
-}
-
-ProgramUniform * program_uniform(Program * p, unsigned index) {
-    return vector_ptr_U(&p->uniforms, index);
-}
-
-int program_find_atribute(Program * p, const char * name) {
-    for (int i = 0; i < p->attributes.count; i++) {
-        if (!strcmp(name, program_attribute(p, i)->name))
-            return i;
-    }
-    return -1;
-}
-
-int program_find_uniform(Program * p, const char * name) {
-    for (int i = 0; i < p->uniforms.count; i++) {
-        if (!strcmp(name, program_uniform(p, i)->name))
-            return i;
-    }
-    return -1;
 }

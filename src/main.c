@@ -9,12 +9,11 @@ static Gamestate simple;
 void init() {
     mat4_proj_ortho(ortho, 0, 1000, 600, 0, 0, 10);
     fnt_init(&fd, "../resources/font.txt");
-    text_init(&txt, &fd, "Hello, World!\nHey there.");
+    text_init(&txt, &fd, "Hello, World!\nHey there.", 144, ALIGN_LEFT, ALIGN_TOP, 500);
 }
 
 void draw() {
-    static vec4 white = {1, 1, 1, 1};
-    text_draw(&txt, ortho, white);
+    text_draw(&txt, ortho);
 }
 
 void deinit() {

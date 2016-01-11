@@ -88,15 +88,18 @@ static void resolve_path_name(const char * path, const char * file, char * buf, 
 static int shader_tex_loc;
 static int shader_mvp_loc;
 static int shader_color_loc;
+static int shader_smoothing_loc;
 
 static unsigned fntdef_count = 0;
 static Program text_shader_program;
 
 static void text_shader_init() {
     program_init_file(&text_shader_program, "../resources/fontdraw.glsl");
-    shader_tex_loc = program_find_uniform(&text_shader_program, "tex");
-    shader_mvp_loc = program_find_uniform(&text_shader_program, "mvp");
-    shader_color_loc = program_find_uniform(&text_shader_program, "color");
+
+    shader_tex_loc = glGetUniformLocation(text_shader_program.id, "tex");
+    shader_mvp_loc = glGetUniformLocation(text_shader_program.id, "mvp");
+    shader_color_loc = glGetUniformLocation(text_shader_program.id, "textcolor");
+    shader_smoothing_loc = glGetUniformLocation(text_shader_program.id, "smoothing");
 }
 
 static void text_shader_deinit() {
@@ -184,14 +187,6 @@ void fnt_deinit(FontDef * fd) {
     }
 }
 
-static void calc_metrics(Text * t) {
-    int lines = 1;
-    for (int i = 0; i < t->text_length - 1; i++) {
-        if (t->text[i] == '\n') lines++;
-    }
-
-}
-
 static void fill_buffers(Text * t) {
 
     float xcurrent = 0;
@@ -206,7 +201,7 @@ static void fill_buffers(Text * t) {
     float invtw = 1.0f / tw;
     float invth = 1.0f / th;
 
-    static const float scale = 4;
+    const float scale = t->pt / (double) t->fontdef->size;
 
     for (unsigned i = 0; i < slen; i++) {
 
@@ -299,20 +294,65 @@ void text_unloadbuffer(Text * t) {
 
 }
 
-Text * text_init(Text * t, const FontDef * fd, const char * text) {
+Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width) {
 
     size_t slen = strlen(text);
 
+    // Count the number of lines
+    int lines = 1;
+    for (int i = 0; i < slen - 1; i++) {
+        if (text[i] == '\n') lines++;
+    }
+    t->line_count = lines;
+
+    size_t vbuf_size = sizeof(GLfloat) * 16 * slen;
+    size_t lbuf_size = sizeof(float) * lines;
+    size_t ebuf_size = sizeof(GLushort) * 6 * slen;
+
+    void * ptr = malloc(vbuf_size + lbuf_size + ebuf_size + slen + 1);
+    t->vertexBuffer = (ptr);
+    t->line_widths = (ptr + vbuf_size);
+    t->elementBuffer = (ptr + vbuf_size + lbuf_size);
+    t->text = (ptr + vbuf_size + lbuf_size + ebuf_size);
+    memcpy(t->text, text, slen + 1);
+
     t->flags = 0;
     t->fontdef = fd;
-    t->text = malloc(slen + 1);
-    strcpy(t->text, text);
-    t->vertexBuffer = malloc(sizeof(GLfloat) * 16 * slen);
-    t->elementBuffer = malloc(sizeof(GLushort) * 6 * slen);
     t->text_capacity = slen;
     t->text_length = slen;
 
-    calc_metrics(t);
+    // Calc line widths
+    do {
+        float scale = pt / (double) fd->size;
+        int current_line = 0;
+        float current_length = 0.0f;
+        for (int i = 0; i < slen; i++) {
+            char c = text[i];
+            if (c == '\n') {
+                t->line_widths[current_line++] = current_length * scale;
+                current_length = 0.0f;
+            } else if (c >= 0) {
+                FontCharDef * fcd = fd->chars + c;
+                current_length += fcd->xadvance;
+            } else {
+                uerr("Unsupported character in text.");
+            }
+        }
+        if (current_length > 0 || current_line == 0) {
+            t->line_widths[current_line++] = current_length * scale;
+        }
+    } while (0);
+
+    // Set metrics
+    t->pt = pt;
+    t->halign = halign;
+    t->valign = valign;
+    t->max_width = max_width;
+    t->smoothing = 1.0f / 16.0f;
+    t->color[0] = 1.0f;
+    t->color[1] = 1.0f;
+    t->color[2] = 1.0f;
+    t->color[3] = 1.0f;
 
     fill_buffers(t);
 
@@ -326,22 +366,42 @@ void text_deinit(Text * t) {
     text_unloadbuffer(t);
 
     free(t->vertexBuffer);
-    free(t->elementBuffer);
-    free(t->text);
 }
 
-void text_draw(Text * t, mat4 mvp, vec4 color) {
+void text_draw(Text * t, mat4 mvp) {
 
     glUseProgram(text_shader_program.id);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
     glUniform1i(shader_tex_loc, 0);
-    glUniform4fv(shader_color_loc, 1, color);
+    glUniform4fv(shader_color_loc, 1, t->color);
     glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
+    glUniform1f(shader_smoothing_loc, t->smoothing);
 
     glBindVertexArray(t->VAO);
     glDrawElements(GL_TRIANGLES, t->text_length * 6, GL_UNSIGNED_SHORT, 0);
+    glBindVertexArray(0);
+
+}
+
+void text_draw_range(Text * t, mat4 mvp, unsigned start, unsigned length) {
+
+    if (start + length > t->text_length) {
+        uerr("Range not renderable.");
+    }
+
+    glUseProgram(text_shader_program.id);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
+    glUniform1i(shader_tex_loc, 0);
+    glUniform4fv(shader_color_loc, 1, t->color);
+    glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
+    glUniform1f(shader_smoothing_loc, t->smoothing);
+
+    glBindVertexArray(t->VAO);
+    glDrawElements(GL_TRIANGLES, length * 6, GL_UNSIGNED_SHORT, (GLvoid *)(start * 6 * sizeof(GLushort)));
     glBindVertexArray(0);
 
 }

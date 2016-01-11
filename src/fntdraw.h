@@ -26,44 +26,52 @@ typedef struct {
 
 #define FNTDRAW_TEXT_LOADED_BIT 0x01
 
+typedef enum {
+    ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, ALIGN_JUSTIFY, ALIGN_TOP, ALIGN_BOTTOM
+} TextAlign;
+
 typedef struct {
-    const FontDef * fontdef;
+
+    // Text data
     char * text;
     unsigned flags;
     unsigned text_length;
     unsigned text_capacity;
+
+    // Rendering
+    const FontDef * fontdef;
     GLuint VBO;
     GLuint EBO;
     GLuint VAO;
     GLushort * elementBuffer;
     GLfloat * vertexBuffer;
+    float smoothing;
+    float color[4];
 
     // Metrics
+    float pt;
+    float max_width;
+    TextAlign halign;
+    TextAlign valign;
     unsigned line_count;
-    unsigned * line_lengths;
     float * line_widths;
+
 } Text;
 
 FontDef * fnt_init(FontDef * fd, const char * path);
 
 void fnt_deinit(FontDef * fd);
 
-Text * text_init(Text * t, const FontDef * fd, const char * text);
+Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width);
 
 void text_deinit(Text * t);
-
-void text_append(Text * t, const char * text);
-
-void text_clear(Text * t);
-
-void text_insert(Text * t, unsigned index, const char * text);
-
-void text_remove(Text * t, unsigned index, unsigned count);
 
 void text_loadbuffer(Text * t);
 
 void text_unloadbuffer(Text * t);
 
-void text_draw(Text * t, mat4 mvp, vec4 color);
+void text_draw(Text * t, mat4 mvp);
+
+void text_draw_range(Text * t, mat4 mvp, unsigned start, unsigned length);
 
 #endif
