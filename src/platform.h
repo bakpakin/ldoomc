@@ -1,13 +1,11 @@
 #ifndef PLATFORM_HEADER
 #define PLATFORM_HEADER
 
-// Cross platform resource loading
-#ifdef _APPLE_
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "CoreFoundation/CFBundle.h"
+void platform_init();
 
-#endif
-
-#include "glfw.h"
+int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize);
 
 #endif

@@ -39,13 +39,18 @@ Shader * shader_init(Shader * s, const char * source, GLint type);
 Shader * shader_init_file(Shader * s, const char * path, GLint type);
 
 /*
+ * Initializes a shader from a resource.
+ */
+Shader * shader_init_resource(Shader * s, const char * resource, GLint type);
+
+/*
  * Deinitializes the shader in the openGL context.
  */
 void shader_deinit(Shader * s);
 
 /*
  * Initializes a program with a number of shaders. When the program is
- * created, the shaders a re detached but not destory. Shaders must be
+ * created, the shaders are detached but not destory. Shaders must be
  * deinitialized separately.
  */
 Program * program_init(Program * p, int shader_count, ...);
@@ -68,6 +73,11 @@ Program * program_init_quick(Program * p, const char * source);
  * general loading, see program_init.
  */
 Program * program_init_file(Program * p, const char * path);
+
+/*
+ * Initializes a program from a named resource.
+ */
+Program * program_init_resource(Program * p, const char * resource);
 
 /*
  * Deinitializes a program.

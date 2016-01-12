@@ -1,4 +1,5 @@
 #include "fntdraw.h"
+#include "platform.h"
 
 #include <stdlib.h>
 #include "shader.h"
@@ -151,14 +152,18 @@ static void text_shader_deinit() {
     program_deinit(&text_shader_program);
 }
 
-FontDef * fnt_init(FontDef * fd, const char * path) {
+FontDef * fnt_init(FontDef * fd, const char * resource) {
+
+	#define BUFLEN 200
+
+    char path[BUFLEN];
+    platform_res2file(resource, path, BUFLEN);
 
     if (fntdef_count == 0) {
         text_shader_init();
     }
     fntdef_count++;
 
-	#define BUFLEN 140
 
 	char buf[BUFLEN];
 

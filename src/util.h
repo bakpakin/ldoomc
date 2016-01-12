@@ -22,6 +22,15 @@
 
 const char * util_filename_ext(const char * path);
 
+// Allocates some temprary data. Only one chunk of data at a time can be allocated like this.
+void * uqmalloc(size_t size);
+
+// realloc the memory from uqmalloc.
+void * uqrealloc(size_t size);
+
+// Frees data allocated with uqmalloc.
+void uqfree();
+
 // Slurped data musted be freed via free.
 char * util_slurp(const char * path, long * length);
 

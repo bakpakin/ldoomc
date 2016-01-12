@@ -2,6 +2,7 @@
 #include "util.h"
 #include <stdlib.h>
 #include "lodepng.h"
+#include "platform.h"
 
 Texture * texture_init_file(Texture * t, const char * path, int pathlen) {
 
@@ -14,7 +15,7 @@ Texture * texture_init_file(Texture * t, const char * path, int pathlen) {
 
     if (pathlen >= 0) {
         if (pathlen + 1 > BUFLEN)
-            uerr("Pexture path buffer overflow.");
+            uerr("Texture path buffer overflow.");
         path = buf;
         strncpy(buf, path, pathlen);
     }
@@ -42,6 +43,15 @@ Texture * texture_init_file(Texture * t, const char * path, int pathlen) {
     t->h= height;
 
     return t;
+}
+
+/*
+ * Loads a tetxture from a named resource.
+ */
+Texture * texture_init_resource(Texture * t, const char * resource) {
+    char file[200];
+    platform_res2file(resource, file, 200);
+    return texture_init_file(t, file, -1);
 }
 
 void texture_deinit(Texture * t) {

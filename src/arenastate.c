@@ -1,17 +1,16 @@
 #include "arenastate.h"
 #include "ldoom.h"
 
+static Camera cam;
 static mat4 hudmatrix;
 static FontDef fd;
 static Text txt;
 
 static void init() {
-    mat4_proj_ortho(hudmatrix, 0, 1000, 600, 0, 0, 10);
-    fnt_init(&fd, "../resources/consolefont.txt");
+    fnt_init(&fd, "consolefont.txt");
     text_init(&txt, &fd, "Hello, World!", 144, ALIGN_LEFT, ALIGN_TOP, 500);
     txt.threshold = 0.5f;
     txt.smoothing = 1.0f / 32.0f;
-    txt.color[0] = txt.color[1] = txt.color[2] = 0.0f;
 }
 
 static void deinit() {
@@ -56,7 +55,8 @@ static void mousewheel(float dx, float dy) {
 }
 
 static void resize(int width, int height) {
-
+    glViewport(0, 0, width, height);
+    mat4_proj_ortho(hudmatrix, 0, width, height, 0, 0, 10);
 }
 
 static void update(double dt) {

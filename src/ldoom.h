@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include "glfw.h"
+#include "platform.h"
 #include "util.h"
 #include "ldmath.h"
 #include "geom.h"
@@ -20,5 +21,6 @@
 #include "lodepng.h"
 #include "fntdraw.h"
 #include "arenastate.h"
+#include "mob.h"
 
 #endif

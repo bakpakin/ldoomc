@@ -2,6 +2,7 @@
 #include <string.h>
 #include "util.h"
 #include <stdarg.h>
+#include "platform.h"
 
 VECTOR_STATIC_GENERATE(ProgramAttribute, A);
 VECTOR_STATIC_GENERATE(ProgramUniform, U);
@@ -72,7 +73,14 @@ Shader * shader_init_file(Shader * s, const char * path, GLint type) {
 	s->type = type;
 	char * source = util_slurp(path, NULL);
 	s->id = shader_create_shader(source, type, "");
+	free(source);
 	return s;
+}
+
+Shader * shader_init_resource(Shader * s, const char * resource, GLint type) {
+    char file[200];
+    platform_res2file(resource, file, 200);
+    return shader_init_file(s, file, type);
 }
 
 void shader_deinit(Shader * s) {
@@ -142,6 +150,12 @@ Program * program_init_file(Program * p, const char * path) {
 	program_init_vertfrag(p, source, source);
     free(source);
     return p;
+}
+
+Program * program_init_resource(Program * p, const char * resource) {
+    char file[200];
+    platform_res2file(resource, file, 200);
+    return program_init_file(p, file);
 }
 
 void program_deinit(Program * p) {

@@ -166,6 +166,12 @@ static void process_down_keys() {
     }
 }
 
+static void window_resize_callback(GLFWwindow * window, int width, int height) {
+    Gamestate gs = current_state;
+    if (gs.resize)
+        gs.resize(width, height);
+}
+
 static void error_callback(int error, const char * message) {
     uerr(message);
 }
@@ -203,13 +209,13 @@ void game_init() {
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
     // Initialize input
     vector_init_int(&downKeys, 128);
     glfwSetKeyCallback(game_window, &key_callback);
     glfwSetMouseButtonCallback(game_window, &mouse_button_callback);
     glfwSetCursorPosCallback(game_window, &cursor_position_callback);
+    glfwSetWindowSizeCallback(game_window, window_resize_callback);
     //glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
@@ -234,6 +240,9 @@ void game_mainloop(Gamestate * initial_state) {
     gamestate_switch(initial_state);
     double frametime = 0;
     double last_frametime = 0;
+    int width, height;
+    glfwGetFramebufferSize(game_window, &width, &height);
+    window_resize_callback(game_window, width, height);
     while (!glfwWindowShouldClose(game_window)) {
         last_frametime = frametime;
         frametime = glfwGetTime();

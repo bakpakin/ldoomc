@@ -66,7 +66,7 @@ typedef struct {
 
 } Text;
 
-FontDef * fnt_init(FontDef * fd, const char * path);
+FontDef * fnt_init(FontDef * fd, const char * resource);
 
 void fnt_deinit(FontDef * fd);
 

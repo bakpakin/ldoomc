@@ -23,3 +23,37 @@ char * util_slurp(const char * path, long * length) {
         *length = fsize;
     return data;
 }
+
+static char * staticbuffer = NULL;
+static size_t staticbuffer_size = 0;
+static int buffer_in_use = 0;
+
+// Allocates some temprary data. Only one chunk of data at a time can be allocated like this.
+void * uqmalloc(size_t size) {
+    if (buffer_in_use)
+        uerr("uqfree must be called before uqmalloc can be called again.");
+    if (staticbuffer_size == 0) {
+        staticbuffer = malloc(size);
+        staticbuffer_size = size;
+    } else if (size > staticbuffer_size)
+        staticbuffer = realloc(staticbuffer, size);
+        staticbuffer_size = size;
+    buffer_in_use = 1;
+    return staticbuffer;
+}
+
+// realloc the memory from uqmalloc.
+void * uqrealloc(size_t size) {
+    if (size > staticbuffer_size)
+        staticbuffer = realloc(staticbuffer, size);
+    return staticbuffer;
+}
+
+// Frees data allocated with uqmalloc.
+void uqfree(void * ptr) {
+    if (ptr != staticbuffer)
+        uerr("Trying to free memory not allocated with uqmalloc.");
+    if (!buffer_in_use)
+        uerr("Trying to free memory not in use.");
+    buffer_in_use = 0;
+}
