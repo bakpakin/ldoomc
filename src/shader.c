@@ -117,7 +117,17 @@ Program * program_init(Program * p, int shader_count, ...) {
     return p;
 }
 
-Program * program_init_quick(Program * p, const char * vert_source, const char * frag_source) {
+Program * program_init_quick(Program * p, const char * source) {
+   Shader vert, frag;
+   shader_init(&vert, source, GL_VERTEX_SHADER);
+   shader_init(&frag, source, GL_FRAGMENT_SHADER);
+   program_init(p, 2, &vert, &frag);
+   shader_deinit(&vert);
+   shader_deinit(&frag);
+   return p;
+}
+
+Program * program_init_vertfrag(Program * p, const char * vert_source, const char * frag_source) {
    Shader vert, frag;
    shader_init(&vert, vert_source, GL_VERTEX_SHADER);
    shader_init(&frag, frag_source, GL_FRAGMENT_SHADER);
@@ -129,7 +139,7 @@ Program * program_init_quick(Program * p, const char * vert_source, const char *
 
 Program * program_init_file(Program * p, const char * path) {
     char * source = util_slurp(path, NULL);
-	program_init_quick(p, source, source);
+	program_init_vertfrag(p, source, source);
     free(source);
     return p;
 }

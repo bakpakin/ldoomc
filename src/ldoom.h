@@ -19,5 +19,6 @@
 #include "camera.h"
 #include "lodepng.h"
 #include "fntdraw.h"
+#include "arenastate.h"
 
 #endif

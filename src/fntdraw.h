@@ -6,6 +6,7 @@
 #include "ldmath.h"
 
 typedef struct {
+    unsigned char valid;
     unsigned x;
     unsigned y;
     unsigned w;
@@ -31,12 +32,17 @@ typedef enum {
 } TextAlign;
 
 typedef struct {
+    unsigned first;
+    unsigned last;
+    float width;
+} TextLine;
+
+typedef struct {
 
     // Text data
     char * text;
     unsigned flags;
     unsigned text_length;
-    unsigned text_capacity;
 
     // Rendering
     const FontDef * fontdef;
@@ -45,7 +51,9 @@ typedef struct {
     GLuint VAO;
     GLushort * elementBuffer;
     GLfloat * vertexBuffer;
+    unsigned num_quads;
     float smoothing;
+    float threshold;
     float color[4];
 
     // Metrics
@@ -54,7 +62,7 @@ typedef struct {
     TextAlign halign;
     TextAlign valign;
     unsigned line_count;
-    float * line_widths;
+    TextLine * lines;
 
 } Text;
 

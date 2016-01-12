@@ -12,9 +12,16 @@ static void skip_whitespace(const char ** p) {
     *p = c;
 }
 
+static void skip_whitespace_notabs(const char ** p) {
+    const char * c = *p;
+    while (*c == ' '|| *c == '\n' || *c == '\r')
+        c++;
+    *p = c;
+}
+
 static void skip_nonwhitespace(const char ** p) {
     const char * c = *p;
-    while (*c != ' ' && *c != '\t' && *c != '\n' && *c != '\r')
+    while (*c != ' ' && *c != '\t' && *c != '\n' && *c != '\r' && *c != 0)
         c++;
     *p = c;
 }
@@ -89,17 +96,55 @@ static int shader_tex_loc;
 static int shader_mvp_loc;
 static int shader_color_loc;
 static int shader_smoothing_loc;
+static int shader_threshold_loc;
 
 static unsigned fntdef_count = 0;
 static Program text_shader_program;
 
+static const char text_shader_source[] =
+"#version 330 core\n"
+"\n"
+"uniform mat4 mvp;\n"
+"uniform sampler2D tex;\n"
+"uniform vec4 textcolor;\n"
+"uniform float smoothing;\n"
+"uniform float threshold;\n"
+"\n"
+"#ifdef VERTEX\n"
+"\n"
+"layout (location = 0) in vec2 position;\n"
+"layout (location = 1) in vec2 texcoord;\n"
+"\n"
+"smooth out vec2 vtexcoord;\n"
+"\n"
+"void main() {\n"
+    "gl_Position = mvp * vec4(position, 0.0, 1.0);\n"
+    "vtexcoord = texcoord;\n"
+"}\n"
+"\n"
+"#endif\n"
+"\n"
+"#ifdef FRAGMENT\n"
+"\n"
+"in vec2 vtexcoord;\n"
+"\n"
+"out vec4 fragcolor;\n"
+"\n"
+"void main() {\n"
+    "float a = texture(tex, vtexcoord).a;\n"
+    "fragcolor = vec4(textcolor.rgb, smoothstep(threshold - smoothing, threshold + smoothing, a) * textcolor.a);\n"
+"}\n"
+"\n"
+"#endif\n";
+
 static void text_shader_init() {
-    program_init_file(&text_shader_program, "../resources/fontdraw.glsl");
+    program_init_quick(&text_shader_program, text_shader_source);
 
     shader_tex_loc = glGetUniformLocation(text_shader_program.id, "tex");
     shader_mvp_loc = glGetUniformLocation(text_shader_program.id, "mvp");
     shader_color_loc = glGetUniformLocation(text_shader_program.id, "textcolor");
     shader_smoothing_loc = glGetUniformLocation(text_shader_program.id, "smoothing");
+    shader_threshold_loc = glGetUniformLocation(text_shader_program.id, "threshold");
 }
 
 static void text_shader_deinit() {
@@ -113,7 +158,7 @@ FontDef * fnt_init(FontDef * fd, const char * path) {
     }
     fntdef_count++;
 
-	#define BUFLEN 40
+	#define BUFLEN 140
 
 	char buf[BUFLEN];
 
@@ -164,6 +209,7 @@ FontDef * fnt_init(FontDef * fd, const char * path) {
 		line_find_value(srcp, "yoffset", buf, BUFLEN); yoff = atof(buf);
 		line_find_value(srcp, "xadvance", buf, BUFLEN); xadvance = atof(buf);
 
+		cd[id].valid = 1;
 		cd[id].x = x;
 		cd[id].y = y;
 		cd[id].w = w;
@@ -187,12 +233,78 @@ void fnt_deinit(FontDef * fd) {
     }
 }
 
+// Count the number of lines that need to be rendered in order to fit
+// in the space given. This inlcudes newlines and a linebreaks inserted
+// when a word goes outside the clip width.
+static void calc_wrap(Text * t, const char * text) {
+
+    const FontDef * fd = t->fontdef;
+    float max_width = t->max_width;
+    float scale = t->pt / (double) fd->size;
+    unsigned capacity = 10;
+    TextLine * lines = malloc(capacity * sizeof(TextLine));
+
+    unsigned line = 0;
+    float current_length = 0.0f;
+    const char * first = text;
+    const char * last = text;
+    while (*first != '\0') {
+        if (line >= capacity) {
+            capacity = line * 2;
+            lines = realloc(lines, capacity * sizeof(TextLine));
+        }
+        current_length = 0.0f;
+        last = first;
+        while ((max_width == 0 || current_length <= max_width) && *last != '\0' && *last != '\n') {
+            FontCharDef * fcd = fd->chars + *last++;
+            if (!fcd->valid) {
+                fcd = fd->chars + ' ';
+            }
+            current_length += fcd->xadvance * scale;
+        }
+        const char * old_last = last;
+        while (*last != ' '  &&
+               *last != '\t' &&
+               *last != '\r' &&
+               *last != '\n' &&
+               *last != '\0' &&
+               last > first) {
+            FontCharDef * fcd = fd->chars + *--last;
+            if (!fcd->valid) {
+                fcd = fd->chars + ' ';
+            }
+            current_length -= fcd->xadvance * scale;
+        }
+        if (last == first) {
+            last = old_last - 1;
+        } else {
+            last--;
+        }
+
+        lines[line].first = first - text;
+        lines[line].last = last - text;
+        lines[line].width = current_length;
+        line++;
+        first = last + 1;
+        skip_whitespace_notabs(&first);
+    }
+    t->lines = lines = realloc(lines, line * sizeof(TextLine));
+    t->line_count = line;
+
+    // Calculate the number of drawn characters
+    unsigned num_quads = 0;
+    for (int i = 0; i < t->line_count; i++) {
+        num_quads += lines[i].last - lines[i].first + 1;
+    }
+    t->num_quads = num_quads;
+}
+
 static void fill_buffers(Text * t) {
 
     float xcurrent = 0;
     float ycurrent = 0;
 
-    unsigned slen = t->text_length;
+    unsigned index = 0;
     GLushort * els = t->elementBuffer;
     GLfloat * vs = t->vertexBuffer;
 
@@ -201,51 +313,90 @@ static void fill_buffers(Text * t) {
     float invtw = 1.0f / tw;
     float invth = 1.0f / th;
 
-    const float scale = t->pt / (double) t->fontdef->size;
+    float max_width = t->max_width;
+    float scale = t->pt / (double) t->fontdef->size;
 
-    for (unsigned i = 0; i < slen; i++) {
+    switch (t->valign) {
+        case ALIGN_TOP:
+            ycurrent = 0.0f;
+            break;
+        case ALIGN_BOTTOM:
+            ycurrent = -(t->line_count * t->fontdef->lineHeight * scale);
+            break;
+        case ALIGN_CENTER:
+            ycurrent = -0.5f * (t->line_count * t->fontdef->lineHeight * scale);
+            break;
+        default:
+            break;
+    }
 
-        vs = t->vertexBuffer + 16 * i;
-        els = t->elementBuffer + 6 * i;
+    for (unsigned i = 0; i < t->line_count; i++) {
 
-        char c = t->text[i];
-        FontCharDef * fcd = &t->fontdef->chars[c];
+        TextLine tl = t->lines[i];
 
-        float x1 = xcurrent + fcd->xoffset * scale;
-        float x2 = x1 + fcd->w * scale;
-        float y1 = ycurrent + fcd->yoffset * scale;
-        float y2 = y1 + fcd->h * scale;
+        switch(t->halign) {
+            case ALIGN_LEFT:
+                xcurrent = 0.0f;
+                break;
+            case ALIGN_RIGHT:
+                xcurrent = max_width - tl.width;
+                break;
+            case ALIGN_CENTER:
+                xcurrent = (max_width - tl.width) * 0.5f;
+                break;
+            default:
+                xcurrent = 0.0f;
+                break;
+        }
 
-        float u1 = fcd->x * invtw;
-        float u2 = u1 + fcd->w * invtw;
-        float v1 = fcd->y * invth;
-        float v2 = v1 + fcd->h * invth;
+        // Make a quad for each letter of the line.
+        for (int j = tl.first; j <= tl.last; j++) {
 
-        // Neg x, Neg y corner
-        vs[0] = x1; vs[1] = y1; vs[2] = u1; vs[3] = v1;
+            char c = t->text[j];
+            FontCharDef * fcd = t->fontdef->chars + c;
+            if (!fcd->valid) {
+                fcd = t->fontdef->chars + ' ';
+            }
 
-        // Neg x, Pos y corner
-        vs[4] = x1; vs[5] = y2; vs[6] = u1; vs[7] = v2;
+            float x1 = xcurrent + fcd->xoffset * scale;
+            float x2 = x1 + fcd->w * scale;
+            float y1 = ycurrent + fcd->yoffset * scale;
+            float y2 = y1 + fcd->h * scale;
 
-        // Pos x, Neg y corner
-        vs[8] = x2; vs[9] = y1; vs[10] = u2; vs[11] = v1;
+            float u1 = fcd->x * invtw;
+            float u2 = u1 + fcd->w * invtw;
+            float v1 = fcd->y * invth;
+            float v2 = v1 + fcd->h * invth;
 
-        // Pos x, Pos y corner
-        vs[12] = x2; vs[13] = y2; vs[14] = u2; vs[15] = v2;
+            // Neg x, Neg y corner
+            vs[0] = x1; vs[1] = y1; vs[2] = u1; vs[3] = v1;
 
-        els[0] = 4 * i + 0;
-        els[1] = 4 * i + 1;
-        els[2] = 4 * i + 2;
-        els[3] = 4 * i + 1;
-        els[4] = 4 * i + 3;
-        els[5] = 4 * i + 2;
+            // Neg x, Pos y corner
+            vs[4] = x1; vs[5] = y2; vs[6] = u1; vs[7] = v2;
 
-        if (c == '\n') {
-            ycurrent += t->fontdef->lineHeight * scale;
-            xcurrent = 0;
-        } else {
+            // Pos x, Neg y corner
+            vs[8] = x2; vs[9] = y1; vs[10] = u2; vs[11] = v1;
+
+            // Pos x, Pos y corner
+            vs[12] = x2; vs[13] = y2; vs[14] = u2; vs[15] = v2;
+
+            els[0] = index + 0;
+            els[1] = index + 1;
+            els[2] = index + 2;
+            els[3] = index + 1;
+            els[4] = index + 3;
+            els[5] = index + 2;
+
+            // Increment the pointers for the next letter quad.
+            els += 6;
+            vs += 16;
+            index += 4;
+
             xcurrent += fcd->xadvance * scale;
         }
+
+        ycurrent += t->fontdef->lineHeight * scale;
+
     }
 }
 
@@ -298,61 +449,31 @@ Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, Text
 
     size_t slen = strlen(text);
 
-    // Count the number of lines
-    int lines = 1;
-    for (int i = 0; i < slen - 1; i++) {
-        if (text[i] == '\n') lines++;
-    }
-    t->line_count = lines;
-
-    size_t vbuf_size = sizeof(GLfloat) * 16 * slen;
-    size_t lbuf_size = sizeof(float) * lines;
-    size_t ebuf_size = sizeof(GLushort) * 6 * slen;
-
-    void * ptr = malloc(vbuf_size + lbuf_size + ebuf_size + slen + 1);
-    t->vertexBuffer = (ptr);
-    t->line_widths = (ptr + vbuf_size);
-    t->elementBuffer = (ptr + vbuf_size + lbuf_size);
-    t->text = (ptr + vbuf_size + lbuf_size + ebuf_size);
-    memcpy(t->text, text, slen + 1);
-
+    // Initilaize basic variables
     t->flags = 0;
     t->fontdef = fd;
-    t->text_capacity = slen;
     t->text_length = slen;
-
-    // Calc line widths
-    do {
-        float scale = pt / (double) fd->size;
-        int current_line = 0;
-        float current_length = 0.0f;
-        for (int i = 0; i < slen; i++) {
-            char c = text[i];
-            if (c == '\n') {
-                t->line_widths[current_line++] = current_length * scale;
-                current_length = 0.0f;
-            } else if (c >= 0) {
-                FontCharDef * fcd = fd->chars + c;
-                current_length += fcd->xadvance;
-            } else {
-                uerr("Unsupported character in text.");
-            }
-        }
-        if (current_length > 0 || current_line == 0) {
-            t->line_widths[current_line++] = current_length * scale;
-        }
-    } while (0);
-
-    // Set metrics
     t->pt = pt;
     t->halign = halign;
     t->valign = valign;
     t->max_width = max_width;
     t->smoothing = 1.0f / 16.0f;
+    t->threshold = 0.5f;
     t->color[0] = 1.0f;
     t->color[1] = 1.0f;
     t->color[2] = 1.0f;
     t->color[3] = 1.0f;
+
+    calc_wrap(t, text);
+
+    size_t vbuf_size = sizeof(GLfloat) * 16 * t->num_quads;
+    size_t ebuf_size = sizeof(GLushort) * 6 * t->num_quads;
+
+    void * ptr = malloc(vbuf_size + ebuf_size + slen + 1);
+    t->vertexBuffer = (ptr);
+    t->elementBuffer = (ptr + vbuf_size);
+    t->text = (ptr + vbuf_size + ebuf_size);
+    memcpy(t->text, text, slen + 1);
 
     fill_buffers(t);
 
@@ -366,9 +487,10 @@ void text_deinit(Text * t) {
     text_unloadbuffer(t);
 
     free(t->vertexBuffer);
+    free(t->lines);
 }
 
-void text_draw(Text * t, mat4 mvp) {
+static inline void bind_shader(const Text * t, mat4 mvp) {
 
     glUseProgram(text_shader_program.id);
 
@@ -378,6 +500,13 @@ void text_draw(Text * t, mat4 mvp) {
     glUniform4fv(shader_color_loc, 1, t->color);
     glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
     glUniform1f(shader_smoothing_loc, t->smoothing);
+    glUniform1f(shader_threshold_loc, t->threshold);
+
+}
+
+void text_draw(Text * t, mat4 mvp) {
+
+    bind_shader(t, mvp);
 
     glBindVertexArray(t->VAO);
     glDrawElements(GL_TRIANGLES, t->text_length * 6, GL_UNSIGNED_SHORT, 0);
@@ -391,14 +520,7 @@ void text_draw_range(Text * t, mat4 mvp, unsigned start, unsigned length) {
         uerr("Range not renderable.");
     }
 
-    glUseProgram(text_shader_program.id);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
-    glUniform1i(shader_tex_loc, 0);
-    glUniform4fv(shader_color_loc, 1, t->color);
-    glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
-    glUniform1f(shader_smoothing_loc, t->smoothing);
+    bind_shader(t, mvp);
 
     glBindVertexArray(t->VAO);
     glDrawElements(GL_TRIANGLES, length * 6, GL_UNSIGNED_SHORT, (GLvoid *)(start * 6 * sizeof(GLushort)));

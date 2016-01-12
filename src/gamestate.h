@@ -34,6 +34,7 @@ typedef struct {
     void (*mousedown)(int button, float x, float y);
     void (*mousewheel)(float dx, float dy);
     void (*draw)();
+    void (*resize)(int width, int height);
     void * state;
 } Gamestate;
 

@@ -53,7 +53,12 @@ Program * program_init(Program * p, int shader_count, ...);
 /*
  * Initializes a program directly from the vertex shader source and the fragment shader source.
  */
-Program * program_init_quick(Program * p, const char * vert_source, const char * frag_source);
+Program * program_init_vertfrag(Program * p, const char * vert_source, const char * frag_source);
+
+/*
+ * Initializes a program from a single source file with both the fragment and vertex shaders.
+ */
+Program * program_init_quick(Program * p, const char * source);
 
 /*
  * Initializes a progam from a simgle file. Use defines to define multiple shaders

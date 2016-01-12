@@ -203,13 +203,14 @@ void game_init() {
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
     // Initialize input
     vector_init_int(&downKeys, 128);
     glfwSetKeyCallback(game_window, &key_callback);
     glfwSetMouseButtonCallback(game_window, &mouse_button_callback);
     glfwSetCursorPosCallback(game_window, &cursor_position_callback);
-    glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 void game_exit() {
