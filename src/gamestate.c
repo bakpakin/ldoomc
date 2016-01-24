@@ -176,7 +176,9 @@ static void error_callback(int error, const char * message) {
     uerr(message);
 }
 
-double game_delta;
+double game_delta = 0.0;
+double game_fps = 0.0;
+
 static GLFWwindow * game_window;
 
 void game_init() {
@@ -240,19 +242,33 @@ void game_mainloop(Gamestate * initial_state) {
     gamestate_switch(initial_state);
     double frametime = 0;
     double last_frametime = 0;
+
     int width, height;
     glfwGetFramebufferSize(game_window, &width, &height);
     window_resize_callback(game_window, width, height);
+
+    int framecount = 0;
+    double fps_check_time = glfwGetTime();
     while (!glfwWindowShouldClose(game_window)) {
+        framecount++;
         last_frametime = frametime;
         frametime = glfwGetTime();
         glfwSwapBuffers(game_window);
         glfwPollEvents();
         process_down_keys();
         game_delta = frametime - last_frametime;
+        if (frametime > fps_check_time + 1) {
+            game_fps = framecount / (frametime - fps_check_time);
+            framecount = 0;
+            fps_check_time = frametime;
+            if (current_state.updateTick) {
+                current_state.updateTick();
+            }
+        }
         gamestate_update(game_delta);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         gamestate_draw();
     }
+
     game_quit();
 }

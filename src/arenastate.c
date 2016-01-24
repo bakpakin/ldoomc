@@ -7,10 +7,12 @@ static FontDef fd;
 static Text txt;
 
 static void init() {
-    fnt_init(&fd, "consolefont.txt");
-    text_init(&txt, &fd, "Hello, World!", 144, ALIGN_LEFT, ALIGN_TOP, 500);
-    txt.threshold = 0.5f;
-    txt.smoothing = 1.0f / 32.0f;
+    fnt_init(&fd, "fancy.txt");
+    text_init(&txt, &fd, "AW $@FOOFPS: $@FFF0.00   ", 34, ALIGN_LEFT, ALIGN_TOP, 500, 1);
+    txt.threshold = 0.3f;
+    txt.smoothing = 1.0f / 8.0f;
+    txt.flags |= FNTDRAW_TEXT_NODF_BIT;
+    txt.position[0] = txt.position[1] = 5.0f;
 }
 
 static void deinit() {
@@ -63,6 +65,10 @@ static void update(double dt) {
 
 }
 
+static void updateTick() {
+   text_format(&txt, 25, "AW$@F00FPS: $@FFF%.2f", game_fps);
+}
+
 static void draw() {
     text_draw(&txt, hudmatrix);
 }
@@ -82,5 +88,6 @@ Gamestate arenastate = {
     mousewheel,
     draw,
     resize,
+    updateTick,
     NULL,
 };

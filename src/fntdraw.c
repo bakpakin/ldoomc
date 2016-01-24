@@ -5,6 +5,217 @@
 #include "shader.h"
 #include "mesh.h"
 #include "util.h"
+#include <stdarg.h>
+
+#define CHAR_VERT_SIZE 8
+#define CHAR_SIZE (CHAR_VERT_SIZE * 4)
+
+// Begin Sparse Array implementation for kerning tables
+
+typedef struct {
+    unsigned long key;
+    float value;
+} SparseArrayBucket;
+
+typedef struct {
+    unsigned count;
+    unsigned capacity;
+    SparseArrayBucket * data;
+} SparseArray;
+
+static SparseArray * sarray_init(SparseArray * sa, unsigned capacity) {
+    sa->capacity = capacity;
+    sa->count = 0;
+    sa->data = malloc(sizeof(SparseArrayBucket) * capacity);
+    return sa;
+}
+
+static void sarray_deinit(SparseArray * sa) {
+    free(sa->data);
+}
+
+static int sarray_bucket(const SparseArray * sa, unsigned long key) {
+    SparseArrayBucket * low = sa->data;
+    SparseArrayBucket * hi = sa->data + sa->count - 1;
+    SparseArrayBucket * mid;
+    while(hi >= low) {
+        mid = low + (hi - low) / 2;
+        if (mid->key > key) {
+            hi = mid - 1;
+        } else if (mid->key < key) {
+            low = mid + 1;
+        } else {
+            return mid - sa->data;
+        }
+    }
+    return (sa->data - low) - 1;
+}
+
+// Returns 0 by default, which is okay for kerning
+static float sarray_get(const SparseArray * sa, unsigned long key) {
+    int bucketi;
+    if ((bucketi = sarray_bucket(sa, key)) >= 0) {
+        return sa->data[bucketi].value;
+    } else {
+        return 0.0f;
+    }
+}
+
+static void sarray_trim(SparseArray * sa) {
+    sa->data = realloc(sa->data, sa->count * sizeof(SparseArrayBucket));
+    sa->capacity = sa->count;
+}
+
+static void sarray_set(SparseArray * sa, unsigned long key, float value) {
+    int bucketi;
+    if ((bucketi = sarray_bucket(sa, key)) >= 0) { // Key already exists.
+        sa->data[bucketi].value = value;
+    } else { // Insert new bucket
+        int dif = -bucketi - 1;
+        sa->count++;
+        if (sa->capacity < sa->count) {
+            sa->capacity = 2 * sa->count;
+            sa->data = realloc(sa->data, sa->capacity * sizeof(SparseArrayBucket));
+        }
+        memmove(sa->data + dif + 1, sa->data + dif, (sa->count - dif - 1) * sizeof(SparseArrayBucket));
+        SparseArrayBucket * bucket = sa->data + dif;
+        bucket->key = key;
+        bucket->value = value;
+    }
+}
+
+// End Sparse Array implementation
+
+// Text Shaders start
+
+static unsigned fntdef_count = 0;
+
+// Distance Field Shader Uniform Locations
+static int shader_tex_loc;
+static int shader_mvp_loc;
+static int shader_offset_loc;
+static int shader_color_loc;
+static int shader_smoothing_loc;
+static int shader_threshold_loc;
+
+// No Distance Field Shader Uniform Locations
+static int nodf_shader_tex_loc;
+static int nodf_shader_mvp_loc;
+static int nodf_shader_offset_loc;
+static int nodf_shader_color_loc;
+
+// Text Shader Programs
+static Program text_shader_program;
+static Program text_shader_nodf_program;
+
+static const char text_shader_nodf_source[] =
+"#version 330 core\n"
+"\n"
+"uniform mat4 mvp;\n"
+"uniform vec2 offset;\n"
+"uniform sampler2D tex;\n"
+"uniform vec4 textcolor;\n"
+"\n"
+"#ifdef VERTEX\n"
+"\n"
+"layout (location = 0) in vec2 position;\n"
+"layout (location = 1) in vec2 texcoord;\n"
+"layout (location = 2) in vec4 vcolor;\n"
+"\n"
+"smooth out vec2 vtexcoord;\n"
+"smooth out vec4 _vcolor;\n"
+"\n"
+"void main() {\n"
+"gl_Position = mvp * vec4(position + offset, 0.0, 1.0);\n"
+"vtexcoord = texcoord;\n"
+"_vcolor = vcolor;\n"
+"}\n"
+"\n"
+"#endif\n"
+"\n"
+"#ifdef FRAGMENT\n"
+"\n"
+"in vec2 vtexcoord;\n"
+"in vec4 _vcolor;\n"
+"\n"
+"out vec4 fragcolor;\n"
+"\n"
+"void main() {\n"
+"fragcolor = texture(tex, vtexcoord) * textcolor * _vcolor;\n"
+"}\n"
+"\n"
+"#endif\n";
+
+static const char text_shader_source[] =
+"#version 330 core\n"
+"\n"
+"uniform mat4 mvp;\n"
+"uniform vec2 offset;\n"
+"uniform sampler2D tex;\n"
+"uniform vec4 textcolor;\n"
+"uniform float smoothing;\n"
+"uniform float threshold;\n"
+"\n"
+"#ifdef VERTEX\n"
+"\n"
+"layout (location = 0) in vec2 position;\n"
+"layout (location = 1) in vec2 texcoord;\n"
+"layout (location = 2) in vec4 vcolor;\n"
+"\n"
+"smooth out vec2 vtexcoord;\n"
+"smooth out vec4 _vcolor;\n"
+"\n"
+"void main() {\n"
+"gl_Position = mvp * vec4(position + offset, 0.0, 1.0);\n"
+"vtexcoord = texcoord;\n"
+"_vcolor = vcolor;\n"
+"}\n"
+"\n"
+"#endif\n"
+"\n"
+"#ifdef FRAGMENT\n"
+"\n"
+"in vec2 vtexcoord;\n"
+"in vec4 _vcolor;\n"
+"\n"
+"out vec4 fragcolor;\n"
+"\n"
+"void main() {\n"
+"float a = texture(tex, vtexcoord).a;\n"
+"fragcolor = vec4(textcolor.rgb, smoothstep(threshold - smoothing, threshold + smoothing, a) * textcolor.a) * _vcolor;\n"
+"}\n"
+"\n"
+"#endif\n";
+
+static void text_shader_init() {
+
+    // Distance Field;
+    program_init_quick(&text_shader_program, text_shader_source);
+
+    shader_tex_loc = glGetUniformLocation(text_shader_program.id, "tex");
+    shader_mvp_loc = glGetUniformLocation(text_shader_program.id, "mvp");
+    shader_offset_loc = glGetUniformLocation(text_shader_program.id, "offset");
+    shader_color_loc = glGetUniformLocation(text_shader_program.id, "textcolor");
+    shader_smoothing_loc = glGetUniformLocation(text_shader_program.id, "smoothing");
+    shader_threshold_loc = glGetUniformLocation(text_shader_program.id, "threshold");
+
+    // No Distace Field
+    program_init_quick(&text_shader_nodf_program, text_shader_nodf_source);
+
+    nodf_shader_tex_loc = glGetUniformLocation(text_shader_nodf_program.id, "tex");
+    nodf_shader_mvp_loc = glGetUniformLocation(text_shader_nodf_program.id, "mvp");
+    nodf_shader_offset_loc = glGetUniformLocation(text_shader_nodf_program.id, "offset");
+    nodf_shader_color_loc = glGetUniformLocation(text_shader_nodf_program.id, "textcolor");
+}
+
+static void text_shader_deinit() {
+
+    program_deinit(&text_shader_program);
+    program_deinit(&text_shader_nodf_program);
+
+}
+
+// Text Shaders end
 
 static void skip_whitespace(const char ** p) {
     const char * c = *p;
@@ -28,62 +239,62 @@ static void skip_nonwhitespace(const char ** p) {
 }
 
 static const char * line_find_value(const char * str, const char * key, char * buffer, unsigned buf_max_len) {
-	const char * c = str;
-	size_t len = strlen(key);
-	int keyfound;
-	for(;;) {
-	    skip_whitespace(&c);
-	    keyfound = 1;
-		for (int i = 0; i < len; i++) {
-			if (c[i] != key[i])	{
-				keyfound = 0;
-				break;
-			}
-		}
-		if (keyfound) {
-			if (c[len] == '=') {
-				c += len + 1;
-				break;
-			}
-		}
-		skip_nonwhitespace(&c);
-	}
-	const char * end = c;
+    const char * c = str;
+    size_t len = strlen(key);
+    int keyfound;
+    for(;;) {
+        skip_whitespace(&c);
+        keyfound = 1;
+        for (int i = 0; i < len; i++) {
+            if (c[i] != key[i])	{
+                keyfound = 0;
+                break;
+            }
+        }
+        if (keyfound) {
+            if (c[len] == '=') {
+                c += len + 1;
+                break;
+            }
+        }
+        skip_nonwhitespace(&c);
+    }
+    const char * end = c;
     skip_nonwhitespace(&end);
     end--;
-	if ((*c == '"') && (*end == '"')) {
-		c++;
-		end--;
-	}
-	unsigned length = end - c + 1;
-	if (length + 1 >= buf_max_len) {
-		uerr("String buffer overflow.");
-	}
-	strncpy(buffer, c, length);
-	buffer[length] = 0;
-	return end;
+    if ((*c == '"') && (*end == '"')) {
+        c++;
+        end--;
+    }
+    unsigned length = end - c + 1;
+    if (length + 1 >= buf_max_len) {
+        uerr("String buffer overflow.");
+    }
+    strncpy(buffer, c, length);
+    buffer[length] = 0;
+    return end;
 }
 
 static const char * line_next(const char * str) {
-	while (*++str != '\n' && *str != 0)
-		;
-	if (*str == 0)
-		return NULL;
-	return ++str;
+    while (*++str != '\n' && *str != 0)
+        ;
+    if (*str == 0)
+        return NULL;
+    return ++str;
 }
 
 static void resolve_path_name(const char * path, const char * file, char * buf, unsigned max_len) {
-	int pathlen = strlen(path);
-	int last_sep_index = pathlen;
-	#if defined(_WIN32) || defined(WIN32)
-	char sep = '\\';
-	#else
-	char sep = '/';
-	#endif
-	const char * c = path + pathlen;
-	while (*c != sep && c != path)
-		c--;
-	if (c == path)
+    int pathlen = strlen(path);
+    int last_sep_index = pathlen;
+#if defined(_WIN32) || defined(WIN32)
+    char sep = '\\';
+#else
+    char sep = '/';
+#endif
+    const char * c = path + pathlen;
+    while (*c != sep && c != path)
+        c--;
+    if (c == path)
         uerr("Could not find file from path.");
     int filelen = strlen(file);
     if (filelen + pathlen + 1 > max_len)
@@ -93,68 +304,9 @@ static void resolve_path_name(const char * path, const char * file, char * buf, 
     strncpy(buf + (c - path ) + 1, file, max_len - (c - path) - 1);
 }
 
-static int shader_tex_loc;
-static int shader_mvp_loc;
-static int shader_color_loc;
-static int shader_smoothing_loc;
-static int shader_threshold_loc;
-
-static unsigned fntdef_count = 0;
-static Program text_shader_program;
-
-static const char text_shader_source[] =
-"#version 330 core\n"
-"\n"
-"uniform mat4 mvp;\n"
-"uniform sampler2D tex;\n"
-"uniform vec4 textcolor;\n"
-"uniform float smoothing;\n"
-"uniform float threshold;\n"
-"\n"
-"#ifdef VERTEX\n"
-"\n"
-"layout (location = 0) in vec2 position;\n"
-"layout (location = 1) in vec2 texcoord;\n"
-"\n"
-"smooth out vec2 vtexcoord;\n"
-"\n"
-"void main() {\n"
-    "gl_Position = mvp * vec4(position, 0.0, 1.0);\n"
-    "vtexcoord = texcoord;\n"
-"}\n"
-"\n"
-"#endif\n"
-"\n"
-"#ifdef FRAGMENT\n"
-"\n"
-"in vec2 vtexcoord;\n"
-"\n"
-"out vec4 fragcolor;\n"
-"\n"
-"void main() {\n"
-    "float a = texture(tex, vtexcoord).a;\n"
-    "fragcolor = vec4(textcolor.rgb, smoothstep(threshold - smoothing, threshold + smoothing, a) * textcolor.a);\n"
-"}\n"
-"\n"
-"#endif\n";
-
-static void text_shader_init() {
-    program_init_quick(&text_shader_program, text_shader_source);
-
-    shader_tex_loc = glGetUniformLocation(text_shader_program.id, "tex");
-    shader_mvp_loc = glGetUniformLocation(text_shader_program.id, "mvp");
-    shader_color_loc = glGetUniformLocation(text_shader_program.id, "textcolor");
-    shader_smoothing_loc = glGetUniformLocation(text_shader_program.id, "smoothing");
-    shader_threshold_loc = glGetUniformLocation(text_shader_program.id, "threshold");
-}
-
-static void text_shader_deinit() {
-    program_deinit(&text_shader_program);
-}
-
 FontDef * fnt_init(FontDef * fd, const char * resource) {
 
-	#define BUFLEN 200
+#define BUFLEN 200
 
     char path[BUFLEN];
     platform_res2file(resource, path, BUFLEN);
@@ -164,92 +316,187 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
     }
     fntdef_count++;
 
+    char buf[BUFLEN];
 
-	char buf[BUFLEN];
+    long source_len;
+    unsigned vallen;
+    char * source = util_slurp(path, &source_len);
+    const char * srcp = source;
 
-	long source_len;
-	unsigned vallen;
-	char * source = util_slurp(path, &source_len);
-	const char * srcp = source;
+    // Extract basic font def information.
+    line_find_value(srcp, "size", buf, BUFLEN);
+    fd->size = atoi(buf);
+    srcp = line_next(srcp);
 
-	// Extract basic font def information.
-	line_find_value(srcp, "size", buf, BUFLEN);
-	fd->size = atoi(buf);
-	srcp = line_next(srcp);
+    // Get some more basic information on the next line.
+    line_find_value(srcp, "lineHeight", buf, BUFLEN);
+    fd->lineHeight = atof(buf);
+    line_find_value(srcp, "base", buf, BUFLEN);
+    fd->base = atof(buf);
+    srcp = line_next(srcp);
 
-	// Get some more basic information on the next line.
-	line_find_value(srcp, "lineHeight", buf, BUFLEN);
-	fd->lineHeight = atof(buf);
-	line_find_value(srcp, "base", buf, BUFLEN);
-	fd->base = atof(buf);
-	srcp = line_next(srcp);
-
-	// Get the texture
-	line_find_value(srcp, "file", buf, BUFLEN);
+    // Get the texture
+    line_find_value(srcp, "file", buf, BUFLEN);
 
     char buf2[BUFLEN];
     resolve_path_name(path, buf, buf2, BUFLEN);
-	texture_init_file(&fd->tex, buf2, -1);
-	srcp = line_next(srcp);
+    texture_init_file(&fd->tex, buf2, -1);
+    srcp = line_next(srcp);
 
     // Get the number of characters
-  	line_find_value(srcp, "count", buf, BUFLEN);
- 	fd->charcount = atoi(buf);
+    line_find_value(srcp, "count", buf, BUFLEN);
+    fd->charcount = atoi(buf);
 
-	FontCharDef * cd = fd->chars = calloc(128, sizeof(FontCharDef));
+    FontCharDef * cd = fd->chars = calloc(128, sizeof(FontCharDef));
 
-	while ((srcp = line_next(srcp))) {
+    for(int ii = 0; ii < fd->charcount; ii++) {
 
-		char id;
-		unsigned x, y, w, h;
-		float xoff, yoff, xadvance;
+        srcp = line_next(srcp);
+        if (!srcp) {
+            break;
+        }
 
-		line_find_value(srcp, "id", buf, BUFLEN); id = atoi(buf);
-		line_find_value(srcp, "x", buf, BUFLEN); x = atoi(buf);
-		line_find_value(srcp, "y", buf, BUFLEN); y = atoi(buf);
-		line_find_value(srcp, "width", buf, BUFLEN); w = atoi(buf);
-		line_find_value(srcp, "height", buf, BUFLEN); h = atoi(buf);
+        char id;
+        unsigned x, y, w, h;
+        float xoff, yoff, xadvance;
 
-		line_find_value(srcp, "xoffset", buf, BUFLEN); xoff = atof(buf);
-		line_find_value(srcp, "yoffset", buf, BUFLEN); yoff = atof(buf);
-		line_find_value(srcp, "xadvance", buf, BUFLEN); xadvance = atof(buf);
+        line_find_value(srcp, "id", buf, BUFLEN); id = atoi(buf);
+        line_find_value(srcp, "x", buf, BUFLEN); x = atoi(buf);
+        line_find_value(srcp, "y", buf, BUFLEN); y = atoi(buf);
+        line_find_value(srcp, "width", buf, BUFLEN); w = atoi(buf);
+        line_find_value(srcp, "height", buf, BUFLEN); h = atoi(buf);
 
-		cd[id].valid = 1;
-		cd[id].x = x;
-		cd[id].y = y;
-		cd[id].w = w;
-		cd[id].h = h;
-		cd[id].xoffset = xoff;
-		cd[id].yoffset = yoff;
-		cd[id].xadvance = xadvance;
+        line_find_value(srcp, "xoffset", buf, BUFLEN); xoff = atof(buf);
+        line_find_value(srcp, "yoffset", buf, BUFLEN); yoff = atof(buf);
+        line_find_value(srcp, "xadvance", buf, BUFLEN); xadvance = atof(buf);
+
+        cd[id].valid = 1;
+        cd[id].x = x;
+        cd[id].y = y;
+        cd[id].w = w;
+        cd[id].h = h;
+        cd[id].xoffset = xoff;
+        cd[id].yoffset = yoff;
+        cd[id].xadvance = xadvance;
+        cd[id].kerning.data = NULL;
 
     }
 
-	free(source);
+    srcp = line_next(srcp);
 
-	return fd;
+    if (srcp)  {
+
+        line_find_value(srcp, "count", buf, BUFLEN);
+        int kerningcount = atoi(buf);
+
+        for (int ii = 0; ii < kerningcount; ii++) {
+            srcp = line_next(srcp);
+
+            line_find_value(srcp, "first", buf, BUFLEN);
+            unsigned long first = atoi(buf);
+            line_find_value(srcp, "second", buf, BUFLEN);
+            unsigned long second = atoi(buf);
+            line_find_value(srcp, "amount", buf, BUFLEN);
+            float amount = atof(buf);
+
+            SparseArray * sa = (SparseArray *) &cd[first].kerning;
+
+            if (!sa->data)
+                sarray_init(sa, 10);
+
+            sarray_set(sa, second, amount);
+
+        }
+
+        for (int id = 0; id < 128; id++) {
+            if (cd[id].valid && cd[id].kerning.data) {
+                sarray_trim((SparseArray *) &cd[id].kerning);
+            }
+        }
+
+    }
+
+    free(source);
+
+    return fd;
+
+#undef BUFLEN
+
 }
 
 void fnt_deinit(FontDef * fd) {
-	free(fd->chars);
-	texture_deinit(&fd->tex);
+    for (int i = 0; i < 128; i++) {
+        FontCharDef * fcd = fd->chars + i;
+        if (fcd->valid && fcd->kerning.data)
+            free(fcd->kerning.data);
+    }
+    free(fd->chars);
+    texture_deinit(&fd->tex);
     if (--fntdef_count == 0) {
         text_shader_deinit();
     }
 }
 
+static const char * skip_text_escape_chars(const char * c) {
+    if (*c == FNTDRAW_ESCAPE) {
+        char next = *++c;
+        int n;
+        switch(next) {
+            case FNTDRAW_6COLOR:
+                n = 7;
+                // Skip 7 chracters, or until there is an end of string.
+                while(n-- && *++c)
+                    ;
+                break;
+            case FNTDRAW_3COLOR:
+                n = 4;
+                // Skip 4 chracters, or until there is an end of string.
+                while(n-- && *++c)
+                    ;
+                break;
+            case FNTDRAW_ALPHA:
+                n = 3;
+                // Skip 3 characters, or until there is an end of string.
+                while(n-- && *++c)
+                    ;
+                break;
+            default:
+                break;
+        }
+    }
+    return c;
+}
+
+// Gets the kerning between two characters
+static float get_kerning(FontCharDef * fcd, unsigned long next) {
+    if (!fcd->kerning.data)
+        return 0.0f;
+    SparseArray * sa = (SparseArray *) &fcd->kerning;
+    return sarray_get(sa, next);
+}
+
 // Count the number of lines that need to be rendered in order to fit
 // in the space given. This inlcudes newlines and a linebreaks inserted
 // when a word goes outside the clip width.
-static void calc_wrap(Text * t, const char * text) {
+static void calc_wrap(Text * t) {
 
+    const char * text = t->text;
     const FontDef * fd = t->fontdef;
     float max_width = t->max_width;
     float scale = t->pt / (double) fd->size;
-    unsigned capacity = 10;
-    TextLine * lines = malloc(capacity * sizeof(TextLine));
+    unsigned capacity;
+    TextLine * lines;
+
+    if (t->lines) { // We're just refilling the old line buffer
+        capacity = t->line_count;
+        lines = t->lines;
+    } else { // Allocate a new buffer
+        capacity = 10;
+        lines = malloc(capacity * sizeof(TextLine));
+    }
 
     unsigned line = 0;
+    unsigned lineCharCount = 0;
     float current_length = 0.0f;
     const char * first = text;
     const char * last = text;
@@ -258,27 +505,33 @@ static void calc_wrap(Text * t, const char * text) {
             capacity = line * 2;
             lines = realloc(lines, capacity * sizeof(TextLine));
         }
+        lineCharCount = 0;
         current_length = 0.0f;
         last = first;
+        last = skip_text_escape_chars(last);
         while ((max_width == 0 || current_length <= max_width) && *last != '\0' && *last != '\n') {
             FontCharDef * fcd = fd->chars + *last++;
             if (!fcd->valid) {
                 fcd = fd->chars + ' ';
             }
-            current_length += fcd->xadvance * scale;
+            float kerning = get_kerning(fcd, *last);
+            current_length += (fcd->xadvance + kerning) * scale;
+            lineCharCount++;
+            last = skip_text_escape_chars(last);
         }
         const char * old_last = last;
         while (*last != ' '  &&
-               *last != '\t' &&
-               *last != '\r' &&
-               *last != '\n' &&
-               *last != '\0' &&
-               last > first) {
+                *last != '\t' &&
+                *last != '\r' &&
+                *last != '\n' &&
+                *last != '\0' &&
+                last > first) {
             FontCharDef * fcd = fd->chars + *--last;
             if (!fcd->valid) {
                 fcd = fd->chars + ' ';
             }
-            current_length -= fcd->xadvance * scale;
+            float kerning = get_kerning(fcd, *(last + 1));
+            current_length -= (fcd->xadvance + kerning) * scale;
         }
         if (last == first) {
             last = old_last - 1;
@@ -289,19 +542,33 @@ static void calc_wrap(Text * t, const char * text) {
         lines[line].first = first - text;
         lines[line].last = last - text;
         lines[line].width = current_length;
+        lines[line].visibleCharCount = lineCharCount;
         line++;
         first = last + 1;
         skip_whitespace_notabs(&first);
     }
     t->lines = lines = realloc(lines, line * sizeof(TextLine));
     t->line_count = line;
+}
 
-    // Calculate the number of drawn characters
+static unsigned calc_num_quads(Text * t) {
     unsigned num_quads = 0;
-    for (int i = 0; i < t->line_count; i++) {
-        num_quads += lines[i].last - lines[i].first + 1;
+    unsigned line_count = t->line_count;
+    TextLine * lines = t->lines;
+    for (int i = 0; i < line_count; i++) {
+        num_quads += lines[i].visibleCharCount;
     }
-    t->num_quads = num_quads;
+    return num_quads;
+}
+
+static unsigned read_hex_digit(const char * c) {
+    unsigned x = *c;
+    if (x >= '0' && x <= '9')
+        return x - '0';
+    x |= 32;
+    if (x >= 'a' && x <= 'f')
+        return x - 'a' + 10;
+    return 0;
 }
 
 static void fill_buffers(Text * t) {
@@ -320,6 +587,9 @@ static void fill_buffers(Text * t) {
 
     float max_width = t->max_width;
     float scale = t->pt / (double) t->fontdef->size;
+
+    float kerning = 0.0f;
+    float vcolor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
     switch (t->valign) {
         case ALIGN_TOP:
@@ -358,10 +628,37 @@ static void fill_buffers(Text * t) {
         for (int j = tl.first; j <= tl.last; j++) {
 
             char c = t->text[j];
+
+            // Test for special characters (Escape character)
+            if (c == FNTDRAW_ESCAPE) {
+
+                c = t->text[++j];
+                switch(c) {
+                    case FNTDRAW_ALPHA:
+                        vcolor[3] = (16 * read_hex_digit(t->text + j + 1) + read_hex_digit(t->text + j + 2)) / 255.0f;
+                        j += 2;
+                        continue;
+                    case FNTDRAW_3COLOR:
+                        for (int ii = 0; ii < 3; ii++)
+                            vcolor[ii] = (17 * read_hex_digit(t->text + j + ii + 1)) / 255.0f;
+                        j += 3;
+                        continue;
+                    case FNTDRAW_6COLOR:
+                        for (int ii = 0; ii < 3; ii++)
+                            vcolor[ii] = (16 * read_hex_digit(t->text + j + 2 * ii + 1) + read_hex_digit(t->text + j + 2 * ii + 2)) / 255.0f;
+                        j += 6;
+                        continue;
+                    default:
+                        break;
+                }
+
+            }
+
             FontCharDef * fcd = t->fontdef->chars + c;
             if (!fcd->valid) {
                 fcd = t->fontdef->chars + ' ';
             }
+            kerning = get_kerning(fcd, t->text[j + 1]);
 
             float x1 = xcurrent + fcd->xoffset * scale;
             float x2 = x1 + fcd->w * scale;
@@ -373,17 +670,23 @@ static void fill_buffers(Text * t) {
             float v1 = fcd->y * invth;
             float v2 = v1 + fcd->h * invth;
 
+            GLfloat * tmp_vs = vs;
+
             // Neg x, Neg y corner
-            vs[0] = x1; vs[1] = y1; vs[2] = u1; vs[3] = v1;
+            tmp_vs[0] = x1; tmp_vs[1] = y1; tmp_vs[2] = u1; tmp_vs[3] = v1;
+            tmp_vs += CHAR_VERT_SIZE;
 
             // Neg x, Pos y corner
-            vs[4] = x1; vs[5] = y2; vs[6] = u1; vs[7] = v2;
+            tmp_vs[0] = x1; tmp_vs[1] = y2; tmp_vs[2] = u1; tmp_vs[3] = v2;
+            tmp_vs += CHAR_VERT_SIZE;
 
             // Pos x, Neg y corner
-            vs[8] = x2; vs[9] = y1; vs[10] = u2; vs[11] = v1;
+            tmp_vs[0] = x2; tmp_vs[1] = y1; tmp_vs[2] = u2; tmp_vs[3] = v1;
+            tmp_vs += CHAR_VERT_SIZE;
 
             // Pos x, Pos y corner
-            vs[12] = x2; vs[13] = y2; vs[14] = u2; vs[15] = v2;
+            tmp_vs[0] = x2; tmp_vs[1] = y2; tmp_vs[2] = u2; tmp_vs[3] = v2;
+            tmp_vs += CHAR_VERT_SIZE;
 
             els[0] = index + 0;
             els[1] = index + 1;
@@ -392,17 +695,36 @@ static void fill_buffers(Text * t) {
             els[4] = index + 3;
             els[5] = index + 2;
 
+            // Per Character attributes
+            for(int ii = 0; ii < 4; ii++) {
+                vs[CHAR_VERT_SIZE * ii + 4] = vcolor[0];
+                vs[CHAR_VERT_SIZE * ii + 5] = vcolor[1];
+                vs[CHAR_VERT_SIZE * ii + 6] = vcolor[2];
+                vs[CHAR_VERT_SIZE * ii + 7] = vcolor[3];
+            }
+
             // Increment the pointers for the next letter quad.
+            vs += CHAR_SIZE;
             els += 6;
-            vs += 16;
             index += 4;
 
-            xcurrent += fcd->xadvance * scale;
+            xcurrent += (fcd->xadvance + kerning) * scale;
         }
 
         ycurrent += t->fontdef->lineHeight * scale;
 
     }
+}
+
+static void text_buffer_data(Text * t) {
+
+    GLenum drawtype = (t->flags & FNTDRAW_TEXT_DYNAMIC_BIT) ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
+
+    glBindBuffer(GL_ARRAY_BUFFER, t->VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, t->EBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * CHAR_SIZE * t->num_quads, t->vertexBuffer, drawtype);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * 6 * t->num_quads, t->elementBuffer, drawtype);
+
 }
 
 void text_loadbuffer(Text * t) {
@@ -420,16 +742,16 @@ void text_loadbuffer(Text * t) {
 
     glBindVertexArray(t->VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, t->VBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, t->EBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16 * slen, t->vertexBuffer, GL_STATIC_DRAW);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * 6 * slen, t->elementBuffer, GL_STATIC_DRAW);
+    text_buffer_data(t);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GL_FLOAT), 0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, CHAR_VERT_SIZE * sizeof(GL_FLOAT), 0);
 
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GL_FLOAT), (GLvoid *)(2 * sizeof(GL_FLOAT)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, CHAR_VERT_SIZE * sizeof(GL_FLOAT), (GLvoid *)(2 * sizeof(GL_FLOAT)));
+
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, CHAR_VERT_SIZE * sizeof(GL_FLOAT), (GLvoid *)(4 * sizeof(GL_FLOAT)));
 
     glBindVertexArray(0);
 
@@ -450,12 +772,12 @@ void text_unloadbuffer(Text * t) {
 
 }
 
-Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width) {
+Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic) {
 
     size_t slen = strlen(text);
 
     // Initilaize basic variables
-    t->flags = 0;
+    t->flags = dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0;
     t->fontdef = fd;
     t->text_length = slen;
     t->pt = pt;
@@ -464,21 +786,29 @@ Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, Text
     t->max_width = max_width;
     t->smoothing = 1.0f / 16.0f;
     t->threshold = 0.5f;
-    t->color[0] = 1.0f;
-    t->color[1] = 1.0f;
-    t->color[2] = 1.0f;
-    t->color[3] = 1.0f;
+    t->color[0] = t->color[1] = t->color[2] = t->color[3] = 1.0f;
+    t->position[0] = t->position[1] = 0.0f;
 
-    calc_wrap(t, text);
+    // Allocate text buffer
+    t->text = malloc(slen + 1);
+    t->text_capacity = slen;
+    memcpy(t->text, text, slen + 1);
 
-    size_t vbuf_size = sizeof(GLfloat) * 16 * t->num_quads;
+    // Get the number of lines and store the line buffer.
+    t->lines = NULL;
+    t->line_count = 0;
+    calc_wrap(t);
+
+    // Calculate how many quads need to be drawn.
+    t->num_quads = calc_num_quads(t);
+
+    // Allocate vertex buffers
+    size_t vbuf_size = sizeof(GLfloat) * CHAR_SIZE * t->num_quads;
     size_t ebuf_size = sizeof(GLushort) * 6 * t->num_quads;
-
-    void * ptr = malloc(vbuf_size + ebuf_size + slen + 1);
+    void * ptr = malloc(vbuf_size + ebuf_size);
     t->vertexBuffer = (ptr);
     t->elementBuffer = (ptr + vbuf_size);
-    t->text = (ptr + vbuf_size + ebuf_size);
-    memcpy(t->text, text, slen + 1);
+    t->quad_capacity = t->num_quads;
 
     fill_buffers(t);
 
@@ -491,22 +821,95 @@ void text_deinit(Text * t) {
 
     text_unloadbuffer(t);
 
+    free(t->text);
     free(t->vertexBuffer);
     free(t->lines);
 }
 
-static inline void bind_shader(const Text * t, mat4 mvp) {
+static void update_buffers(Text * t) {
 
-    glUseProgram(text_shader_program.id);
+    unsigned new_num_quads = calc_num_quads(t);
+    if (new_num_quads > t->quad_capacity) {
+        t->quad_capacity = new_num_quads;
+        size_t vbuf_size = sizeof(GLfloat) * CHAR_SIZE * new_num_quads;
+        size_t ebuf_size = sizeof(GLushort) * 6 * new_num_quads;
+        void * ptr = realloc(t->vertexBuffer, vbuf_size + ebuf_size);
+        t->vertexBuffer = (ptr);
+        t->elementBuffer = (ptr + vbuf_size);
+    }
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
-    glUniform1i(shader_tex_loc, 0);
-    glUniform4fv(shader_color_loc, 1, t->color);
-    glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
-    glUniform1f(shader_smoothing_loc, t->smoothing);
-    glUniform1f(shader_threshold_loc, t->threshold);
+    t->num_quads = new_num_quads;
 
+    fill_buffers(t);
+
+    if (t->flags & FNTDRAW_TEXT_LOADED_BIT)
+        text_buffer_data(t);
+
+}
+
+void text_set(Text * t, const char * newtext) {
+
+    unsigned slen = strlen(newtext);
+    t->text_length = slen;
+
+    if (slen > t->text_capacity) {
+        t->text_capacity = slen;
+        t->text = realloc(t->text, slen + 1);
+    }
+    memcpy(t->text, newtext, slen + 1);
+
+    calc_wrap(t);
+
+    update_buffers(t);
+}
+
+void text_format(Text * t, size_t maxlength, const char * format, ...) {
+
+    va_list list;
+
+    if (maxlength > t->text_capacity) {
+        t->text = realloc(t->text, maxlength + 1);
+        t->text_capacity = maxlength;
+    }
+
+    va_start(list, format);
+    vsprintf(t->text, format, list);
+    va_end(list);
+
+    t->text_length = strlen(t->text);
+
+    calc_wrap(t);
+
+    update_buffers(t);
+}
+
+static void bind_shader(const Text * t, mat4 mvp) {
+
+    if (t->flags & FNTDRAW_TEXT_NODF_BIT) {
+
+        glUseProgram(text_shader_nodf_program.id);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
+        glUniform1i(nodf_shader_tex_loc, 0);
+        glUniform4fv(nodf_shader_color_loc, 1, t->color);
+        glUniform2fv(nodf_shader_offset_loc, 1, t->position);
+        glUniformMatrix4fv(nodf_shader_mvp_loc, 1, GL_FALSE, mvp);
+
+    } else {
+
+        glUseProgram(text_shader_program.id);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
+        glUniform1i(shader_tex_loc, 0);
+        glUniform4fv(shader_color_loc, 1, t->color);
+        glUniform2fv(shader_offset_loc, 1, t->position);
+        glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
+        glUniform1f(shader_smoothing_loc, t->smoothing);
+        glUniform1f(shader_threshold_loc, t->threshold);
+
+    }
 }
 
 void text_draw(Text * t, mat4 mvp) {
@@ -514,7 +917,7 @@ void text_draw(Text * t, mat4 mvp) {
     bind_shader(t, mvp);
 
     glBindVertexArray(t->VAO);
-    glDrawElements(GL_TRIANGLES, t->text_length * 6, GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLES, t->num_quads * 6, GL_UNSIGNED_SHORT, 0);
     glBindVertexArray(0);
 
 }
@@ -532,3 +935,6 @@ void text_draw_range(Text * t, mat4 mvp, unsigned start, unsigned length) {
     glBindVertexArray(0);
 
 }
+
+#undef CHAR_VERT_SIZE
+#undef CHAR_SIZE

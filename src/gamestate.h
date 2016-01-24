@@ -7,6 +7,7 @@
  * Game state globals
  */
 extern double game_delta;
+extern double game_fps;
 
 /*
  * Global callbacks
@@ -35,6 +36,7 @@ typedef struct {
     void (*mousewheel)(float dx, float dy);
     void (*draw)();
     void (*resize)(int width, int height);
+    void (*updateTick)();
     void * state;
 } Gamestate;
 

@@ -24,6 +24,8 @@ src/texture.c
 src/camera.c
 src/fntdraw.c
 src/arenastate.c
+src/modelshader.c
+src/model.c
 
 ## Thirdparty static libs
 src/lodepng.c
@@ -38,6 +40,8 @@ set(RESOURCES
 resources/basic.glsl
 resources/consolefont.png
 resources/consolefont.txt
+resources/fancy.txt
+resources/fancy.png
 )
 
 # Set Executable Target

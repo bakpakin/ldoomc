@@ -250,6 +250,127 @@ def_matn(4);
 
 #undef def_matn
 
+// Quaternions
+
+typedef float quat[4];
+
+static inline void quat_identity(quat q) {
+    q[0] = q[1] = q[2] = 0.f;
+    q[3] = 1.f;
+}
+
+static inline void quat_scale(quat q, float scale) {
+    q[0] *= scale;
+    q[1] *= scale;
+    q[2] *= scale;
+    q[3] *= scale;
+}
+
+static inline void quat_add(quat out, const quat a, const quat b) {
+    out[0] = a[0] + b[0];
+    out[1] = a[1] + b[1];
+    out[2] = a[2] + b[2];
+    out[3] = a[3] + b[3];
+}
+
+static inline void quat_sub(quat out, const quat a, const quat b) {
+    out[0] = a[0] - b[0];
+    out[1] = a[1] - b[1];
+    out[2] = a[2] - b[2];
+    out[3] = a[3] - b[3];
+}
+
+static inline void quat_mul(quat r, quat p, quat q) {
+    vec3 w;
+    vec3_cross(r, p, q);
+    vec3_scale(w, p, q[3]);
+    vec3_add(r, r, w);
+    vec3_scale(w, q, p[3]);
+    vec3_add(r, r, w);
+    r[3] = p[3] * q[3] - vec3_dot(p, q);
+}
+
+static inline float quat_inner_product(quat a, quat b) {
+    return vec4_dot(a, b);
+}
+
+static inline void quat_2mat4(const quat q, mat4 m) {
+
+    quat tmp;
+    vec4_norm(tmp, q);
+
+    float qx = tmp[0];
+    float qy = tmp[1];
+    float qz = tmp[2];
+    float qw = tmp[3];
+
+    float qx2 = 2.0f*qx*qx;
+    float qy2 = 2.0f*qy*qy;
+    float qz2 = 2.0f*qz*qz;
+    float qw2 = 2.0f*qw*qw;
+
+    m[0] = 1.0f - qy2 - qz2;
+    m[1] = 2.0f*qx*qy - 2.0f*qz*qw;
+    m[2] = 2.0f*qx*qz - 2.0f*qy*qw;
+    m[3] = 0.0f;
+
+    m[4] = 2.0f*qx*qy + 2.0f*qz*qy;
+    m[5] = 1.0f - qx2 - qz2;
+    m[6] = 2.0f*qy*qz - 2.0f*qx*qw;
+    m[7] = 0.0f;
+
+    m[8] = 2.0f*qx*qz - 2.0f*qy*qw;
+    m[9] = 2.0f*qy*qz + 2.0f*qx*qw;
+    m[10]= 1.0f - qx2 - qy2;
+    m[11]= 0.0f;
+
+    m[12] = 0.0f;
+    m[13] = 0.0f;
+    m[14] = 0.0f;
+    m[15] = 1.0f;
+
+}
+
+static inline void quat_norm(quat q) {
+    float scale = 1.0f / sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+    quat_scale(q, scale);
+}
+
+
+static inline void quat_conj(quat out, const quat a) {
+    out[0] = -a[0];
+    out[1] = -a[1];
+    out[2] = -a[2];
+    out[3] = a[3];
+}
+
+static inline void quat_rot(quat q, vec3 axis, float angle) {
+
+    vec3 v;
+    vec3_scale(v, axis, sinf(angle / 2));
+    int i;
+    for(i=0; i<3; ++i)
+        q[i] = v[i];
+    q[3] = cosf(angle / 2);
+
+}
+
+static inline void quat_mul_vec3(vec3 r, quat q, vec3 v) {
+
+    vec3 t, u;
+    vec3 q_xyz = {q[0], q[1], q[2]};
+
+    vec3_cross(t, q_xyz, v);
+    vec3_scale(t, t, 2);
+
+    vec3_cross(u, q_xyz, t);
+    vec3_scale(t, t, q[3]);
+
+    vec3_add(r, v, t);
+    vec3_add(r, r, u);
+
+}
+
 // Transformations
 
 static inline void mat4_rot_x(mat4 out, float rad) {
