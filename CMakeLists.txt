@@ -14,7 +14,6 @@ set(SOURCES
 src/main.c
 src/platform.c
 src/util.c
-src/gamestate.c
 src/opool.c
 src/grid3d.c
 src/geom.c

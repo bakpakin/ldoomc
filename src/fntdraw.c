@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include "shader.h"
-#include "mesh.h"
 #include "util.h"
 #include <stdarg.h>
 
@@ -217,6 +216,8 @@ static void text_shader_deinit() {
 
 // Text Shaders end
 
+// File Reader start
+
 static void skip_whitespace(const char ** p) {
     const char * c = *p;
     while (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r')
@@ -236,6 +237,37 @@ static void skip_nonwhitespace(const char ** p) {
     while (*c != ' ' && *c != '\t' && *c != '\n' && *c != '\r' && *c != 0)
         c++;
     *p = c;
+}
+
+// Line Types
+#define FNT_INFO_TYPE 0
+#define FNT_COMMON_TYPE 1
+#define FNT_PAGE_TYPE 2
+#define FNT_CHARS_TYPE 3
+#define FNT_CHAR_TYPE 4
+#define FNT_KERNINGS_TYPE 5
+#define FNT_KERNING_TYPE 6
+#define FNT_UNKNOWN_TYPE 7
+
+static int line_get_type(const char * str) {
+    const char * end = str;
+    skip_nonwhitespace(&end);
+    size_t len = end - str;
+    if (len == 4 && !strncmp("info", str, 4))
+        return FNT_INFO_TYPE;
+    if (len == 6 && !strncmp("common", str, 6))
+        return FNT_COMMON_TYPE;
+    if (len == 4 && !strncmp("page", str, 4))
+        return FNT_PAGE_TYPE;
+    if (len == 5 && !strncmp("chars", str, 5))
+        return FNT_CHARS_TYPE;
+    if (len == 4 && !strncmp("char", str, 4))
+        return FNT_CHAR_TYPE;
+    if (len == 8 && !strncmp("kernings", str, 8))
+        return FNT_KERNINGS_TYPE;
+    if (len == 7 && !strncmp("kerning", str, 7))
+        return FNT_KERNING_TYPE;
+    return FNT_UNKNOWN_TYPE;
 }
 
 static const char * line_find_value(const char * str, const char * key, char * buffer, unsigned buf_max_len) {
@@ -258,6 +290,8 @@ static const char * line_find_value(const char * str, const char * key, char * b
             }
         }
         skip_nonwhitespace(&c);
+        if (*c == 0)
+            return NULL;
     }
     const char * end = c;
     skip_nonwhitespace(&end);
@@ -276,6 +310,8 @@ static const char * line_find_value(const char * str, const char * key, char * b
 }
 
 static const char * line_next(const char * str) {
+    if (str == NULL || *str == 0)
+        return NULL;
     while (*++str != '\n' && *str != 0)
         ;
     if (*str == 0)
@@ -349,10 +385,10 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
 
     FontCharDef * cd = fd->chars = calloc(128, sizeof(FontCharDef));
 
-    for(int ii = 0; ii < fd->charcount; ii++) {
+    for(;;) {
 
         srcp = line_next(srcp);
-        if (!srcp) {
+        if (!srcp || (line_get_type(srcp) != FNT_CHAR_TYPE)) {
             break;
         }
 
@@ -381,8 +417,6 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
         cd[id].kerning.data = NULL;
 
     }
-
-    srcp = line_next(srcp);
 
     if (srcp)  {
 
@@ -424,11 +458,13 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
 
 }
 
+// File Reader end
+
 void fnt_deinit(FontDef * fd) {
     for (int i = 0; i < 128; i++) {
         FontCharDef * fcd = fd->chars + i;
         if (fcd->valid && fcd->kerning.data)
-            free(fcd->kerning.data);
+            sarray_deinit((SparseArray *) &fcd->kerning);
     }
     free(fd->chars);
     texture_deinit(&fd->tex);

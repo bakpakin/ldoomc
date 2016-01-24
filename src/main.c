@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[]) {
 	platform_init();
-	game_init();
-	game_mainloop(&arenastate);
+	platform_mainloop(&arenastate);
+	platform_deinit();
     return 0;
 }

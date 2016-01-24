@@ -97,7 +97,6 @@ char id=123 x=307 y=373 width=21 height=68 xoffset=2 yoffset=4 xadvance=24 page=
 char id=124 x=321 y=261 width=6 height=68 xoffset=7 yoffset=4 xadvance=19 page=0 chnl=15
 char id=125 x=329 y=261 width=21 height=68 xoffset=2 yoffset=4 xadvance=24 page=0 chnl=15
 char id=126 x=317 y=205 width=36 height=12 xoffset=3 yoffset=25 xadvance=42 page=0 chnl=15
-char id=32 x=0 y=0 width=0 height=0 xoffset=3 yoffset=25 xadvance=20 page=0 chnl=15
 kernings count=97
 kerning first=32 second=65 amount=-4
 kerning first=32 second=84 amount=-1

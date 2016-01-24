@@ -1,3 +1,3 @@
-#include "gamestate.h"
+#include "platform.h"
 
 extern Gamestate arenastate;

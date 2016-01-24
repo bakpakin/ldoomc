@@ -7,11 +7,10 @@ static FontDef fd;
 static Text txt;
 
 static void init() {
-    fnt_init(&fd, "fancy.txt");
-    text_init(&txt, &fd, "AW $@FOOFPS: $@FFF0.00   ", 34, ALIGN_LEFT, ALIGN_TOP, 500, 1);
+    fnt_init(&fd, "consolefont.txt");
+    text_init(&txt, &fd, "fps: 0.00   ", 14, ALIGN_LEFT, ALIGN_TOP, 500, 1);
     txt.threshold = 0.3f;
-    txt.smoothing = 1.0f / 8.0f;
-    txt.flags |= FNTDRAW_TEXT_NODF_BIT;
+    txt.smoothing = 1.0f / 4.0f;
     txt.position[0] = txt.position[1] = 5.0f;
 }
 
@@ -28,31 +27,7 @@ static void hide() {
 
 }
 
-static void mousemoved(float x, float y, float dx, float dy) {
-
-}
-
-static void key(int key) {
-
-}
-
-static void keyup(int key) {
-
-}
-
-static void keydown(int keydown) {
-
-}
-
-static void mouseup(int button, float x, float y) {
-
-}
-
-static void mousedown(int button, float x, float y) {
-
-}
-
-static void mousewheel(float dx, float dy) {
+static void button(PlatformButton b, PlatformButtonAction a) {
 
 }
 
@@ -66,7 +41,7 @@ static void update(double dt) {
 }
 
 static void updateTick() {
-   text_format(&txt, 25, "AW$@F00FPS: $@FFF%.2f", game_fps);
+   text_format(&txt, 25, "fps: %.2f", platform_fps);
 }
 
 static void draw() {
@@ -79,15 +54,8 @@ Gamestate arenastate = {
     hide,
     show,
     update,
-    keydown,
-    key,
-    keyup,
-    mousemoved,
-    mouseup,
-    mousedown,
-    mousewheel,
+    button,
     draw,
     resize,
-    updateTick,
-    NULL,
+    updateTick
 };
