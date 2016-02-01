@@ -1,10 +1,7 @@
-#version 330
+#version 330 core
 
 uniform mat4 u_mvp;
-uniform float u_time;
-uniform sampler2D u_diffuse;
-uniform sampler2D u_specular; 
-uniform sampler2D u_normal; 
+uniform sampler2D u_diffuse; 
 
 #ifdef VERTEX
 
@@ -28,8 +25,6 @@ in vec2 t;
 out vec4 color;
 
 void main() {
-    vec4 n = texture(u_normal, t); 
-    vec4 s = texture(u_specular, t);
     color = texture(u_diffuse, t);
 }
 

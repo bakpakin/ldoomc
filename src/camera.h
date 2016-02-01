@@ -75,4 +75,6 @@ void camera_set_direction(Camera * c, const vec3 direction);
 
 void camera_set_up(Camera * c, const vec3 up);
 
+void camera_calc_mvp(Camera * c, mat4 mvp, vec3 position);
+
 #endif

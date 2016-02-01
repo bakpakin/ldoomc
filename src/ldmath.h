@@ -207,8 +207,8 @@ static inline void mat##n##_mul(mat##n out, const mat##n a, const mat##n b) { \
         for (int r = 0; r < n; r++) { \
             float dot = 0; \
             for (int x = 0; x < n; x++) \
-                dot += a[n * x + r] * b[n * c + x]; \
-            ret[n * c + r] = dot; \
+                dot += a[n * r + x] * b[n * x + c]; \
+            ret[n * r + c] = dot; \
         } \
     } \
     mat##n##_fill(out, ret); \

@@ -2,9 +2,7 @@
 #define MOB_HEADER
 
 #include "ldmath.h"
-#include "texture.h"
-#include "mesh.h"
-#include "shader.h"
+#include "model.h"
 
 typedef struct {
 
@@ -20,12 +18,7 @@ typedef struct {
     float aggression;
 
     // Rendering
-    Program program;
-    Mesh mesh;
-    Texture diffuse;
-    Texture normal;
-    int diffuseLocation;
-    int normalLocation;
+    Model model;
 
     // User defined data.
     void * user;
@@ -45,6 +38,9 @@ typedef struct {
 
     // Game Information
     float health;
+
+    // Render implementation
+    unsigned renderid;
 
 } Mob;
 

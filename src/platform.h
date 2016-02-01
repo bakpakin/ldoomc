@@ -24,9 +24,12 @@ int platform_data2file(const char * data, char * pathbuf, unsigned bufsize);
 
 // Window Code
 
+#define WINDOW_FULLSCREEN 0x01
+
 typedef struct {
     int width;
     int height;
+    int flags;
 } PlatformWindow;
 
 void platform_get_window(PlatformWindow * w);
@@ -42,6 +45,7 @@ typedef enum {
     PBUTTON_D,
     PBUTTON_S1,
     PBUTTON_S2,
+    PBUTTON_SYS,
     PBUTTON_OTHER
 } PlatformButton;
 
@@ -70,6 +74,7 @@ int platform_poll_button(PlatformButton b);
 // Pointer / FPS Mode (Locked mouse vs free mouse)
 PlatformPointerMode platform_get_pointer_mode();
 void platform_set_pointer_mode(PlatformPointerMode mode);
+void platform_toggle_pointer_mode();
 
 // Flow Control
 void platform_mainloop();

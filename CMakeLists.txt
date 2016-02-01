@@ -23,8 +23,7 @@ src/texture.c
 src/camera.c
 src/fntdraw.c
 src/arenastate.c
-src/modelshader.c
-src/model.c
+src/drenderer.c
 
 ## Thirdparty static libs
 src/lodepng.c
@@ -37,10 +36,12 @@ include_directories(src)
 ## Game resources
 set(RESOURCES
 resources/basic.glsl
+resources/diffuseshader.glsl
 resources/consolefont.png
 resources/consolefont.txt
 resources/fancy.txt
 resources/fancy.png
+resources/diffuse.png
 )
 
 # Set Executable Target

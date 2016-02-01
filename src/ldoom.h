@@ -10,6 +10,7 @@
 #include "platform.h"
 #include "util.h"
 #include "ldmath.h"
+#include "grid3d.h"
 #include "geom.h"
 #include "opool.h"
 #include "vector.h"
@@ -21,5 +22,6 @@
 #include "fntdraw.h"
 #include "arenastate.h"
 #include "mob.h"
+#include "drenderer.h"
 
 #endif

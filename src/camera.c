@@ -24,24 +24,14 @@ static void camera_update_projection(Camera * c) {
 }
 
 void camera_frustum_bounds(Camera * c, aabb3 out) {
-    if (c->dirty & (PROJECTION_DIRTY_BIT | LOOKAT_DIRTY_BIT)) {
-
-        switch(c->type) {
-            case CAMERATYPE_PERSPECTIVE:
-
-                break;
-            case CAMERATYPE_ORTHOGRAPHIC:
-
-                break;
-        }
-    }
+    camera_update(c);
     c->dirty = 0;
 }
 
 static void camera_update_matrix(Camera * c) {
     mat4 look;
     mat4_look_vec(look, c->position, c->direction, c->upDirection);
-    mat4_mul(c->matrix, c->projection, look);
+    mat4_mul(c->matrix, look, c->projection);
 }
 
 CameraType camera_get_type(const Camera * c) {
@@ -113,6 +103,13 @@ void camera_update(Camera * c) {
         camera_update_matrix(c);
     }
     c->dirty = 0;
+}
+
+void camera_calc_mvp(Camera * c, mat4 mvp, vec3 position) {
+    camera_update(c);
+    mat4 translationMatrix;
+    mat4_translation_vec3(translationMatrix, position);
+    mat4_mul(mvp, translationMatrix, c->matrix);
 }
 
 #undef PROJECTION_DIRTY_BIT

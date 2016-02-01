@@ -1,6 +1,7 @@
 #include "platform.h"
 #include "util.h"
 #include "vector.h"
+#include "ldmath.h"
 
 //////////////////////////////////////// COMMON START
 
@@ -92,6 +93,27 @@ static void gamestate_draw() {
     }
 }
 
+static unsigned int platform_buttons;
+static float platform_axes[4];
+
+int platform_poll_button(PlatformButton button) {
+    return platform_buttons & (1 << button);
+}
+
+float platform_poll_axis(PlatformAxis axis) {
+    return platform_axes[axis];
+}
+
+static PlatformPointerMode pointer_mode;
+
+PlatformPointerMode platform_get_pointer_mode() {
+    return pointer_mode;
+}
+
+void platform_toggle_pointer_mode() {
+    platform_set_pointer_mode(pointer_mode == PPOINTERMODE_LOCKED ? PPOINTERMODE_FREE : PPOINTERMODE_LOCKED);
+}
+
 //////////////////////////////////////// COMMON END
 
 //////////////////////////////////////// APPLE START
@@ -128,53 +150,63 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 
 #include "glfw.h"
 
+static GLFWwindow * game_window;
+
 static unsigned long button_flags;
 
 static int button_a_code = GLFW_KEY_Z;
 static int button_b_code = GLFW_KEY_X;
 static int button_c_code = GLFW_KEY_C;
 static int button_d_code = GLFW_KEY_V;
+static int button_sys_code = GLFW_KEY_ESCAPE;
 
 static PlatformButton get_pbutton(int key) {
     if (key == button_a_code) return PBUTTON_A;
     if (key == button_b_code) return PBUTTON_B;
     if (key == button_c_code) return PBUTTON_C;
     if (key == button_d_code) return PBUTTON_D;
+    if (key == button_sys_code) return PBUTTON_SYS;
     return PBUTTON_OTHER;
 }
 
 static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE) {
-        platform_exit();
+    PlatformButton button = get_pbutton(key);
+    if (button == PBUTTON_OTHER) return;
+    PlatformButtonAction pba = action == GLFW_PRESS ? PBA_DOWN : PBA_UP;
+    if (action == GLFW_PRESS) {
+        button_flags |= (1 << button);
     } else {
-        PlatformButton button = get_pbutton(key);
-        PlatformButtonAction pba = action == GLFW_PRESS ? PBA_DOWN : PBA_UP;
-        if (action == GLFW_PRESS) {
-            button_flags |= (1 << button);
-        } else {
-            button_flags &= ~(1 << button);
-        }
-        if (current_state.button) {
-            current_state.button(button, pba);
-        }
+        button_flags &= ~(1 << button);
+    }
+    if (current_state.button) {
+        current_state.button(button, pba);
     }
 }
 
-static PlatformPointerMode pointer_mode;
+static double xmold = 0, ymold = 0;
+static int cursor_tracking_started = 0;
+static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
+    if (pointer_mode == PPOINTERMODE_LOCKED) {
+        Gamestate gs = current_state;
+        if (!cursor_tracking_started) {
+            cursor_tracking_started = 1;
+            xmold = xpos; ymold = ypos;
+        }
+        platform_axes[0] = (xpos - xmold) * 10.0 * (double) platform_delta;
+        platform_axes[1] = (ypos - ymold) * 10.0 * (double) platform_delta;
+        xmold = xpos;
+        ymold = ypos;
+    }
+}
 
 void platform_set_pointer_mode(PlatformPointerMode mode) {
-
     pointer_mode = mode;
-}
-
-PlatformPointerMode platform_get_pointer_mode() {
-    return pointer_mode;
-}
-
-static double cursor_old_xpos = 0;
-static double cursor_old_ypos = 0;
-static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
-
+    if (mode == PPOINTERMODE_LOCKED) {
+        glfwGetCursorPos(game_window, &xmold, &ymold);
+        glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    } else {
+        glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
 }
 
 static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods) {
@@ -197,7 +229,19 @@ static void mouse_button_callback(GLFWwindow * window, int button, int action, i
         current_state.button(b, pba);
 }
 
+static inline int ckey(int k) {
+    return GLFW_PRESS == glfwGetKey(game_window, k);
+}
+
 static void process_down_keys() {
+    int left = ckey(GLFW_KEY_A) || ckey(GLFW_KEY_LEFT);
+    int right = ckey(GLFW_KEY_D) || ckey(GLFW_KEY_RIGHT);
+    int up = ckey(GLFW_KEY_W) || ckey(GLFW_KEY_UP);
+    int down = ckey(GLFW_KEY_S) || ckey(GLFW_KEY_DOWN);
+    platform_axes[2] = (left && !right) ? -1.0f : 0.0f;
+    platform_axes[2] = (!left && right) ? 1.0f : platform_axes[2];
+    platform_axes[3] = (down && !up) ? -1.0f : 0.0f;
+    platform_axes[3] = (!down && up) ? 1.0f : platform_axes[3];
     if (current_state.button)
         for (int i = 0; i < PBUTTON_OTHER; i++)
             if (button_flags & (1 << i))
@@ -214,7 +258,6 @@ static void error_callback(int error, const char * message) {
     uerr(message);
 }
 
-static GLFWwindow * game_window;
 
 void platform_init() {
 
@@ -253,7 +296,7 @@ void platform_init() {
     glfwSetMouseButtonCallback(game_window, &mouse_button_callback);
     glfwSetCursorPosCallback(game_window, &cursor_position_callback);
     glfwSetWindowSizeCallback(game_window, window_resize_callback);
-    //glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 void platform_mainloop(Gamestate * initial_state) {
@@ -274,6 +317,7 @@ void platform_mainloop(Gamestate * initial_state) {
         last_frametime = frametime;
         frametime = glfwGetTime();
         glfwSwapBuffers(game_window);
+        platform_axes[0] = platform_axes[1] = 0.0f;
         glfwPollEvents();
         process_down_keys();
         platform_delta = frametime - last_frametime;
