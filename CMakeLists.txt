@@ -24,6 +24,7 @@ src/camera.c
 src/fntdraw.c
 src/arenastate.c
 src/drenderer.c
+src/quickdraw.c
 
 ## Thirdparty static libs
 src/lodepng.c

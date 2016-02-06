@@ -250,6 +250,7 @@ static void process_down_keys() {
 
 static void window_resize_callback(GLFWwindow * window, int width, int height) {
     Gamestate gs = current_state;
+    glViewport(0, 0, width, height);
     if (gs.resize)
         gs.resize(width, height);
 }

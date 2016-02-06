@@ -5,7 +5,7 @@ static Camera cam;
 static mat4 hudmatrix;
 static FontDef fd;
 static Text txt;
-static grid3d * grid;
+static Grid grid;
 
 static DRenderer renderer;
 static MobDef mobdef;
@@ -16,6 +16,9 @@ static vec3 cam_position;
 
 static void init() {
 
+    // Quickdraw init
+    qd_init();
+
     // Font init
     fnt_init(&fd, "consolefont.txt");
     text_init(&txt, &fd, "fps: 60.00  ", 14, ALIGN_LEFT, ALIGN_TOP, 500, 1);
@@ -24,7 +27,7 @@ static void init() {
     txt.position[0] = txt.position[1] = 5.0f;
 
     // Grid init
-    grid = grid3d_new(12, 12, 1);
+    grid_init(&grid, 12, 12, 1);
 
     // Render init
     drenderer_init(&renderer);
@@ -44,9 +47,10 @@ static void init() {
 }
 
 static void deinit() {
+    qd_deinit();
     fnt_deinit(&fd);
     text_deinit(&txt);
-    grid3d_delete(grid);
+    grid_deinit(&grid);
     drenderer_deinit(&renderer);
     mesh_deinit(&mobdef.model.mesh);
     texture_deinit(&mobdef.model.diffuse);
@@ -67,7 +71,6 @@ static void button(PlatformButton b, PlatformButtonAction a) {
 }
 
 static void resize(int width, int height) {
-    glViewport(0, 0, width, height);
     mat4_proj_ortho(hudmatrix, 0, width, height, 0, 0, 10);
     drenderer_resize(&renderer, width, height);
 }
@@ -96,6 +99,11 @@ static void updateTick() {
 static void draw() {
     drenderer_render(&renderer);
     text_draw(&txt, hudmatrix);
+    qd_begin();
+    qd_circle(0, 0, 0.5f, 100);
+    qd_end();
+    qd_draw(QD_LINELOOP);
+
 }
 
 Gamestate arenastate = {

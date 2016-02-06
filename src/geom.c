@@ -110,3 +110,59 @@ int poly_contains_circle(const poly * p, const vec2 point, float r) {
     return 0;
 
 }
+
+// Use SAT algorithm for now, possibly upgrade to GJK if performance becomes an issue. (Unlikely)
+// In fact, for small polygon circle tests, SAT might be faster.
+// Also, SAT allows ignoring interior edges for compound polygons.
+int sat_circle_poly_edges(const vec2 ccenter, float radius, const poly * p, unsigned edgefield, vec2 displacement) {
+
+    int i, j; // Used to iterate edges of polygon
+    float min_sep2; // Current minimum separation from circle center squared
+    float r2 = radius * radius;
+
+    vec2 sep;
+    vec2 difference;
+    vec2 itocenter, jtocenter;
+
+    for (unsigned edge = 1, i = 0, j = p->count - 1; i < p->count; j = i++, edge *= 2) {
+
+        if (!(edge & edgefield)) continue;
+
+        // Check if the circle is in the edge region
+        vec2_sub(difference, p->points[i], p->points[j]);
+        vec2_sub(itocenter, ccenter, p->points[i]);
+        vec2_sub(jtocenter, ccenter, p->points[j]);
+        float doti = vec2_dot(itocenter, difference);
+        float dotj = vec2_dot(jtocenter, difference);
+
+        if (doti > 0 || dotj < 0) {
+
+            float distance2 = vec2_len2(itocenter);
+            if (distance2 < min_sep2) {
+                sep[0] = difference[1]; sep[1] = -difference[0];
+                min_sep2 = distance2;
+            }
+
+        } else {
+
+            float crossl = vec2_crossl(difference, itocenter);
+            float distance2 = crossl * crossl / vec2_len2(difference);
+
+            if (crossl > 0 && distance2 > r2) return 0;
+
+            if (distance2 < min_sep2) {
+                vec2_assign(sep, itocenter);
+                min_sep2 = distance2;
+            }
+
+        }
+    }
+
+    vec2_scale(displacement, sep, (radius - sqrt(min_sep2)) / vec2_len(sep));
+
+    return 1;
+}
+
+int sat_circle_poly(const vec2 center, float radius, const poly * p, vec2 displacement) {
+    return sat_circle_poly_edges(center, radius, p, ~((unsigned)0), displacement);
+}

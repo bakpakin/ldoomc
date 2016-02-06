@@ -9,24 +9,10 @@
                           for (unsigned y = MIN.y; y <= MAX.y; y++) \
                           for (unsigned z = MIN.z; z <= MAX.z; z++)
 
-VECTOR_STATIC_GENERATE(grid3d_handle *, ptr);
+VECTOR_STATIC_GENERATE(GHandle *, ptr);
 
 struct cell_index {
     int x, y, z;
-};
-
-struct grid3d {
-    struct {
-        unsigned x, y, z;
-    } size;
-    Flexpool aabbs;
-    Vector * cells;
-
-    // Iteration implementation
-    Vector iter;
-    unsigned char mark;
-    grid3d_handle * iter_handle1;
-    unsigned iter_index;
 };
 
 /*
@@ -34,7 +20,7 @@ struct grid3d {
  * clamps the components to inside the cell grid. This way, AABBs outside the
  * the grid bounds will be added to the closest cells.
  */
-static inline struct cell_index get_cindex(grid3d * g, const vec3 pos) {
+static inline struct cell_index get_cindex(Grid * g, const vec3 pos) {
     struct cell_index ret = (struct cell_index) {
         ldm_floor(pos[0] / GRID3D_CELLSIZE) + g->size.x / 2,
         ldm_floor(pos[1] / GRID3D_CELLSIZE) + g->size.y / 2,
@@ -56,17 +42,16 @@ static inline struct cell_index get_cindex(grid3d * g, const vec3 pos) {
 /*
  * Converts cell coordinates to array indices in the grid cell array.
  */
-static inline unsigned to_index(grid3d * g, unsigned x, unsigned y, unsigned z) {
+static inline unsigned to_index(Grid * g, unsigned x, unsigned y, unsigned z) {
     return g->size.x * g->size.y * z + g->size.x * y + x;
 }
 
-static inline unsigned s_to_index(grid3d * g, struct cell_index * ci) {
+static inline unsigned s_to_index(Grid * g, struct cell_index * ci) {
     return to_index(g, ci->x, ci->y, ci->z);
 }
 
-grid3d * grid3d_new(unsigned xsize, unsigned ysize, unsigned zsize) {
-    grid3d * g = malloc(sizeof(grid3d));
-    flexpool_init(&g->aabbs, sizeof(grid3d_handle), 512);
+Grid * grid_init(Grid * g, unsigned xsize, unsigned ysize, unsigned zsize) {
+    flexpool_init(&g->aabbs, sizeof(GHandle), 512);
     g->cells = calloc(sizeof(Vector), xsize * ysize * zsize);
     g->size.x = xsize;
     g->size.y = ysize;
@@ -81,18 +66,17 @@ grid3d * grid3d_new(unsigned xsize, unsigned ysize, unsigned zsize) {
     return g;
 }
 
-void grid3d_delete(grid3d * g) {
+void grid_deinit(Grid * g) {
     const unsigned cellcount = g->size.x * g->size.y * g->size.z;
     for (int i = 0; i < cellcount; i++)
         vector_deinit_ptr(g->cells + i);
     vector_deinit_ptr(&g->iter);
     free(g->cells);
     flexpool_deinit(&g->aabbs);
-    free(g);
 }
 
-grid3d_handle * grid3d_add(grid3d * g, const aabb3 aabb) {
-    grid3d_handle * ptr = flexpool_alloc(&g->aabbs);
+GHandle * grid_add(Grid * g, const aabb3 aabb) {
+    GHandle * ptr = flexpool_alloc(&g->aabbs);
     aabb3_assign(ptr->aabb, aabb);
     ptr->mark = !g->mark;
 
@@ -105,7 +89,7 @@ grid3d_handle * grid3d_add(grid3d * g, const aabb3 aabb) {
     return ptr;
 }
 
-static inline void remove_from_cell(Vector * v, grid3d_handle * h) {
+static inline void remove_from_cell(Vector * v, GHandle * h) {
     for (int i = 0; i < v->count; i++)
         if (vector_get_ptr(v, i) == h) {
             vector_bag_remove_ptr(v,i);
@@ -114,7 +98,7 @@ static inline void remove_from_cell(Vector * v, grid3d_handle * h) {
     uerr("Can't find handle in expected cell.");
 }
 
-void grid3d_remove(grid3d * g, grid3d_handle * handle) {
+void grid_remove(Grid * g, GHandle * handle) {
     struct cell_index minc = get_cindex(g, handle->aabb[0]);
     struct cell_index maxc = get_cindex(g, handle->aabb[1]);
 
@@ -124,7 +108,7 @@ void grid3d_remove(grid3d * g, grid3d_handle * handle) {
     flexpool_free(&g->aabbs, handle);
 }
 
-void grid3d_update(grid3d * g, grid3d_handle * handle, const aabb3 dest) {
+void grid_update(Grid * g, GHandle * handle, const aabb3 dest) {
     struct cell_index minc = get_cindex(g, handle->aabb[0]);
     struct cell_index maxc = get_cindex(g, handle->aabb[1]);
     struct cell_index mind = get_cindex(g, dest[0]);
@@ -139,7 +123,7 @@ void grid3d_update(grid3d * g, grid3d_handle * handle, const aabb3 dest) {
             vector_push_ptr(g->cells + to_index(g, x, y, z), handle);
 }
 
-void grid3d_bounds(grid3d * g, aabb3 out) {
+void grid_bounds(Grid * g, aabb3 out) {
     float xs = GRID3D_CELLSIZE * g->size.x / 2;
     float ys = GRID3D_CELLSIZE * g->size.y / 2;
     float zs = GRID3D_CELLSIZE * g->size.z / 2;
@@ -148,9 +132,9 @@ void grid3d_bounds(grid3d * g, aabb3 out) {
     aabb3_fill(out, min, max);
 }
 
-static void iterate_cell(grid3d * g, Vector * v, const aabb3 bounds) {
+static void iterate_cell(Grid * g, Vector * v, const aabb3 bounds) {
     for (unsigned i = 0; i < v->count; i++) {
-        grid3d_handle * h = vector_get_ptr(v, i);
+        GHandle * h = vector_get_ptr(v, i);
         if (h->mark != g->mark && aabb3_overlaps(bounds, h->aabb)) {
             vector_push_ptr(&g->iter, h);
             h->mark = g->mark;
@@ -158,9 +142,9 @@ static void iterate_cell(grid3d * g, Vector * v, const aabb3 bounds) {
     }
 }
 
-typedef void (*iter_fn) (grid3d *, Vector *, const aabb3);
+typedef void (*iter_fn) (Grid *, Vector *, const aabb3);
 
-static inline void iterate_aabb(iter_fn fn, grid3d * g, const aabb3 bounds) {
+static inline void iterate_aabb(iter_fn fn, Grid * g, const aabb3 bounds) {
     struct cell_index c1 = get_cindex(g, bounds[0]);
     struct cell_index c2 = get_cindex(g, bounds[1]);
     iter_3d(c1, c2)
@@ -168,7 +152,7 @@ static inline void iterate_aabb(iter_fn fn, grid3d * g, const aabb3 bounds) {
 }
 
 // Iterators
-grid3d_handle * grid3d_iter_next(grid3d * g) {
+GHandle * grid_iter_next(Grid * g) {
     if (g->iter.count > g->iter_index) {
         return vector_get_ptr(&g->iter, g->iter_index++);
     } else {
@@ -176,17 +160,17 @@ grid3d_handle * grid3d_iter_next(grid3d * g) {
     }
 }
 
-grid3d_handle * grid3d_iter(grid3d * g, const aabb3 bounds) {
+GHandle * grid_iter(Grid * g, const aabb3 bounds) {
     g->iter.count = 0;
     iterate_aabb(iterate_cell, g, bounds);
     g->iter_index = 0;
-    return grid3d_iter_next(g);
+    return grid_iter_next(g);
 }
 
-static void iterate_cell_for_pairs(grid3d * g, Vector * v, const aabb3 bounds) {
+static void iterate_cell_for_pairs(Grid * g, Vector * v, const aabb3 bounds) {
     unsigned char mark = g->mark;
     for (unsigned i = 0; v->count; i++) {
-        grid3d_handle * h = vector_get_ptr(v, i);
+        GHandle * h = vector_get_ptr(v, i);
         if (h->mark != mark && aabb3_overlaps(bounds, h->aabb)) {
             h->mark = mark;
             vector_push_ptr(&g->iter, h);
@@ -200,34 +184,34 @@ static void iterate_cell_for_pairs(grid3d * g, Vector * v, const aabb3 bounds) {
     }
 }
 
-struct grid3d_iter_pair grid3d_iter_pairs(grid3d * g, const aabb3 bounds) {
+struct grid_iter_pair grid_iter_pairs(Grid * g, const aabb3 bounds) {
     g->iter.count = 0;
     iterate_aabb(iterate_cell_for_pairs, g, bounds);
     g->iter_handle1 = NULL;
     g->iter_index = 0;
-    return grid3d_iter_pairs_next(g);
+    return grid_iter_pairs_next(g);
 }
 
-struct grid3d_iter_pair grid3d_iter_pairs_next(grid3d * g) {
+struct grid_iter_pair grid_iter_pairs_next(Grid * g) {
     if (g->iter.count > g->iter_index) {
         if (!g->iter_handle1) {
             g->iter_handle1 = vector_get_ptr(&g->iter, g->iter_index++);
         }
-        grid3d_handle * next = vector_get_ptr(&g->iter, g->iter_index++);
+        GHandle * next = vector_get_ptr(&g->iter, g->iter_index++);
         if (next == g->iter_handle1) {
             g->iter_handle1 = NULL;
-            return grid3d_iter_pairs_next(g);
+            return grid_iter_pairs_next(g);
         }
-        struct grid3d_iter_pair tmp = {
+        struct grid_iter_pair tmp = {
             g->iter_handle1, next
         };
         return tmp;
     } else {
-        return (struct grid3d_iter_pair) { NULL, NULL };
+        return (struct grid_iter_pair) { NULL, NULL };
     }
 }
 
-int grid3d_has_next(grid3d * g) {
+int grid_has_next(Grid * g) {
     return g->iter.count > 0;
 }
 

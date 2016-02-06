@@ -1,44 +1,61 @@
+/*
+ * Defines a 3d space-partioning grid type. Useful for
+ * Rendering optimization, collision calculations, and
+ * spatial querying.
+ */
 #ifndef GRID3D_HEADER
 #define GRID3D_HEADER
 
 #include "ldmath.h"
+#include "vector.h"
+#include "opool.h"
 
-struct grid3d;
-typedef struct grid3d grid3d;
-
-struct grid3d_aabb3_handle {
+typedef struct  {
     unsigned char mark;
     aabb3 aabb;
-};
-typedef struct grid3d_aabb3_handle grid3d_handle;
+} GHandle;
 
-grid3d * grid3d_new(unsigned xsize, unsigned ysize, unsigned zsize);
+typedef struct {
+    struct {
+        unsigned x, y, z;
+    } size;
+    Flexpool aabbs;
+    Vector * cells;
 
-void grid3d_delete(grid3d * g);
+    // Iteration implementation
+    Vector iter;
+    unsigned char mark;
+    GHandle * iter_handle1;
+    unsigned iter_index;
+} Grid;
 
-grid3d_handle * grid3d_add(grid3d * g, const aabb3 aabb);
+Grid * grid_init(Grid * g, unsigned xsize, unsigned ysize, unsigned zsize);
 
-void grid3d_remove(grid3d * g, grid3d_handle * handle);
+void grid_deinit(Grid * g);
 
-void grid3d_update(grid3d * g, grid3d_handle * handle, const aabb3 dest);
+GHandle * grid_add(Grid * g, const aabb3 aabb);
 
-void grid3d_bounds(grid3d * g, aabb3 out);
+void grid_remove(Grid * g, GHandle * handle);
+
+void grid_update(Grid * g, GHandle * handle, const aabb3 dest);
+
+void grid_bounds(Grid * g, aabb3 out);
 
 // Iterators
 
-struct grid3d_iter_pair {
-    grid3d_handle * a;
-    grid3d_handle * b;
+struct grid_iter_pair {
+    GHandle * a;
+    GHandle * b;
 };
 
-int grid3d_has_next(grid3d * g);
+int grid_has_next(Grid * g);
 
-struct grid3d_iter_pair grid3d_iter_pairs(grid3d * g, const aabb3 bounds);
+struct grid_iter_pair grid_iter_pairs(Grid * g, const aabb3 bounds);
 
-struct grid3d_iter_pair grid3d_iter_pairs_next(grid3d * g);
+struct grid_iter_pair grid_iter_pairs_next(Grid * g);
 
-grid3d_handle * grid3d_iter(grid3d * g, const aabb3 bounds);
+GHandle * grid_iter(Grid * g, const aabb3 bounds);
 
-grid3d_handle * grid3d_iter_next(grid3d * g);
+GHandle * grid_iter_next(Grid * g);
 
 #endif

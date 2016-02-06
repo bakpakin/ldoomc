@@ -5,6 +5,9 @@
 
 #include <stdlib.h>
 
+/*
+ * Polygons should be convex and wound from the positive x-axis to the positive y-axis. (CCW)
+ */
 typedef struct {
     int count;
     vec2 points[];

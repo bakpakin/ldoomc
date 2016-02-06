@@ -23,5 +23,6 @@
 #include "arenastate.h"
 #include "mob.h"
 #include "drenderer.h"
+#include "quickdraw.h"
 
 #endif
