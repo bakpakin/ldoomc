@@ -44,7 +44,7 @@ void camera_set_perspective(Camera * c, float fovY, float aspect, float zNear, f
     c->data.perspective.aspect = aspect;
     c->data.perspective. znear = zNear;
     c->data.perspective.zfar = zFar;
-    c->dirty &= PROJECTION_DIRTY_BIT;
+    c->dirty |= PROJECTION_DIRTY_BIT;
 }
 
 void camera_set_ortho(Camera * c, float width, float height, float depth) {
@@ -52,7 +52,7 @@ void camera_set_ortho(Camera * c, float width, float height, float depth) {
     c->data.orthographic.width = width;
     c->data.orthographic.height = height;
     c->data.orthographic.depth = depth;
-    c->dirty &= PROJECTION_DIRTY_BIT;
+    c->dirty |= PROJECTION_DIRTY_BIT;
 }
 
 void camera_set_position(Camera * c, const vec3 position) {
@@ -82,15 +82,15 @@ static void cam_init(Camera * c) {
 
 Camera * camera_init_ortho(Camera * c,
         float width, float height, float depth) {
-    cam_init(c);
     camera_set_ortho(c, width, height, depth);
+    cam_init(c);
     return c;
 }
 
 Camera * camera_init_perspective(Camera * c,
         float fovY, float aspect, float zNear, float zFar) {
-    cam_init(c);
     camera_set_perspective(c, fovY, aspect, zNear, zFar);
+    cam_init(c);
     return c;
 }
 

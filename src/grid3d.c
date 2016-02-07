@@ -3,7 +3,7 @@
 #include "ldmath.h"
 #include "vector.h"
 
-#define GRID3D_CELLSIZE 256
+#define GRID3D_CELLSIZE 4
 
 #define iter_3d(MIN, MAX) for (unsigned x = MIN.x; x <= MAX.x; x++) \
                           for (unsigned y = MIN.y; y <= MAX.y; y++) \

@@ -5,11 +5,9 @@ static Camera cam;
 static mat4 hudmatrix;
 static FontDef fd;
 static Text txt;
-static Grid grid;
+static Scene scene;
 
-static DRenderer renderer;
 static MobDef mobdef;
-static Mob mobs[100];
 
 static float yaw, pitch;
 static vec3 cam_position;
@@ -21,37 +19,29 @@ static void init() {
 
     // Font init
     fnt_init(&fd, "consolefont.txt");
-    text_init(&txt, &fd, "fps: 60.00  ", 14, ALIGN_LEFT, ALIGN_TOP, 500, 1);
+    text_init(&txt, &fd, "fps: 60  ", 14, ALIGN_LEFT, ALIGN_TOP, 500, 1);
     txt.threshold = 0.3f;
     txt.smoothing = 1.0f / 4.0f;
     txt.position[0] = txt.position[1] = 5.0f;
 
-    // Grid init
-    grid_init(&grid, 12, 12, 1);
-
-    // Render init
-    drenderer_init(&renderer);
+    scene_init(&scene);
 
     // Create 100 mobs
     mesh_init_quickcube(&mobdef.model.mesh);
     texture_init_resource(&mobdef.model.diffuse, "diffuse.png");
-
     for (int i = 0; i < 10; i++) {
-        mobs[i].type = &mobdef;
-        mobs[i].position[0] = 1.5f * i;
-        mobs[i].position[1] = 0;
-        mobs[i].position[2] = 0;
-        drenderer_add(&renderer, mobs + i);
+        for (int j = 0; j < 10; j++) {
+            vec3 p = {2.5f * i - 12.5, 0, 2.5f * j - 12.5};
+            scene_add_mob(&scene, &mobdef, p);
+        }
     }
-
 }
 
 static void deinit() {
     qd_deinit();
     fnt_deinit(&fd);
     text_deinit(&txt);
-    grid_deinit(&grid);
-    drenderer_deinit(&renderer);
+    scene_deinit(&scene);
     mesh_deinit(&mobdef.model.mesh);
     texture_deinit(&mobdef.model.diffuse);
 }
@@ -72,7 +62,6 @@ static void button(PlatformButton b, PlatformButtonAction a) {
 
 static void resize(int width, int height) {
     mat4_proj_ortho(hudmatrix, 0, width, height, 0, 0, 10);
-    drenderer_resize(&renderer, width, height);
 }
 
 static void update(double dt) {
@@ -84,26 +73,23 @@ static void update(double dt) {
     cam_position[0] += (strafe * sinf(yaw) + forward * cosf(yaw)) * platform_delta * 4;
     cam_position[2] += (forward * sinf(yaw) - strafe * cosf(yaw)) * platform_delta * 4;
 
-    camera_set_position(&renderer.camera, cam_position);
+    camera_set_position(&scene.camera, cam_position);
     vec3 direction;
     direction[0] = cosf(pitch) * cos(yaw);
     direction[1] = sinf(pitch);
     direction[2] = cosf(pitch) * sin(yaw);
-    camera_set_direction(&renderer.camera, direction);
+    camera_set_direction(&scene.camera, direction);
+
+    scene_update(&scene, dt);
 }
 
 static void updateTick() {
-    text_format(&txt, 25, "fps: %.2f", platform_fps);
+    text_format(&txt, 25, "fps: %.0f", platform_fps);
 }
 
 static void draw() {
-    drenderer_render(&renderer);
+    scene_render(&scene);
     text_draw(&txt, hudmatrix);
-    qd_begin();
-    qd_circle(0, 0, 0.5f, 100);
-    qd_end();
-    qd_draw(QD_LINELOOP);
-
 }
 
 Gamestate arenastate = {

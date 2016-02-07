@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "ldmath.h"
 
 #define uerr(msg) do { \
     fprintf(stderr, "Error in %s, line %d, %s: %s\n", __FILE__, __LINE__, __func__, msg); \
@@ -35,5 +36,8 @@ void uqfree();
 char * util_slurp(const char * path, long * length);
 
 void util_spit(const char * path, const char * data, long length);
+
+// Debug printing
+void mat4_print(mat4 m);
 
 #endif

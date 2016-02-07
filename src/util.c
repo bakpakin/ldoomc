@@ -1,4 +1,5 @@
 #include "util.h"
+#include "ldmath.h"
 
 const char * util_filename_ext(const char * path) {
     const char * dot = strrchr(path, '.');
@@ -56,4 +57,11 @@ void uqfree(void * ptr) {
     if (!buffer_in_use)
         uerr("Trying to free memory not in use.");
     buffer_in_use = 0;
+}
+
+// Debug printing
+
+void mat4_print(mat4 m) {
+    for (int i = 0; i < 4; i++, m += 4)
+        printf("%f, %f, %f, %f\n", m[0], m[1], m[2], m[3]);
 }

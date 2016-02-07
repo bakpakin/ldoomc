@@ -82,4 +82,10 @@ static void poly6_init(poly6 * p,
 
 #undef def_polyn
 
+typedef struct {
+    float z;
+    float height;
+    poly * p;
+} Prism;
+
 #endif

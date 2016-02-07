@@ -19,13 +19,22 @@ static Program program;
 
 static const char *vsource = "#version 330 core\n"
 "uniform vec4 color;\n"
+"uniform mat4 matrix;\n"
 "layout(location = 0) in vec2 p;\n"
-"void main() { gl_Position = vec4(p, 0.0, 1.0); }";
+"void main() { gl_Position = matrix * vec4(p, 0.0, 1.0); }";
 static const char *fsource = "#version 330 core\n"
 "uniform vec4 color;\n"
+"uniform mat4 matrix;\n"
 "out vec4 c;\n"
 "void main() { c = color; }";
 static GLint ucolor_loc;
+static GLint umatrix_loc;
+static float matrix[16] = {
+    1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 1.0f
+};
 
 static GLuint VAO;
 static GLuint VBO;
@@ -42,6 +51,7 @@ void qd_init() {
     if (initialized) return;
     program_init_vertfrag(&program, vsource, fsource);
     ucolor_loc = glGetUniformLocation(program.id, "color");
+    umatrix_loc = glGetUniformLocation(program.id, "matrix");
 
     glGenBuffers(1, &VBO);
     glGenVertexArrays(1, &VAO);
@@ -66,8 +76,31 @@ void qd_deinit() {
         free(pbuffer);
 }
 
-void qd_color(float c[4]) {
+void qd_matrix(const float m[16]) {
+    memcpy(&matrix, m, sizeof(float) * 16);
+}
+
+void qd_rgbav(float c[4]) {
     memcpy(&color, c, 4 * sizeof(float));
+}
+
+void qd_rgba(float r, float g, float b, float a) {
+    color[0] = r;
+    color[1] = g;
+    color[2] = b;
+    color[3] = a;
+}
+
+void qd_rgbv(float c[3]) {
+    memcpy(&color, c, 3 * sizeof(float));
+    color[3] = 1.0f;
+}
+
+void qd_rgb(float r, float g, float b) {
+    color[0] = r;
+    color[1] = g;
+    color[2] = b;
+    color[3] = 1.0f;
 }
 
 void qd_begin() {
@@ -106,8 +139,9 @@ void qd_pointvs(int count, float ** ps) {
     pbuffer_len += 2 * count;
 }
 
-void qd_circle(float x, float y, float r, int segs) {
-    if (!drawing) return;
+void qd_circle(float x, float y, float r, int segs, unsigned type) {
+    if (drawing) return;
+    qd_begin();
     double dang = 2 * M_PI / segs;
     double ang = 0.0;
     ensure_capacity(pbuffer_len + 2 * segs);
@@ -116,6 +150,22 @@ void qd_circle(float x, float y, float r, int segs) {
         pbuffer[pbuffer_len + 2 * i + 1] = y + r * sin(ang);
     }
     pbuffer_len += 2 * segs;
+    qd_end();
+    qd_draw(type);
+}
+
+void qd_rect(float x, float y, float w, float h, unsigned type) {
+    if (drawing) return;
+    ensure_capacity(8);
+    pbuffer[0] = x;
+    pbuffer[1] = y;
+    pbuffer[2] = x + w;
+    pbuffer[3] = y;
+    pbuffer[4] = x + w;
+    pbuffer[5] = y + h;
+    pbuffer[6] = x;
+    pbuffer[7] = y + h;
+    qd_draw(type);
 }
 
 static GLenum get_gl_draw_type(unsigned t) {
@@ -142,6 +192,7 @@ void qd_draw(unsigned type) {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * pbuffer_len, pbuffer, GL_DYNAMIC_DRAW);
     glUniform4fv(ucolor_loc, 1, color);
+    glUniformMatrix4fv(umatrix_loc, 1, GL_FALSE, matrix);
     glDrawArrays(get_gl_draw_type(type), 0, pbuffer_len / 2);
     drawing = 0;
 }

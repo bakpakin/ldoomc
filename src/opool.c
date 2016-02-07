@@ -3,7 +3,7 @@
 #include "util.h"
 
 #define bbits(P, B, S) ((P)->buckets[(B) * (S)])
-#define bsize(P) (8 * (P)->object_size + 4)
+#define bsize(P) (8 * (P)->object_size + 1)
 
 // A lookup table for for the most significant 0 bit in an 8 bit value.
 static const unsigned char block_lookup[256] = {
@@ -58,10 +58,10 @@ static inline void print_pop_byte(byte b) {
 
 // Opool functions
 
-Opool * opool_init(void * memory, const size_t mem_size, const size_t object_size) {
-	const size_t bucket_size = 1 + 8 * object_size;
-	const size_t bucket_mem = mem_size - sizeof(Opool);
-	const unsigned bucket_count = bucket_mem / bucket_size;
+Opool * opool_init(void * memory, size_t mem_size, size_t object_size) {
+	size_t bucket_size = 1 + 8 * object_size;
+	size_t bucket_mem = mem_size - sizeof(Opool);
+	unsigned bucket_count = bucket_mem / bucket_size;
 
 	//Initialize Head
 	Opool * pool = (Opool *)memory;
@@ -70,20 +70,18 @@ Opool * opool_init(void * memory, const size_t mem_size, const size_t object_siz
 	pool->current_bucket = 0;
 
 	//Initialize buckets
-	byte * buckets = pool->buckets;
-	for (int i = 0; i < bucket_mem; i += bucket_size)
-		buckets[i] = 0;
+    memset(&pool->buckets, 0, bucket_mem);
 
 	return pool;
 }
 
 void * opool_alloc(Opool * pool) {
-	const size_t bucket_size = bsize(pool);
-	const unsigned bucket_count = pool->bucket_count;
-
+	size_t bucket_size = bsize(pool);
+	unsigned bucket_count = pool->bucket_count;
 	unsigned current_bucket = pool->current_bucket;
-
-	while (current_bucket < bucket_count && bbits(pool, current_bucket, bucket_size) == 255) {
+    byte * bits = pool->buckets + current_bucket * bucket_size;
+	while (current_bucket < bucket_count && *bits == 255) {
+		bits += bucket_size;
 		current_bucket++;
 	}
 
@@ -93,21 +91,20 @@ void * opool_alloc(Opool * pool) {
 
 	pool->current_bucket = current_bucket;
 
-	byte * bitset_ptr = &bbits(pool, current_bucket, bucket_size);
-	const byte offset = block_lookup[*bitset_ptr];
-	*bitset_ptr |= 1 << offset;
+	byte offset = block_lookup[*bits];
+	*bits |= 1 << offset;
 
 	pool->count++;
 
-	return bitset_ptr + offset * pool->object_size;
+	return bits + 1 + offset * pool->object_size;
 }
 
 void opool_free(Opool * pool, void * object) {
-	const size_t bucket_size = bsize(pool);
-	const unsigned bucket_count = pool->bucket_count;
+	size_t bucket_size = bsize(pool);
+	unsigned bucket_count = pool->bucket_count;
 
-	const ptrdiff_t diff = (byte *)object - pool->buckets;
-	const unsigned bucket_index = ((unsigned) diff) / bucket_size;
+	ptrdiff_t diff = (byte *)object - pool->buckets;
+	unsigned bucket_index = ((unsigned) diff) / bucket_size;
 	byte offset = 1 << ((diff - (bucket_index * bucket_size)) / pool->object_size);
 
     if (bucket_index > 8 * bucket_count || !(offset & pool->buckets[bucket_size * bucket_index])) {
@@ -130,8 +127,8 @@ int opool_checkn(Opool * pool, unsigned n) {
 	if (n >= 8 * pool->bucket_count) {
 		return 0;
 	}
-	const unsigned bindex = n >> 3;
-	const byte offset = n - (bindex << 3);
+	unsigned bindex = n >> 3;
+	byte offset = n - (bindex << 3);
 	return pool->buckets[bsize(pool) * bindex] & (1 << offset) ? 1 : 0;
 }
 
@@ -139,18 +136,18 @@ void * opool_peekn(Opool * pool, unsigned n) {
 	if (n >= 8 * pool->bucket_count) {
 		return NULL;
 	}
-	const unsigned bindex = n >> 3;
-	const unsigned offset = n - (bindex << 3);
+	unsigned bindex = n >> 3;
+	unsigned offset = n - (bindex << 3);
 	return pool->buckets + (bsize(pool) * bindex) + pool->object_size * offset;
 }
 
 int opool_getn(Opool * pool, void * object) {
-	const size_t bucket_size = bsize(pool);
-	const unsigned bucket_count = pool->bucket_count;
+	size_t bucket_size = bsize(pool);
+	unsigned bucket_count = pool->bucket_count;
 
-	const ptrdiff_t diff = (byte *)object - pool->buckets;
-	const unsigned bucket_index = ((unsigned) diff) / bucket_size;
-	const unsigned offset = (diff - (bucket_index * bucket_size)) / pool->object_size;
+	ptrdiff_t diff = (byte *)object - pool->buckets;
+	unsigned bucket_index = ((unsigned) diff) / bucket_size;
+	unsigned offset = (diff - (bucket_index * bucket_size)) / pool->object_size;
     int n = 8 * bucket_index + offset;
     if (n >= 8 * bucket_count) {
         return -1;
@@ -159,9 +156,8 @@ int opool_getn(Opool * pool, void * object) {
 }
 
 static void opool_print_trail(Opool * pool, char * trail) {
-	const size_t bucket_size = bsize(pool);
-	const unsigned bucket_count = pool->bucket_count;
-	printf("opool population: ");
+	size_t bucket_size = bsize(pool);
+	unsigned bucket_count = pool->bucket_count;
 	for (int i = 0; i < bucket_count * bucket_size; i += bucket_size) {
 		byte b = pool->buckets[i];
 		print_pop_byte(b);
@@ -199,8 +195,8 @@ static void flexpool_double_pools(Flexpool * pool) {
 }
 
 void * flexpool_alloc(Flexpool * pool) {
-    Opool * o = pool->pools[pool->current_pool];    
-    void * ret = opool_alloc(o);   
+    Opool * o = pool->pools[pool->current_pool];
+    void * ret = opool_alloc(o);
     while (!ret) {
         pool->current_pool++;
         if (pool->current_pool >= pool->pool_capacity) {
@@ -211,7 +207,7 @@ void * flexpool_alloc(Flexpool * pool) {
             opool_init(o, pool->pool_mem_size, pool->object_size);
             pool->pools[pool->current_pool] = o;
         }
-        o = pool->pools[pool->current_pool];    
+        o = pool->pools[pool->current_pool];
         ret = opool_alloc(o);
     }
     pool->count++;

@@ -22,7 +22,7 @@
 #include "fntdraw.h"
 #include "arenastate.h"
 #include "mob.h"
-#include "drenderer.h"
+#include "scene.h"
 #include "quickdraw.h"
 
 #endif

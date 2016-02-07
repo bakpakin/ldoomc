@@ -40,7 +40,7 @@ typedef struct {
     float health;
 
     // Render implementation
-    unsigned renderid;
+    int renderid;
 
 } Mob;
 
