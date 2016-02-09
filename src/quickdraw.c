@@ -146,8 +146,8 @@ void qd_circle(float x, float y, float r, int segs, unsigned type) {
     double ang = 0.0;
     ensure_capacity(pbuffer_len + 2 * segs);
     for (int i = 0; i < segs; i++, ang += dang) {
-        pbuffer[pbuffer_len + 2 * i] = x + r * cos(ang);
-        pbuffer[pbuffer_len + 2 * i + 1] = y + r * sin(ang);
+        pbuffer[pbuffer_len + 2 * i] = x + r * sin(ang);
+        pbuffer[pbuffer_len + 2 * i + 1] = y + r * cos(ang);
     }
     pbuffer_len += 2 * segs;
     qd_end();
@@ -159,12 +159,22 @@ void qd_rect(float x, float y, float w, float h, unsigned type) {
     ensure_capacity(8);
     pbuffer[0] = x;
     pbuffer[1] = y;
-    pbuffer[2] = x + w;
-    pbuffer[3] = y;
+    pbuffer[2] = x;
+    pbuffer[3] = y + h;
     pbuffer[4] = x + w;
     pbuffer[5] = y + h;
-    pbuffer[6] = x;
-    pbuffer[7] = y + h;
+    pbuffer[6] = x + w;
+    pbuffer[7] = y;
+    pbuffer_len = 8;
+    qd_draw(type);
+}
+
+void qd_poly(const poly * p, unsigned type) {
+    if (drawing) return;
+    for (int i = 0; i < p->count; i++) {
+        pbuffer[2 * i] = p->points[i][0];
+        pbuffer[2 * i + 1] = p->points[i][1];
+    }
     qd_draw(type);
 }
 
@@ -194,5 +204,4 @@ void qd_draw(unsigned type) {
     glUniform4fv(ucolor_loc, 1, color);
     glUniformMatrix4fv(umatrix_loc, 1, GL_FALSE, matrix);
     glDrawArrays(get_gl_draw_type(type), 0, pbuffer_len / 2);
-    drawing = 0;
 }

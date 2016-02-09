@@ -16,7 +16,7 @@
 
 typedef struct {
 
-    Opool * mobpool;
+    Flexpool mobpool;
 
     Vector mobs;
 

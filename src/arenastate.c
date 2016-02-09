@@ -65,13 +65,13 @@ static void resize(int width, int height) {
 }
 
 static void update(double dt) {
-    yaw -= platform_poll_axis(PAXIS_X1) * platform_delta;
-    pitch -= platform_poll_axis(PAXIS_Y1) * platform_delta;
+    yaw -= platform_poll_axis(PAXIS_X1) * platform_delta();
+    pitch -= platform_poll_axis(PAXIS_Y1) * platform_delta();
 
     float strafe = platform_poll_axis(PAXIS_X2);
     float forward = platform_poll_axis(PAXIS_Y2);
-    cam_position[0] += (strafe * sinf(yaw) + forward * cosf(yaw)) * platform_delta * 4;
-    cam_position[2] += (forward * sinf(yaw) - strafe * cosf(yaw)) * platform_delta * 4;
+    cam_position[0] += (strafe * sinf(yaw) + forward * cosf(yaw)) * platform_delta() * 4;
+    cam_position[2] += (forward * sinf(yaw) - strafe * cosf(yaw)) * platform_delta() * 4;
 
     camera_set_position(&scene.camera, cam_position);
     vec3 direction;
@@ -84,12 +84,16 @@ static void update(double dt) {
 }
 
 static void updateTick() {
-    text_format(&txt, 25, "fps: %.0f", platform_fps);
+    text_format(&txt, 25, "fps: %.0f", platform_fps());
 }
 
 static void draw() {
     scene_render(&scene);
     text_draw(&txt, hudmatrix);
+
+    qd_matrix(hudmatrix);
+    qd_rgb(1, 0, 0);
+    qd_rect(5, 5, 50, 50, QD_TRIANGLEFAN);
 }
 
 Gamestate arenastate = {

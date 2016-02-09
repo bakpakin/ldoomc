@@ -32,7 +32,7 @@ static inline void * opool_mem_end(Opool * pool) {
 }
 
 static inline size_t opool_mem_for(size_t osize, unsigned count) {
-	return (((count - 1) / 8) + 1) * (4 + 8 * osize);
+	return (((count - 1) / 8) + 1) * (1 + 8 * osize);
 }
 
 /*
@@ -175,11 +175,13 @@ Flexpool * flexpool_init(Flexpool * pool, size_t osize, unsigned count_per_block
     pool->object_size = osize;
     pool->count = 0;
     pool->bucket_count = count_per_block;
-    pool->pool_count = 0;
+    pool->pool_count = 1;
     pool->pool_capacity = 10;
     pool->current_pool = 0;
     pool->pools = calloc(10, sizeof(Opool *));
     pool->pool_mem_size = opool_mem_for(osize, count_per_block);
+    pool->pools[0] = malloc(pool->pool_mem_size);
+    opool_init(pool->pools[0], pool->pool_mem_size, osize);
 	return pool;
 }
 

@@ -81,8 +81,8 @@ void platform_mainloop();
 void platform_exit();
 void platform_exit_now();
 
-extern double platform_delta;
-extern double platform_fps;
+double platform_delta();
+double platform_fps();
 
 // Gamestates
 

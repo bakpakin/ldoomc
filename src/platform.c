@@ -5,8 +5,16 @@
 
 //////////////////////////////////////// COMMON START
 
-double platform_delta = 0.0;
-double platform_fps = 0.0;
+double _platform_delta = 0.0;
+double _platform_fps = 0.0;
+
+double platform_delta() {
+    return _platform_delta;
+}
+
+double platform_fps() {
+    return _platform_fps;
+}
 
 #define MAX_STATE_STACK 32
 
@@ -192,8 +200,8 @@ static void cursor_position_callback(GLFWwindow * window, double xpos, double yp
             cursor_tracking_started = 1;
             xmold = xpos; ymold = ypos;
         }
-        platform_axes[0] = (xpos - xmold) * 10.0 * (double) platform_delta;
-        platform_axes[1] = (ypos - ymold) * 10.0 * (double) platform_delta;
+        platform_axes[0] = (xpos - xmold) * 10.0 * _platform_delta;
+        platform_axes[1] = (ypos - ymold) * 10.0 * _platform_delta;
         xmold = xpos;
         ymold = ypos;
     }
@@ -322,16 +330,16 @@ void platform_mainloop(Gamestate * initial_state) {
         platform_axes[0] = platform_axes[1] = 0.0f;
         glfwPollEvents();
         process_down_keys();
-        platform_delta = frametime - last_frametime;
+        _platform_delta = frametime - last_frametime;
         if (frametime > fps_check_time + 1) {
-            platform_fps = framecount / (frametime - fps_check_time);
+            _platform_fps = framecount / (frametime - fps_check_time);
             framecount = 0;
             fps_check_time = frametime;
             if (current_state.updateTick) {
                 current_state.updateTick();
             }
         }
-        gamestate_update(platform_delta);
+        gamestate_update(_platform_delta);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         gamestate_draw();
     }

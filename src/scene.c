@@ -21,11 +21,10 @@ Scene * scene_init(Scene * s) {
 
     PlatformWindow window;
     platform_get_window(&window);
-    camera_init_perspective(&s->camera, 1.0f, window.width / (float) window.height, 0.05f, 100.0f);
+    camera_init_perspective(&s->camera, 1.5f, window.width / (float) window.height, 0.05f, 100.0f);
 
     // Initialize mob allocator
-    s->mobpool = malloc(8912);
-    opool_init(s->mobpool, 8912, sizeof(Mob));
+    flexpool_init(&s->mobpool, sizeof(Mob), 100);
 
     // Initialize space for mobs
     vector_init_mob(&s->mobs, 10);
@@ -51,7 +50,7 @@ void scene_deinit(Scene * s) {
     vector_deinit_mob(&s->mobs);
 
     // Deinitialize mob allocator
-    free(s->mobpool);
+    flexpool_deinit(&s->mobpool);
 
     // Deinitialize grids
     grid_deinit(&s->mobGrid);
@@ -73,7 +72,7 @@ void scene_deinit(Scene * s) {
 Mob * scene_add_mob(Scene * s, MobDef * type, vec3 position) {
 
     static const vec3 zero = {0, 0, 0};
-    Mob * m = opool_alloc(s->mobpool);
+    Mob * m = flexpool_alloc(&s->mobpool);
     if (!m) return NULL;
     m->type = type;
     vec3_assign(m->position, position);
@@ -101,7 +100,7 @@ void scene_free_mob(Scene * s, Mob * m) {
     if (m->renderid > 0) {
         scene_remove_mob(s, m);
     }
-    opool_free(s->mobpool, m);
+    flexpool_free(&s->mobpool, m);
 
 }
 
@@ -110,12 +109,13 @@ void scene_render(Scene * s) {
     // Update camera aspect ratio if width and height fo window have changed.
     PlatformWindow window;
     platform_get_window(&window);
-    camera_set_perspective(&s->camera, 1.0f, (float) window.width / (float) window.height, 0.05f, 100.0f);
+    camera_set_perspective(&s->camera, s->camera.data.perspective.fovY, (float) window.width / (float) window.height, 0.05f, 100.0f);
 
     // For now, just render everything as diffuse. No spatial partioning yet.
     glUseProgram(diffuseshader.id);
     for (int i = 0; i < s->mobs.count; i++) {
         Mob * mob = vector_get_mob(&s->mobs, i);
+        if (MOB_INVISIBLE & mob->flags) continue;
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, mob->type->model.diffuse.id);
         glUniform1i(diffuse_diffuse_loc, 0);
