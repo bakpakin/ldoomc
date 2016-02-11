@@ -8,54 +8,49 @@
 
 #include "ldmath.h"
 #include "vector.h"
-#include "opool.h"
-
-typedef struct  {
-    unsigned char mark;
-    aabb3 aabb;
-} GHandle;
 
 typedef struct {
     struct {
         unsigned x, y, z;
     } size;
-    Flexpool aabbs;
+    void * aabbs;
+    unsigned aabb_count;
+    unsigned aabb_capacity;
+    unsigned first_free_index;
+    unsigned after_last_index;
     Vector * cells;
 
     // Iteration implementation
     Vector iter;
     unsigned char mark;
-    GHandle * iter_handle1;
-    unsigned iter_index;
+    int iter_index1;
+    int iter_index2;
 } Grid;
 
 Grid * grid_init(Grid * g, unsigned xsize, unsigned ysize, unsigned zsize);
 
 void grid_deinit(Grid * g);
 
-GHandle * grid_add(Grid * g, const aabb3 aabb);
+int grid_add(Grid * g, const aabb3 aabb);
 
-void grid_remove(Grid * g, GHandle * handle);
+void grid_remove(Grid * g, int handle);
 
-void grid_update(Grid * g, GHandle * handle, const aabb3 dest);
+void grid_update(Grid * g, int handle, const aabb3 dest);
+
+void grid_aabb(Grid * g, int handle, aabb3 out);
 
 void grid_bounds(Grid * g, aabb3 out);
 
 // Iterators
 
-struct grid_iter_pair {
-    GHandle * a;
-    GHandle * b;
-};
-
 int grid_has_next(Grid * g);
 
-struct grid_iter_pair grid_iter_pairs(Grid * g, const aabb3 bounds);
+void grid_iter_pairs(Grid * g, const aabb3 bounds);
 
-struct grid_iter_pair grid_iter_pairs_next(Grid * g);
+void grid_iter_pairs_next(Grid * g, int * a, int * b);
 
-GHandle * grid_iter(Grid * g, const aabb3 bounds);
+void grid_iter(Grid * g, const aabb3 bounds);
 
-GHandle * grid_iter_next(Grid * g);
+void grid_iter_next(Grid * g, int * a);
 
 #endif

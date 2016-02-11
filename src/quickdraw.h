@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "geom.h"
 
+#define QD_NONE 0
 #define QD_LINES 1
 #define QD_LINESTRIP 2
 #define QD_LINELOOP 4

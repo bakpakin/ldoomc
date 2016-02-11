@@ -26,6 +26,7 @@ src/arenastate.c
 src/quickdraw.c
 src/scene.c
 src/mob.c
+src/brush.c
 
 ## Thirdparty static libs
 src/lodepng.c
@@ -75,7 +76,7 @@ else(APPLE)
 endif(APPLE)
 
 # Add custom flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 # Set up Libraries
 find_package(glfw3 REQUIRED)

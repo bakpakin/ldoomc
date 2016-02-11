@@ -48,12 +48,12 @@ MODIFIERS void vector_reset_##NAME(Vector * v, unsigned capacity) { \
     realloc(v->data, sizeof(TYPE) * capacity); \
     v->capacity = capacity; \
 } \
-MODIFIERS TYPE * vector_ptr_##NAME(Vector * v, unsigned index) { \
+MODIFIERS TYPE * vector_ptr_##NAME(const Vector * v, unsigned index) { \
     if (index >= v->count) \
         uerr("Out of bounds."); \
     return ((TYPE *)v->data) + index; \
 } \
-MODIFIERS TYPE vector_get_##NAME(Vector * v, unsigned index) { \
+MODIFIERS TYPE vector_get_##NAME(const Vector * v, unsigned index) { \
     if (index >= v->count) \
         uerr("Out of bounds."); \
     return ((TYPE *)v->data)[index]; \
@@ -100,6 +100,9 @@ MODIFIERS void vector_bag_remove_##NAME(Vector * v, unsigned index) { \
     else \
         vector_set_##NAME(v, index, vector_pop_##NAME(v)); \
 } \
+MODIFIERS unsigned vector_ptrdiff_##NAME(const Vector * v, void * ptr) { \
+    return (TYPE *)ptr - (TYPE *)v->data; \
+} \
 
 #define VECTOR_DECLARE(MODIFIERS, TYPE, NAME) \
 MODIFIERS Vector * vector_init_##NAME(Vector * v, unsigned initial_capacity); \
@@ -108,14 +111,15 @@ MODIFIERS void vector_resize_##NAME(Vector * v); \
 MODIFIERS void vector_trim_##NAME(Vector * v, unsigned extra_capacity); \
 MODIFIERS void vector_empty_##NAME(Vector * v); \
 MODIFIERS void vector_reset_##NAME(Vector * v, unsigned capacity); \
-MODIFIERS TYPE * vector_ptr_##NAME(Vector * v, unsigned index); \
-MODIFIERS TYPE vector_get_##NAME(Vector * v, unsigned index); \
+MODIFIERS TYPE * vector_ptr_##NAME(const Vector * v, unsigned index); \
+MODIFIERS TYPE vector_get_##NAME(const Vector * v, unsigned index); \
 MODIFIERS TYPE vector_push_##NAME(Vector * v, TYPE value); \
 MODIFIERS void vector_set_##NAME(Vector * v, unsigned index, TYPE value); \
 MODIFIERS TYPE vector_pop_##NAME(Vector * v); \
 MODIFIERS TYPE vector_remove_##NAME(Vector * v, unsigned index); \
 MODIFIERS void vector_insert_##NAME(Vector * v, unsigned index, TYPE value); \
 MODIFIERS void vector_bag_remove_##NAME(Vector * v, unsigned index); \
+MODIFIERS unsigned vector_ptrdiff_##NAME(const Vector * v, void * ptr); \
 
 #define VECTOR_DECLARE_GENERATE(TYPE, NAME) VECTOR_DECLARE( , TYPE, NAME) \
 VECTOR_GENERATE( , TYPE, NAME)

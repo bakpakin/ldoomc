@@ -196,7 +196,7 @@ void qd_end() {
 }
 
 void qd_draw(unsigned type) {
-    if (drawing) return;
+    if (drawing || (type == QD_NONE)) return;
     glUseProgram(program.id);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);

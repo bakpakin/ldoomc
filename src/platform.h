@@ -36,6 +36,9 @@ void platform_get_window(PlatformWindow * w);
 
 int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result);
 
+int platform_width();
+int platform_height();
+
 // Generic Input
 
 typedef enum {

@@ -5,8 +5,10 @@
 
 //////////////////////////////////////// COMMON START
 
-double _platform_delta = 0.0;
-double _platform_fps = 0.0;
+static double _platform_delta = 0.0;
+static double _platform_fps = 0.0;
+static int _platform_width = 0;
+static int _platform_height = 0;
 
 double platform_delta() {
     return _platform_delta;
@@ -14,6 +16,19 @@ double platform_delta() {
 
 double platform_fps() {
     return _platform_fps;
+}
+
+void platform_get_window(PlatformWindow * w) {
+    w->width = _platform_width;
+    w->height = _platform_height;
+}
+
+int platform_width() {
+    return _platform_width;
+}
+
+int platform_height() {
+    return _platform_height;
 }
 
 #define MAX_STATE_STACK 32
@@ -259,6 +274,8 @@ static void process_down_keys() {
 static void window_resize_callback(GLFWwindow * window, int width, int height) {
     Gamestate gs = current_state;
     glViewport(0, 0, width, height);
+    _platform_width = width;
+    _platform_height = height;
     if (gs.resize)
         gs.resize(width, height);
 }
@@ -284,6 +301,7 @@ void platform_init() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
 	game_window = glfwCreateWindow(1000, 600, "Ldoom", NULL, NULL);
+	glfwGetFramebufferSize(game_window, &_platform_width, &_platform_height);
 	if (!game_window) {
 	    glfwTerminate();
     }
@@ -353,10 +371,6 @@ void platform_deinit() {
 
 void platform_exit() {
     glfwSetWindowShouldClose(game_window, GL_TRUE);
-}
-
-void platform_get_window(PlatformWindow * w) {
-    glfwGetFramebufferSize(game_window, &w->width, &w->height);
 }
 
 int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result) {

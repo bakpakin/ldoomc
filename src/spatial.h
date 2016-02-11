@@ -1,5 +1,5 @@
-#ifndef MOB_HEADER
-#define MOB_HEADER
+#ifndef SPATIAL_HEADER
+#define SPATIAL_HEADER
 
 #include "ldmath.h"
 #include "model.h"
@@ -8,6 +8,7 @@
 
 #define MOB_INVISIBLE 1
 #define MOB_GROUNDED 2
+#define MOB_NOCOLLIDE 4
 #define MOB_INHERITED_FLAGS (MOB_INVISIBLE)
 
 typedef struct {
@@ -43,7 +44,7 @@ typedef struct {
 
     // Spatial Information
     vec3 position;
-    vec3 velocity;
+    vec3 prev_position;
     vec3 facing;
 
     // Game Information
@@ -56,20 +57,7 @@ typedef struct {
 
 } Mob;
 
-// Spatials are like mobs that don't interact with anything. Use them for clouds or something.
-typedef struct {
-
-    Model * modelptr;
-
-    vec3 position;
-    quat rotation;
-
-    // Render implementation
-    int renderid;
-
-} Spatial;
-
-// Brushes are static geomotry in a scene.
+// Brushes are definitions of static geomotry in a scene.
 typedef struct {
 
     Model * modelptr;
@@ -77,6 +65,14 @@ typedef struct {
     Prism body;
 
 } Brush;
+
+// Static geometry in scene
+typedef struct {
+    mat4 matrix;
+    Model * model;
+} Static;
+
+MobDef * mobdef_init(MobDef * md);
 
 // Mobs: Method like functions
 Mob * mob_init(Mob * m, MobDef * md);

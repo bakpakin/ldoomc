@@ -40,6 +40,7 @@ Scene * scene_init(Scene * s) {
     s->normalBuffer = bufs[1];
     s->lightBuffer = bufs[2];
     s->specularBuffer = bufs[3];
+    s->timeBuffer = 0;
 
     return s;
 }
@@ -74,9 +75,9 @@ Mob * scene_add_mob(Scene * s, MobDef * type, vec3 position) {
     static const vec3 zero = {0, 0, 0};
     Mob * m = flexpool_alloc(&s->mobpool);
     if (!m) return NULL;
-    m->type = type;
+    mob_init(m, type);
     vec3_assign(m->position, position);
-    vec3_assign(m->velocity, zero);
+    vec3_assign(m->prev_position, position);
 
     unsigned index = s->mobs.count;
     vector_push_mob(&s->mobs, m);
@@ -92,6 +93,7 @@ void scene_remove_mob(Scene * s, Mob * m) {
     vector_bag_remove_mob(&s->mobs, index);
     ((Mob *)s->mobs.data + index)->renderid = index;
     m->renderid = -1;
+    mob_deinit(m);
 
 }
 
@@ -106,7 +108,7 @@ void scene_free_mob(Scene * s, Mob * m) {
 
 void scene_render(Scene * s) {
 
-    // Update camera aspect ratio if width and height fo window have changed.
+    // Update camera aspect ratio if width and height of window have changed.
     PlatformWindow window;
     platform_get_window(&window);
     camera_set_perspective(&s->camera, s->camera.data.perspective.fovY, (float) window.width / (float) window.height, 0.05f, 100.0f);
@@ -127,6 +129,25 @@ void scene_render(Scene * s) {
 
 }
 
+#define PHYSICS_UPDATE (1.0/60.0)
+
 void scene_update(Scene * s, double dt) {
+
+    s->timeBuffer += dt;
+
+    // Iterate mobs and update positions.
+    while (s->timeBuffer > 0) {
+        s->timeBuffer -= PHYSICS_UPDATE;
+        for (int i = 0; i < s->mobs.count; i++) {
+
+            Mob * m = vector_get_mob(&s->mobs, i);
+            vec3 oldposition;
+            vec3_assign(oldposition, m->position);
+            for(int j = 0; j < 3; j++)
+                m->position[j] += (oldposition[j] - m->prev_position[j]);
+            vec3_assign(m->prev_position, oldposition);
+
+        }
+    }
 
 }

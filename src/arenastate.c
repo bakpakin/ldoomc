@@ -27,6 +27,7 @@ static void init() {
     scene_init(&scene);
 
     // Create 100 mobs
+    mobdef_init(&mobdef);
     mesh_init_quickcube(&mobdef.model.mesh);
     texture_init_resource(&mobdef.model.diffuse, "diffuse.png");
     for (int i = 0; i < 10; i++) {
@@ -67,7 +68,6 @@ static void resize(int width, int height) {
 static void update(double dt) {
     yaw -= platform_poll_axis(PAXIS_X1) * platform_delta();
     pitch -= platform_poll_axis(PAXIS_Y1) * platform_delta();
-
     float strafe = platform_poll_axis(PAXIS_X2);
     float forward = platform_poll_axis(PAXIS_Y2);
     cam_position[0] += (strafe * sinf(yaw) + forward * cosf(yaw)) * platform_delta() * 4;
@@ -93,7 +93,7 @@ static void draw() {
 
     qd_matrix(hudmatrix);
     qd_rgb(1, 0, 0);
-    qd_rect(5, 5, 50, 50, QD_TRIANGLEFAN);
+    qd_circle(platform_width() / 2, platform_height() / 2, 10, 50, QD_LINELOOP);
 }
 
 Gamestate arenastate = {

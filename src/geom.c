@@ -166,3 +166,15 @@ int sat_circle_poly_edges(const vec2 ccenter, float radius, const poly * p, unsi
 int sat_circle_poly(const vec2 center, float radius, const poly * p, vec2 displacement) {
     return sat_circle_poly_edges(center, radius, p, ~((unsigned)0), displacement);
 }
+
+int sat_circle_circle(const vec2 a, float ra, const vec2 b, float rb, vec2 displacement) {
+    float r = ra + rb;
+    float r2 = r * r;
+    vec2 diff;
+    vec2_sub(diff, b, a);
+    if (vec2_len2(diff) > r2)
+        return 0;
+    float dist = vec2_len(diff);
+    vec2_scale(displacement, diff, (dist - r) / dist);
+    return 1;
+}

@@ -1,14 +1,30 @@
-#include "mob.h"
+#include "spatial.h"
+
+MobDef * mobdef_init(MobDef * md) {
+
+    md->height = 10;
+    md->jump = 10;
+    md->flags = 0;
+    md->weight = 2;
+    md->starting_health = 100;
+    md->user = NULL;
+    md->radius = 5;
+    md->agression_radius = 30;
+    md->aggression = 1;
+
+    return md;
+}
 
 // Mobs: Method like functions
 Mob * mob_init(Mob * m, MobDef * md) {
     static const vec3 fw = {1, 0, 0};
     static const vec3 zero = {0, 0, 0};
 
+    m->type = md;
     m->flags = md->flags & MOB_INHERITED_FLAGS;
 
     vec3_assign(m->facing, fw);
-    vec3_assign(m->velocity, zero);
+    vec3_assign(m->prev_position, zero);
     vec3_assign(m->position, zero);
 
     m->health = md->starting_health;
