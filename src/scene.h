@@ -29,8 +29,7 @@ typedef struct {
     unsigned specularBuffer;
     unsigned lightBuffer;
 
-    Grid mobGrid;
-    Grid staticGrid;
+    Grid solidGrid;
 
     double timeBuffer;
 
@@ -46,11 +45,6 @@ Mob * scene_add_mob(Scene * s, MobDef * type, vec3 position);
 void scene_remove_mob(Scene * s, Mob * mob);
 
 void scene_free_mob(Scene * s, Mob * mob);
-
-// Statics
-Static * scene_add_static(Scene * s, Brush * b, vec3 position, vec3 scale, quat rotation);
-
-void scene_remove_static(Scene * s, Static * st);
 
 // Update with constant interval for reliable physics.
 void scene_update(Scene * s, double dt);

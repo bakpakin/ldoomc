@@ -10,6 +10,7 @@
 #include "vector.h"
 
 typedef struct {
+    float gridsize;
     struct {
         unsigned x, y, z;
     } size;
@@ -27,7 +28,7 @@ typedef struct {
     int iter_index2;
 } Grid;
 
-Grid * grid_init(Grid * g, unsigned xsize, unsigned ysize, unsigned zsize);
+Grid * grid_init(Grid * g, float gridsize, unsigned xsize, unsigned ysize, unsigned zsize);
 
 void grid_deinit(Grid * g);
 
@@ -43,14 +44,12 @@ void grid_bounds(Grid * g, aabb3 out);
 
 // Iterators
 
-int grid_has_next(Grid * g);
-
 void grid_iter_pairs(Grid * g, const aabb3 bounds);
 
-void grid_iter_pairs_next(Grid * g, int * a, int * b);
+int grid_iter_pairs_next(Grid * g, int * a, int * b);
 
 void grid_iter(Grid * g, const aabb3 bounds);
 
-void grid_iter_next(Grid * g, int * a);
+int grid_iter_next(Grid * g, int * a);
 
 #endif

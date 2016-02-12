@@ -57,15 +57,6 @@ typedef struct {
 
 } Mob;
 
-// Brushes are definitions of static geomotry in a scene.
-typedef struct {
-
-    Model * modelptr;
-
-    Prism body;
-
-} Brush;
-
 // Static geometry in scene
 typedef struct {
     mat4 matrix;

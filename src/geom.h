@@ -89,10 +89,17 @@ static void poly6_init(poly6 * p,
 
 #undef def_polyn
 
+#define BODY_PRISM 1
+#define BODY_CYLINDER 1
+
 typedef struct {
-    float z;
+    unsigned type;
+    vec3 position;
     float height;
-    poly * p;
-} Prism;
+    union {
+        poly * polygon;
+        float radius;
+    } base;
+} Body;
 
 #endif

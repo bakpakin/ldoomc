@@ -30,8 +30,7 @@ Scene * scene_init(Scene * s) {
     vector_init_mob(&s->mobs, 10);
 
     // Initialize grids
-    grid_init(&s->mobGrid, 10, 1, 10);
-    grid_init(&s->staticGrid, 10, 1, 10);
+    grid_init(&s->solidGrid, 4.0f, 10, 1, 10);
 
     // Generate buffers
     GLuint bufs[4];
@@ -54,8 +53,7 @@ void scene_deinit(Scene * s) {
     flexpool_deinit(&s->mobpool);
 
     // Deinitialize grids
-    grid_deinit(&s->mobGrid);
-    grid_deinit(&s->staticGrid);
+    grid_deinit(&s->solidGrid);
 
     // Deallocate buffers
     GLuint bufs[4];

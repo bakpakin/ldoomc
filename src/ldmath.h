@@ -6,6 +6,7 @@ Math functions inspired by Kazmath (https://github.com/Kazade/kazmath)
 
 #include <math.h>
 #include <float.h>
+#include <stdlib.h>
 
 #define LD_PI 3.1415926535897932384626
 #define LD_180_OVER_PI (180.0 / LD_PI)
@@ -49,6 +50,14 @@ static float ldm_ceil(float in) {
 
 static int ldm_almost_equal(float a, float b) {
     return fabs(a - b) < FLT_EPSILON;
+}
+
+static int ldm_randi() {
+    return rand();
+}
+
+static float ldm_randf() {
+    return (float) rand() / (float) RAND_MAX;
 }
 
 /*
