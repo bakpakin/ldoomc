@@ -4,19 +4,20 @@
 
 static mat4 hudmatrix;
 static Grid grid;
-static int ids[1000];
+static int ids[10000];
 static aabb3 bounds = {
     {0, 0, 0},
-    {500, 500, 500}
+    {2000, 2000, 2000}
 };
 
 static void init() {
-    grid_init(&grid, 10, 20, 1, 20);
+    grid_init(&grid, 10, 200, 1, 200);
     qd_init();
-    for (int i = 0; i < 1000; i++) {
-        float x = ldm_randf() * 500;
-        float y = ldm_randf() * 500;
-        float z = ldm_randf() * 500;
+    platform_set_pointer_mode(PPOINTERMODE_PIXEL);
+    for (int i = 0; i < 10000; i++) {
+        float x = ldm_randf() * 2000;
+        float y = ldm_randf() * 2000;
+        float z = ldm_randf() * 2000;
         aabb3 aabb = {
             {x - 6, y - 6, z - 6},
             {x + 6, y + 6, z + 6}
@@ -36,7 +37,12 @@ static void resize(int width, int height) {
 }
 
 static void update(double dt) {
-
+    float x = platform_poll_axis(PAXIS_X1);
+    float y = platform_poll_axis(PAXIS_Y1);
+    bounds[0][0] = x - 100;
+    bounds[0][1] = y - 100;
+    bounds[1][0] = x + 100;
+    bounds[1][1] = y + 100;
 }
 
 static void updateTick() {

@@ -20,27 +20,26 @@ struct cell_index {
     int x, y, z;
 };
 
+static inline int cindex_clamp(int x, int min, int max) {
+    x = x < min ? min : x;
+    return x > max ? max : x;
+}
+
 /*
  * Converts a floating point position vector into a cell coordinate, and
  * clamps the components to inside the cell grid. This way, AABBs outside the
  * the grid bounds will be added to the closest cells.
  */
+
 static inline struct cell_index get_cindex(Grid * g, const vec3 pos) {
     struct cell_index ret = (struct cell_index) {
         ldm_floor(pos[0] / g->gridsize),
         ldm_floor(pos[1] / g->gridsize),
         ldm_floor(pos[2] / g->gridsize)
     };
-
-    ret.x = ret.x < g->size.x ? ret.x : g->size.x - 1;
-    ret.x = ret.x >= 0 ? ret.x : 0;
-
-    ret.y = ret.y < g->size.y ? ret.y : g->size.y - 1;
-    ret.y = ret.y >= 0 ? ret.y : 0;
-
-    ret.z = ret.z < g->size.z ? ret.z : g->size.z - 1;
-    ret.z = ret.z >= 0 ? ret.z : 0;
-
+    ret.x = cindex_clamp(ret.x, 0, g->size.x - 1);
+    ret.y = cindex_clamp(ret.y, 0, g->size.y - 1);
+    ret.z = cindex_clamp(ret.z, 0, g->size.z - 1);
     return ret;
 }
 
@@ -69,7 +68,7 @@ Grid * grid_init(Grid * g, float gridsize, unsigned xsize, unsigned ysize, unsig
     g->first_free_index = 0;
     g->after_last_index = 0;
     g->aabb_count = 0;
-    g->cells = calloc(sizeof(Vector), xsize * ysize * zsize);
+    g->cells = malloc(sizeof(Vector) * xsize * ysize * zsize);
     g->size.x = xsize;
     g->size.y = ysize;
     g->size.z = zsize;

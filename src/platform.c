@@ -215,10 +215,16 @@ static void cursor_position_callback(GLFWwindow * window, double xpos, double yp
             cursor_tracking_started = 1;
             xmold = xpos; ymold = ypos;
         }
-        platform_axes[0] = (xpos - xmold) * 10.0 * _platform_delta;
-        platform_axes[1] = (ypos - ymold) * 10.0 * _platform_delta;
+        platform_axes[0] = (xpos - xmold) * _platform_delta;
+        platform_axes[1] = (ypos - ymold) * _platform_delta;
         xmold = xpos;
         ymold = ypos;
+    } else if (pointer_mode == PPOINTERMODE_FREE) {
+        platform_axes[0] = _platform_width * 2 / xpos - 1;
+        platform_axes[1] = _platform_height * 2 / ypos - 1;
+    } else { // PPOINTERMODE_PIXEL
+        platform_axes[0] = xpos;
+        platform_axes[1] = ypos;
     }
 }
 
@@ -345,7 +351,8 @@ void platform_mainloop(Gamestate * initial_state) {
         last_frametime = frametime;
         frametime = glfwGetTime();
         glfwSwapBuffers(game_window);
-        platform_axes[0] = platform_axes[1] = 0.0f;
+        if (pointer_mode == PPOINTERMODE_LOCKED)
+            platform_axes[0] = platform_axes[1] = 0.0f;
         glfwPollEvents();
         process_down_keys();
         _platform_delta = frametime - last_frametime;

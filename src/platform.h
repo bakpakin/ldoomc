@@ -59,8 +59,9 @@ typedef enum {
 } PlatformButtonAction;
 
 typedef enum {
-    PPOINTERMODE_LOCKED,
-    PPOINTERMODE_FREE
+    PPOINTERMODE_LOCKED, // In locked mode, pointer axis 1 acts like a joystick
+    PPOINTERMODE_FREE, // In free mode, pointer axis 1 behaves like a mouse. Polling the axis returns a value between -1 and 1.
+    PPOINTERMODE_PIXEL, // Similar to free, except polling returns a number between 0 and and theh width or height.
 } PlatformPointerMode;
 
 typedef enum {
