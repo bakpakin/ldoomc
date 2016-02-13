@@ -12,8 +12,8 @@ static aabb3 bounds = {
 
 static void init() {
     grid_init(&grid, 10, 200, 1, 200);
-    qd_init();
     platform_set_pointer_mode(PPOINTERMODE_PIXEL);
+    ldlog_stdout_set(0);
     for (int i = 0; i < 10000; i++) {
         float x = ldm_randf() * 2000;
         float y = ldm_randf() * 2000;
@@ -24,16 +24,10 @@ static void init() {
         };
         ids[i] = grid_add(&grid, aabb);
     }
-    mat4_proj_ortho(hudmatrix, 0, platform_width(), platform_height(), 0, 0, 10);
 }
 
 static void deinit() {
     grid_deinit(&grid);
-    qd_deinit();
-}
-
-static void resize(int width, int height) {
-    mat4_proj_ortho(hudmatrix, 0, width, height, 0, 0, 10);
 }
 
 static void update(double dt) {
@@ -46,7 +40,7 @@ static void update(double dt) {
 }
 
 static void updateTick() {
-
+    ldlog("$@F00Colored Text Test: $@FFFHi?\n");
 }
 
 static void drawbox(const aabb3 box) {
@@ -54,7 +48,6 @@ static void drawbox(const aabb3 box) {
 }
 
 static void draw() {
-    qd_matrix(hudmatrix);
     drawbox(bounds);
     int handle = -1;
     grid_iter(&grid, bounds);
@@ -73,6 +66,6 @@ Gamestate teststate = {
     update, // update
     NULL, // button
     draw, // draw
-    resize, //resize
+    NULL, //resize
     updateTick // updateTick
 };

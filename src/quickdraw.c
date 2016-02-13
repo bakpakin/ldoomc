@@ -1,6 +1,7 @@
 #include "quickdraw.h"
 #include "opengl.h"
 #include "shader.h"
+#include "platform.h"
 #include <math.h>
 #include <string.h>
 
@@ -29,12 +30,6 @@ static const char *fsource = "#version 330 core\n"
 "void main() { c = color; }";
 static GLint ucolor_loc;
 static GLint umatrix_loc;
-static float matrix[16] = {
-    1.0f, 0.0f, 0.0f, 0.0f,
-    0.0f, 1.0f, 0.0f, 0.0f,
-    0.0f, 0.0f, 1.0f, 0.0f,
-    0.0f, 0.0f, 0.0f, 1.0f
-};
 
 static GLuint VAO;
 static GLuint VBO;
@@ -74,10 +69,6 @@ void qd_deinit() {
     glDeleteVertexArrays(1, &VAO);
     if (pbuffer)
         free(pbuffer);
-}
-
-void qd_matrix(const float m[16]) {
-    memcpy(&matrix, m, sizeof(float) * 16);
 }
 
 void qd_rgbav(float c[4]) {
@@ -202,6 +193,6 @@ void qd_draw(unsigned type) {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * pbuffer_len, pbuffer, GL_DYNAMIC_DRAW);
     glUniform4fv(ucolor_loc, 1, color);
-    glUniformMatrix4fv(umatrix_loc, 1, GL_FALSE, matrix);
+    glUniformMatrix4fv(umatrix_loc, 1, GL_FALSE, platform_screen_matrix());
     glDrawArrays(get_gl_draw_type(type), 0, pbuffer_len / 2);
 }

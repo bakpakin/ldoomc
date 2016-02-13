@@ -9,6 +9,7 @@
 #include "opengl.h"
 #include "platform.h"
 #include "util.h"
+#include "log.h"
 #include "ldmath.h"
 #include "grid3d.h"
 #include "geom.h"

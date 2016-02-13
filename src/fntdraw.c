@@ -808,9 +808,7 @@ void text_unloadbuffer(Text * t) {
 
 }
 
-Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic) {
-
-    size_t slen = strlen(text);
+static void text_init_common(Text * t, const FontDef * fd, size_t slen, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic) {
 
     // Initilaize basic variables
     t->flags = dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0;
@@ -824,11 +822,6 @@ Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, Text
     t->threshold = 0.5f;
     t->color[0] = t->color[1] = t->color[2] = t->color[3] = 1.0f;
     t->position[0] = t->position[1] = 0.0f;
-
-    // Allocate text buffer
-    t->text = malloc(slen + 1);
-    t->text_capacity = slen;
-    memcpy(t->text, text, slen + 1);
 
     // Get the number of lines and store the line buffer.
     t->lines = NULL;
@@ -849,6 +842,52 @@ Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, Text
     fill_buffers(t);
 
     text_loadbuffer(t);
+}
+
+Text * text_init_multi(Text * t, const FontDef * fd, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic, int textcount, ...) {
+
+    va_list args;
+    size_t slen = 0;
+
+    int lengths[textcount];
+
+    va_start(args, textcount);
+    for (int i = 0; i < textcount; i++) {
+        const char * part = va_arg(args, const char *);
+        size_t len = strlen(part);
+        lengths[i] = len;
+        slen += len;
+    }
+    va_end(args);
+
+    t->text = malloc(slen + 1);
+    char * current = t->text;
+
+    va_start(args, textcount);
+    for (int i = 0; i < textcount; i++) {
+        const char * part = va_arg(args, const char *);
+        size_t len = lengths[i];
+        memcpy(current, part, len + 1);
+        current += len;
+    }
+    va_end(args);
+
+    text_init_common(t, fd, slen, pt, halign, valign, max_width, dynamic);
+
+    return t;
+}
+
+Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic) {
+
+    size_t slen = strlen(text);
+
+    // Allocate text buffer
+    t->text = malloc(slen + 1);
+    t->text_capacity = slen;
+    t->text_length = slen;
+    memcpy(t->text, text, slen + 1);
+
+    text_init_common(t, fd, slen, pt, halign, valign, max_width, dynamic);
 
     return t;
 }
@@ -881,6 +920,42 @@ static void update_buffers(Text * t) {
     if (t->flags & FNTDRAW_TEXT_LOADED_BIT)
         text_buffer_data(t);
 
+}
+
+void text_set_multi(Text * t, int textcount, ...) {
+
+    size_t lengths[textcount];
+    size_t slen = 0;
+
+    va_list args;
+    va_start(args, textcount);
+    for (int i = 0; i < textcount; i++) {
+        const char * part = va_arg(args, const char *);
+        size_t len = strlen(part);
+        lengths[i] = len;
+        slen += len;
+    }
+    va_end(args);
+
+    if (slen > t->text_capacity) {
+        t->text_capacity = slen;
+        t->text = realloc(t->text, slen + 1);
+    }
+    char * current = t->text;
+    t->text_length = slen;
+
+    va_start(args, textcount);
+    for (int i = 0; i < textcount; i++) {
+        const char * part = va_arg(args, const char *);
+        size_t len = lengths[i];
+        memcpy(current, part, len + 1);
+        current += len;
+    }
+    va_end(args);
+
+    calc_wrap(t);
+
+    update_buffers(t);
 }
 
 void text_set(Text * t, const char * newtext) {
@@ -919,7 +994,7 @@ void text_format(Text * t, size_t maxlength, const char * format, ...) {
     update_buffers(t);
 }
 
-static void bind_shader(const Text * t, mat4 mvp) {
+static void bind_shader(const Text * t, const mat4 mvp) {
 
     if (t->flags & FNTDRAW_TEXT_NODF_BIT) {
 
@@ -948,7 +1023,7 @@ static void bind_shader(const Text * t, mat4 mvp) {
     }
 }
 
-void text_draw(Text * t, mat4 mvp) {
+void text_draw(Text * t, const mat4 mvp) {
 
     bind_shader(t, mvp);
 
@@ -958,7 +1033,7 @@ void text_draw(Text * t, mat4 mvp) {
 
 }
 
-void text_draw_range(Text * t, mat4 mvp, unsigned start, unsigned length) {
+void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length) {
 
     if (start + length > t->text_length) {
         uerr("Range not renderable.");

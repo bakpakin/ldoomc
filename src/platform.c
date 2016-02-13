@@ -2,6 +2,9 @@
 #include "util.h"
 #include "vector.h"
 #include "ldmath.h"
+#include "console.h"
+#include "quickdraw.h"
+#include "log.h"
 
 //////////////////////////////////////// COMMON START
 
@@ -127,14 +130,19 @@ float platform_poll_axis(PlatformAxis axis) {
     return platform_axes[axis];
 }
 
-static PlatformPointerMode pointer_mode;
+static PlatformPointerMode pointer_mode = PPOINTERMODE_FREE;
 
 PlatformPointerMode platform_get_pointer_mode() {
     return pointer_mode;
 }
 
-void platform_toggle_pointer_mode() {
-    platform_set_pointer_mode(pointer_mode == PPOINTERMODE_LOCKED ? PPOINTERMODE_FREE : PPOINTERMODE_LOCKED);
+static mat4 screen_matrix = {1.0, 0.0, 0.0, 0.0,
+                             0.0, 1.0, 0.0, 0.0,
+                             0.0, 0.0, 1.0, 0.0,
+                             0.0, 0.0, 0.0, 1.0};
+
+const float * platform_screen_matrix() {
+    return screen_matrix;
 }
 
 //////////////////////////////////////// COMMON END
@@ -282,6 +290,7 @@ static void window_resize_callback(GLFWwindow * window, int width, int height) {
     glViewport(0, 0, width, height);
     _platform_width = width;
     _platform_height = height;
+    mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
     if (gs.resize)
         gs.resize(width, height);
 }
@@ -331,6 +340,12 @@ void platform_init() {
     glfwSetCursorPosCallback(game_window, &cursor_position_callback);
     glfwSetWindowSizeCallback(game_window, window_resize_callback);
     glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // Misc
+    mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
+    ldlog_init();
+    console_init();
+    qd_init();
 }
 
 void platform_mainloop(Gamestate * initial_state) {
@@ -367,10 +382,16 @@ void platform_mainloop(Gamestate * initial_state) {
         gamestate_update(_platform_delta);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         gamestate_draw();
+        console_draw();
     }
 }
 
 void platform_deinit() {
+
+    console_deinit();
+    ldlog_deinit();
+    qd_deinit();
+
     if (current_state.deinit) current_state.deinit();
     glfwDestroyWindow(game_window);
     glfwTerminate();
@@ -388,4 +409,3 @@ int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result) {
 #endif
 
 //////////////////////////////////////// DESKTOP CODE END
-

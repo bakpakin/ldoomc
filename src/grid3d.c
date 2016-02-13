@@ -14,7 +14,7 @@ typedef struct {
     aabb3 aabb;
 } GHandle;
 
-VECTOR_STATIC_GENERATE(int, int);
+VECGEN(int, int);
 
 struct cell_index {
     int x, y, z;
@@ -52,13 +52,6 @@ static inline unsigned to_index(Grid * g, unsigned x, unsigned y, unsigned z) {
 
 static inline unsigned s_to_index(Grid * g, struct cell_index * ci) {
     return to_index(g, ci->x, ci->y, ci->z);
-}
-
-/*
- * For debugging
- */
-static inline void aabb3_print(const aabb3 x) {
-    printf("<min: %f, %f, %f | max: %f, %f, %f>\n", x[0][0], x[0][1], x[0][2], x[1][0], x[1][1], x[1][2]);
 }
 
 Grid * grid_init(Grid * g, float gridsize, unsigned xsize, unsigned ysize, unsigned zsize) {

@@ -92,6 +92,10 @@ void fnt_deinit(FontDef * fd);
 
 Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width, int dymanic);
 
+Text * text_init_multi(Text * t, const FontDef * fd, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic, int textcount, ...);
+
+void text_set_multi(Text * t, int textcount, ...);
+
 void text_set(Text * t, const char * newtext);
 
 void text_format(Text * t, size_t maxlength, const char * format, ...);
@@ -102,8 +106,8 @@ void text_loadbuffer(Text * t);
 
 void text_unloadbuffer(Text * t);
 
-void text_draw(Text * t, mat4 mvp);
+void text_draw(Text * t, const mat4 mvp);
 
-void text_draw_range(Text * t, mat4 mvp, unsigned start, unsigned length);
+void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length);
 
 #endif

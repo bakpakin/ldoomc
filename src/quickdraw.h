@@ -17,8 +17,6 @@ void qd_init();
 
 void qd_deinit();
 
-void qd_matrix(const float m[16]);
-
 void qd_rgbav(float c[4]);
 
 void qd_rgba(float r, float g, float b, float a);

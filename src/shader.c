@@ -4,9 +4,6 @@
 #include <stdarg.h>
 #include "platform.h"
 
-VECTOR_STATIC_GENERATE(ProgramAttribute, A);
-VECTOR_STATIC_GENERATE(ProgramUniform, U);
-
 static const char * all_prepend = "\n";
 static const char * vert_prepend = "\n#define VERTEX 1\n";
 static const char * frag_prepend = "\n#define FRAGMENT 1\n";
@@ -159,13 +156,5 @@ Program * program_init_resource(Program * p, const char * resource) {
 }
 
 void program_deinit(Program * p) {
-    if (p->attributes.count > 0) {
-        free(vector_ptr_A(&p->attributes, 0)->name);
-    }
-    if (p->uniforms.count > 0) {
-        free(vector_ptr_U(&p->uniforms, 0)->name);
-    }
-    vector_deinit_A(&p->attributes);
-    vector_deinit_U(&p->uniforms);
     glDeleteProgram(p->id);
 }

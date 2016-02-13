@@ -1,7 +1,7 @@
 #include "mesh.h"
-#include "vector.h"
-#include "stddef.h"
-#include "stdio.h"
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 #define ACTIVE_BIT 0x01
 #define MEMINITED_BIT 0x02

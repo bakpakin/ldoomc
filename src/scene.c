@@ -4,7 +4,7 @@
 #include "platform.h"
 #include "camera.h"
 
-VECTOR_STATIC_GENERATE(Mob *, mob);
+VECGEN(Mob *, mob);
 
 static Program diffuseshader;
 static int rendererCount = 0;

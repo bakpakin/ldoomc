@@ -2,7 +2,6 @@
 #define SHADER_HEADER
 
 #include "glfw.h"
-#include "vector.h"
 
 typedef struct {
     GLuint id;
@@ -23,8 +22,6 @@ typedef struct {
 
 typedef struct {
     GLuint id;
-    Vector attributes;
-    Vector uniforms;
 } Program;
 
 /*

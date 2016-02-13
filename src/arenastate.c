@@ -14,9 +14,6 @@ static vec3 cam_position;
 
 static void init() {
 
-    // Quickdraw init
-    qd_init();
-
     // Font init
     fnt_init(&fd, "consolefont.txt");
     text_init(&txt, &fd, "fps: 60  ", 14, ALIGN_LEFT, ALIGN_TOP, 500, 1);
@@ -39,7 +36,6 @@ static void init() {
 }
 
 static void deinit() {
-    qd_deinit();
     fnt_deinit(&fd);
     text_deinit(&txt);
     scene_deinit(&scene);
@@ -57,12 +53,10 @@ static void hide() {
 
 static void button(PlatformButton b, PlatformButtonAction a) {
     if (a == PBA_DOWN && b == PBUTTON_SYS) {
-        platform_toggle_pointer_mode();
+        platform_set_pointer_mode(
+                platform_get_pointer_mode() == PPOINTERMODE_LOCKED ?
+                PPOINTERMODE_FREE : PPOINTERMODE_LOCKED);
     }
-}
-
-static void resize(int width, int height) {
-    mat4_proj_ortho(hudmatrix, 0, width, height, 0, 0, 10);
 }
 
 static void update(double dt) {
@@ -89,9 +83,7 @@ static void updateTick() {
 
 static void draw() {
     scene_render(&scene);
-    text_draw(&txt, hudmatrix);
-
-    qd_matrix(hudmatrix);
+    text_draw(&txt, platform_screen_matrix());
     qd_rgb(1, 0, 0);
     qd_circle(platform_width() / 2, platform_height() / 2, 10, 50, QD_LINELOOP);
 }
@@ -104,6 +96,6 @@ Gamestate arenastate = {
     update,
     button,
     draw,
-    resize,
+    NULL,
     updateTick
 };

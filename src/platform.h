@@ -1,8 +1,7 @@
 #ifndef PLATFORM_HEADER
 #define PLATFORM_HEADER
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdarg.h>
 
 //////////////////////////////////////// DEFINES
 #if (defined __APPLE__ || defined _WIN32 || defined __linux__)
@@ -18,7 +17,6 @@ void platform_deinit();
 
 // An immutable resource
 int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize);
-
 // A persistent data file
 int platform_data2file(const char * data, char * pathbuf, unsigned bufsize);
 
@@ -38,6 +36,7 @@ int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result);
 
 int platform_width();
 int platform_height();
+const float * platform_screen_matrix(); // Returns the orthographic projection matrix to convert NDC to pixel space.
 
 // Generic Input
 
@@ -78,7 +77,6 @@ int platform_poll_button(PlatformButton b);
 // Pointer / FPS Mode (Locked mouse vs free mouse)
 PlatformPointerMode platform_get_pointer_mode();
 void platform_set_pointer_mode(PlatformPointerMode mode);
-void platform_toggle_pointer_mode();
 
 // Flow Control
 void platform_mainloop();
