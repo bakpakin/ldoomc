@@ -16,10 +16,11 @@ static void init() {
 
     // Font init
     fnt_init(&fd, "consolefont.txt");
-    text_init(&txt, &fd, "fps: 60  ", 14, ALIGN_LEFT, ALIGN_TOP, 500, 1);
+    text_init(&txt, &fd, "fps: 60  ", 14, ALIGN_RIGHT, ALIGN_TOP, 500, 1);
     txt.threshold = 0.3f;
     txt.smoothing = 1.0f / 4.0f;
-    txt.position[0] = txt.position[1] = 5.0f;
+    txt.position[1] = 5.0f;
+    txt.position[0] = platform_width() - 505;
 
     scene_init(&scene);
 
@@ -33,6 +34,8 @@ static void init() {
             scene_add_mob(&scene, &mobdef, p);
         }
     }
+
+    ldlog_stdout_set(0);
 }
 
 static void deinit() {
@@ -51,6 +54,10 @@ static void hide() {
 
 }
 
+static void resize(int w, int h) {
+    txt.position[0] = w - 505;
+}
+
 static void button(PlatformButton b, PlatformButtonAction a) {
     if (a == PBA_DOWN && b == PBUTTON_SYS) {
         platform_set_pointer_mode(
@@ -60,8 +67,10 @@ static void button(PlatformButton b, PlatformButtonAction a) {
 }
 
 static void update(double dt) {
-    yaw -= platform_poll_axis(PAXIS_X1) * platform_delta();
-    pitch -= platform_poll_axis(PAXIS_Y1) * platform_delta();
+    if (platform_get_pointer_mode() == PPOINTERMODE_LOCKED) {
+        yaw -= platform_poll_axis(PAXIS_X1) * platform_delta() * 8;
+        pitch -= platform_poll_axis(PAXIS_Y1) * platform_delta() * 8;
+    }
     float strafe = platform_poll_axis(PAXIS_X2);
     float forward = platform_poll_axis(PAXIS_Y2);
     cam_position[0] += (strafe * sinf(yaw) + forward * cosf(yaw)) * platform_delta() * 4;
@@ -79,6 +88,7 @@ static void update(double dt) {
 
 static void updateTick() {
     text_format(&txt, 25, "fps: %.0f", platform_fps());
+    ldlog("Logging Test... $@F00Red $@0F8Green $@08FBlue");
 }
 
 static void draw() {
@@ -96,6 +106,6 @@ Gamestate arenastate = {
     update,
     button,
     draw,
-    NULL,
+    resize,
     updateTick
 };

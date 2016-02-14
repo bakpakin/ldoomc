@@ -14,7 +14,7 @@ void ldlog_init() {
     vector_init_logger(&loggers, 4);
     stdoutlogger.log = filelogger_log;
     stdoutlogger.clear = NULL;
-    stdoutlogger.user = NULL;
+    stdoutlogger.user = stdout;
     stdoutlogger.enabled = 1;
     ldlog_logger(&stdoutlogger);
 }
@@ -42,7 +42,7 @@ void ldlog_clear() {
     if (ldlog_logging_enabled) {
         for (int i = 0; i < loggers.count; i++) {
             Logger * lgr = vector_get_logger(&loggers, i);
-            if (!lgr->enabled || !lgr->clear) continue;
+            if ((!lgr->enabled) || (!lgr->clear)) continue;
             lgr->clear(lgr->user);
         }
     }

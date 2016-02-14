@@ -130,7 +130,7 @@ float platform_poll_axis(PlatformAxis axis) {
     return platform_axes[axis];
 }
 
-static PlatformPointerMode pointer_mode = PPOINTERMODE_FREE;
+static PlatformPointerMode pointer_mode = PPOINTERMODE_LOCKED;
 
 PlatformPointerMode platform_get_pointer_mode() {
     return pointer_mode;
@@ -175,6 +175,23 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 
 #endif
 //////////////////////////////////////// END APPLE
+
+#ifdef _WIN32
+
+// For now, just let it build. I don't know the WinAPI very well. :P
+int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
+    static const char * pred = "resources\\";
+    static size_t predsize = strlen(pred);
+    size_t slen = strlen(resource);
+    if (slen + predsize > bufsize + 1) {
+        return 0;
+    }
+    memcpy(pathbuf, pred, predsize);
+    memcpy(pathbuf + predsize, pathbuf, resource);
+    return 1;
+}
+
+#endif
 
 //////////////////////////////////////// DESKTOP CODE START
 #ifdef PLATFORM_DESKTOP
