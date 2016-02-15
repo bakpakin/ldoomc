@@ -162,7 +162,7 @@ void qd_rect(float x, float y, float w, float h, unsigned type) {
 
 void qd_poly(const poly * p, unsigned type) {
     if (drawing) return;
-    for (int i = 0; i < p->count; i++) {
+    for (unsigned i = 0; i < p->count; i++) {
         pbuffer[2 * i] = p->points[i][0];
         pbuffer[2 * i + 1] = p->points[i][1];
     }

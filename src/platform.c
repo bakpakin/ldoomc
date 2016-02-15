@@ -65,7 +65,7 @@ void gamestate_switch(Gamestate * gs) {
 void gamestate_jump(unsigned index) {
     if (index > current_index)
         uerr("Invalid gamestate jump index.");
-    for (int i = current_index; i > index; i--) {
+    for (unsigned i = current_index; i > index; i--) {
         if (stack[i]->deinit)
             stack[i]->deinit();
     }
@@ -235,7 +235,6 @@ static double xmold = 0, ymold = 0;
 static int cursor_tracking_started = 0;
 static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
     if (pointer_mode == PPOINTERMODE_LOCKED) {
-        Gamestate gs = current_state;
         if (!cursor_tracking_started) {
             cursor_tracking_started = 1;
             xmold = xpos; ymold = ypos;
@@ -264,7 +263,6 @@ void platform_set_pointer_mode(PlatformPointerMode mode) {
 }
 
 static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods) {
-    Gamestate gs = current_state;
     PlatformButton b = PBUTTON_OTHER;
     if (button == GLFW_MOUSE_BUTTON_LEFT) b = PBUTTON_S1;
     if (button == GLFW_MOUSE_BUTTON_RIGHT) b = PBUTTON_S2;
@@ -324,8 +322,6 @@ void platform_init() {
     glfwSetErrorCallback(&error_callback);
 
     // GLFW window and context creation
-    GLFWmonitor * monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode * vmode = glfwGetVideoMode(monitor);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);

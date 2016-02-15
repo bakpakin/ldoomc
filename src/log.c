@@ -28,7 +28,7 @@ void ldlog(const char * message, ...) {
         va_list l;
         va_start(l, message);
 
-        for (int i = 0; i < loggers.count; i++) {
+        for (unsigned i = 0; i < loggers.count; i++) {
             Logger * lgr = vector_get_logger(&loggers, i);
             if (!lgr->enabled) continue;
             lgr->log(lgr->user, message, l);
@@ -40,7 +40,7 @@ void ldlog(const char * message, ...) {
 
 void ldlog_clear() {
     if (ldlog_logging_enabled) {
-        for (int i = 0; i < loggers.count; i++) {
+        for (unsigned i = 0; i < loggers.count; i++) {
             Logger * lgr = vector_get_logger(&loggers, i);
             if ((!lgr->enabled) || (!lgr->clear)) continue;
             lgr->clear(lgr->user);

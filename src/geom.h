@@ -10,7 +10,7 @@
  * Ploygons that don't follow this assumption make work for some functions, and not for others.
  */
 typedef struct {
-    int count;
+    unsigned count;
     vec2 points[];
 } poly;
 

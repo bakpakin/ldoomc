@@ -148,7 +148,7 @@ int opool_getn(Opool * pool, void * object) {
 	ptrdiff_t diff = (byte *)object - pool->buckets;
 	unsigned bucket_index = ((unsigned) diff) / bucket_size;
 	unsigned offset = (diff - (bucket_index * bucket_size)) / pool->object_size;
-    int n = 8 * bucket_index + offset;
+    unsigned n = 8 * bucket_index + offset;
     if (n >= 8 * bucket_count) {
         return -1;
     }
@@ -158,7 +158,7 @@ int opool_getn(Opool * pool, void * object) {
 static void opool_print_trail(Opool * pool, char * trail) {
 	size_t bucket_size = bsize(pool);
 	unsigned bucket_count = pool->bucket_count;
-	for (int i = 0; i < bucket_count * bucket_size; i += bucket_size) {
+	for (unsigned i = 0; i < bucket_count * bucket_size; i += bucket_size) {
 		byte b = pool->buckets[i];
 		print_pop_byte(b);
 	}
@@ -186,7 +186,7 @@ Flexpool * flexpool_init(Flexpool * pool, size_t osize, unsigned count_per_block
 }
 
 void flexpool_deinit(Flexpool * pool) {
-    for (int i = 0; i < pool->pool_count; i++)
+    for (unsigned i = 0; i < pool->pool_count; i++)
         free(pool->pools[i]);
 	free(pool->pools);
 }
@@ -218,7 +218,7 @@ void * flexpool_alloc(Flexpool * pool) {
 
 void flexpool_free(Flexpool * pool, void * object) {
     int found = 0;
-    for (int i = 0; i < pool->pool_count; i++) {
+    for (unsigned i = 0; i < pool->pool_count; i++) {
         Opool * o = pool->pools[i];
         if (object >= (void *) o->buckets && object < opool_mem_end(o)) {
             opool_free(o, object);
@@ -247,7 +247,7 @@ int flexpool_checkn(Flexpool * pool, unsigned n) {
 int flexpool_getn(Flexpool * pool, void * object) {
     int n = -1;
     unsigned operpool = pool->bucket_count * 8;
-    for (int i = 0; i < pool->pool_count; i++) {
+    for (unsigned i = 0; i < pool->pool_count; i++) {
         Opool * o = pool->pools[i];
         if (object >= (void *) o->buckets && object < opool_mem_end(o)) {
             n = opool_getn(o, object) + i * operpool;
@@ -259,7 +259,7 @@ int flexpool_getn(Flexpool * pool, void * object) {
 
 void flexpool_print(Flexpool * pool) {
     printf("|");
-    for (int i = 0; i < pool->pool_count; i++) {
+    for (unsigned i = 0; i < pool->pool_count; i++) {
         opool_print_trail(pool->pools[i], "|");
     }
 }

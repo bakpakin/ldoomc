@@ -1,8 +1,6 @@
 #include "arenastate.h"
 #include "ldoom.h"
 
-static Camera cam;
-static mat4 hudmatrix;
 static FontDef fd;
 static Text txt;
 static Scene scene;

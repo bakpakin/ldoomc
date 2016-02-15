@@ -4,7 +4,7 @@
 void console_init();
 void console_deinit();
 void console_draw();
-void console_set_history(int length);
+void console_set_history(unsigned length);
 int console_get_history();
 
 int console_get_visible();

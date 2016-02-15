@@ -70,7 +70,6 @@ void scene_deinit(Scene * s) {
 
 Mob * scene_add_mob(Scene * s, MobDef * type, vec3 position) {
 
-    static const vec3 zero = {0, 0, 0};
     Mob * m = flexpool_alloc(&s->mobpool);
     if (!m) return NULL;
     mob_init(m, type);
@@ -113,7 +112,7 @@ void scene_render(Scene * s) {
 
     // For now, just render everything as diffuse. No spatial partioning yet.
     glUseProgram(diffuseshader.id);
-    for (int i = 0; i < s->mobs.count; i++) {
+    for (unsigned i = 0; i < s->mobs.count; i++) {
         Mob * mob = vector_get_mob(&s->mobs, i);
         if (MOB_INVISIBLE & mob->flags) continue;
         glActiveTexture(GL_TEXTURE0);
@@ -133,10 +132,11 @@ void scene_update(Scene * s, double dt) {
 
     s->timeBuffer += dt;
 
-    // Iterate mobs and update positions.
     while (s->timeBuffer > 0) {
+
+        // Iterate mobs and update positions.
         s->timeBuffer -= PHYSICS_UPDATE;
-        for (int i = 0; i < s->mobs.count; i++) {
+        for (unsigned i = 0; i < s->mobs.count; i++) {
 
             Mob * m = vector_get_mob(&s->mobs, i);
             vec3 oldposition;
@@ -144,8 +144,10 @@ void scene_update(Scene * s, double dt) {
             for(int j = 0; j < 3; j++)
                 m->position[j] += (oldposition[j] - m->prev_position[j]);
             vec3_assign(m->prev_position, oldposition);
-
         }
+
+        // Resolve mob-mob collisions
+
     }
 
 }

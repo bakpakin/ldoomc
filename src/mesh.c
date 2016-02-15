@@ -166,7 +166,6 @@ static Mesh * mesh_init_nocopy(Mesh * m,
     m->mesh_type = mesh_type;
 
     size_t vsize = sizeof(GLfloat) * vertdata_length;
-    size_t isize = sizeof(GLushort) * index_count;
 
     m->vcount = vsize / get_size(mesh_type);
     m->icount = index_count;
@@ -330,7 +329,6 @@ Mesh * mesh_init_cylinder(Mesh * m, float height, float radius, int subdivisions
 
         // Add verts
 
-        float ang = i * afactor;
         float u = i * ufactor;
 
         float x = radius * cosf(i * afactor);

@@ -43,13 +43,12 @@ int poly_contains(const poly * p, vec2 point) {
 
     int odd = 0;
 
-    int i, j;
     vec2 p1, p2;
 
     float px = point[0];
     float py = point[1];
 
-    for (i = 0, j = p->count - 1; i < p->count; j = i++) {
+    for (unsigned i = 0, j = p->count - 1; i < p->count; j = i++) {
          vec2_assign(p1, p->points[i]);
          vec2_assign(p2, p->points[j]);
          if ((p1[1] < py && p2[1] > py) || (p1[1] > py && p2[1] < py))
@@ -66,7 +65,7 @@ void poly_aabb(const poly * p, aabb2 out) {
     vec2 mn = {FLT_MAX, FLT_MAX};
     vec2 mx = {FLT_MIN, FLT_MIN};
 
-    for (int i = 0; i < p->count; i++) {
+    for (unsigned i = 0; i < p->count; i++) {
         vec2_min(mn, mn, p->points[i]);
         vec2_max(mx, mx, p->points[i]);
     }
@@ -101,8 +100,7 @@ int poly_contains_circle(const poly * p, const vec2 point, float r) {
     if (aabb2_contains(bounds, point))
         return 1;
     float r2 = r * r;
-    int i, j;
-    for (i = 0, j = p->count - 1; i < p->count; j = i++) {
+    for (unsigned i = 0, j = p->count - 1; i < p->count; j = i++) {
         if (point_seg_dist2(point, p->points[i], p->points[j]) < r2) {
             return 1;
         }
@@ -116,7 +114,6 @@ int poly_contains_circle(const poly * p, const vec2 point, float r) {
 // Also, SAT allows ignoring interior edges for compound polygons.
 int sat_circle_poly_edges(const vec2 ccenter, float radius, const poly * p, unsigned edgefield, vec2 displacement) {
 
-    int i, j; // Used to iterate edges of polygon
     float min_sep2; // Current minimum separation from circle center squared
     float r2 = radius * radius;
 

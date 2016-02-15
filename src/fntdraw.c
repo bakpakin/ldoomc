@@ -277,7 +277,7 @@ static const char * line_find_value(const char * str, const char * key, char * b
     for(;;) {
         skip_whitespace(&c);
         keyfound = 1;
-        for (int i = 0; i < len; i++) {
+        for (unsigned i = 0; i < len; i++) {
             if (c[i] != key[i])	{
                 keyfound = 0;
                 break;
@@ -320,8 +320,7 @@ static const char * line_next(const char * str) {
 }
 
 static void resolve_path_name(const char * path, const char * file, char * buf, unsigned max_len) {
-    int pathlen = strlen(path);
-    int last_sep_index = pathlen;
+    unsigned pathlen = strlen(path);
 #if defined(_WIN32) || defined(WIN32)
     char sep = '\\';
 #else
@@ -332,7 +331,7 @@ static void resolve_path_name(const char * path, const char * file, char * buf, 
         c--;
     if (c == path)
         uerr("Could not find file from path.");
-    int filelen = strlen(file);
+    unsigned filelen = strlen(file);
     if (filelen + pathlen + 1 > max_len)
         uerr("Buffer overflow.");
 
@@ -355,7 +354,6 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
     char buf[BUFLEN];
 
     long source_len;
-    unsigned vallen;
     char * source = util_slurp(path, &source_len);
     const char * srcp = source;
 
@@ -392,7 +390,7 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
             break;
         }
 
-        char id;
+        unsigned id;
         unsigned x, y, w, h;
         float xoff, yoff, xadvance;
 
@@ -591,7 +589,7 @@ static unsigned calc_num_quads(Text * t) {
     unsigned num_quads = 0;
     unsigned line_count = t->line_count;
     TextLine * lines = t->lines;
-    for (int i = 0; i < line_count; i++) {
+    for (unsigned i = 0; i < line_count; i++) {
         num_quads += lines[i].visibleCharCount;
     }
     return num_quads;
@@ -661,7 +659,7 @@ static void fill_buffers(Text * t) {
         }
 
         // Make a quad for each letter of the line.
-        for (int j = tl.first; j <= tl.last; j++) {
+        for (unsigned j = tl.first; j <= tl.last; j++) {
 
             char c = t->text[j];
 
@@ -770,7 +768,6 @@ void text_loadbuffer(Text * t) {
     }
 
     t->flags |= FNTDRAW_TEXT_LOADED_BIT;
-    unsigned slen = t->text_length;
 
     glGenBuffers(1, &t->VBO);
     glGenBuffers(1, &t->EBO);

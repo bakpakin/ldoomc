@@ -52,8 +52,9 @@ typedef struct {
     float speed;
     float jump;
 
-    // Render implementation
+    // Render / Phsyics implementation
     int renderid;
+    int gridHandle;
 
 } Mob;
 

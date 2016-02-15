@@ -1,8 +1,8 @@
 #include "ldoom.h"
 
-int main(int argc, char* argv[]) {
+int main() {
 	platform_init();
-	platform_mainloop(&arenastate);
+	platform_mainloop(&teststate);
 	platform_deinit();
     return 0;
 }

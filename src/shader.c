@@ -4,7 +4,6 @@
 #include <stdarg.h>
 #include "platform.h"
 
-static const char * all_prepend = "\n";
 static const char * vert_prepend = "\n#define VERTEX 1\n";
 static const char * frag_prepend = "\n#define FRAGMENT 1\n";
 static const char * geom_prepend = "\n#define GEOMETRY 1\n";

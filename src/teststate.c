@@ -2,7 +2,6 @@
 #include "teststate.h"
 #include "vector.h"
 
-static mat4 hudmatrix;
 static Grid grid;
 static int ids[10000];
 static aabb3 bounds = {

@@ -11,13 +11,14 @@
 
 typedef struct {
     unsigned flags;
+    void * user;
     aabb3 aabb;
 } GHandle;
 
 VECGEN(int, int);
 
 struct cell_index {
-    int x, y, z;
+    unsigned x, y, z;
 };
 
 static inline int cindex_clamp(int x, int min, int max) {
@@ -69,7 +70,7 @@ Grid * grid_init(Grid * g, float gridsize, unsigned xsize, unsigned ysize, unsig
     g->first_free_index = 0;
 
     unsigned cellcount = g->size.x * g->size.y * g->size.z;
-    for (int i = 0; i < cellcount; i++)
+    for (unsigned i = 0; i < cellcount; i++)
         vector_init_int(g->cells + i, 20);
 
     vector_init_int(&g->iter, 128);
@@ -78,26 +79,28 @@ Grid * grid_init(Grid * g, float gridsize, unsigned xsize, unsigned ysize, unsig
 
 void grid_deinit(Grid * g) {
     unsigned cellcount = g->size.x * g->size.y * g->size.z;
-    for (int i = 0; i < cellcount; i++)
+    for (unsigned i = 0; i < cellcount; i++)
         vector_deinit_int(g->cells + i);
     vector_deinit_int(&g->iter);
     free(g->cells);
     free(g->aabbs);
 }
 
-int grid_add(Grid * g, const aabb3 aabb) {
+int grid_add_user(Grid * g, const aabb3 aabb, void * user) {
 
     int handle = g->first_free_index++;
-    if (handle >= g->aabb_capacity) {
+    unsigned uhandle = (unsigned) handle;
+    if (uhandle >= g->aabb_capacity) {
         g->aabb_capacity *= 2;
         g->aabbs = realloc(g->aabbs, sizeof(GHandle) * g->aabb_capacity);
     }
-    if (handle >= g->after_last_index)
+    if (uhandle >= g->after_last_index)
         g->after_last_index = handle + 1;
 
     GHandle * ptr = ((GHandle *)g->aabbs) + handle;
     aabb3_assign(ptr->aabb, aabb);
     ptr->flags = (ITER_BIT & g->mark) | ALIVE_BIT;
+    ptr->user = user;
 
     struct cell_index minc = get_cindex(g, aabb[0]);
     struct cell_index maxc = get_cindex(g, aabb[1]);
@@ -109,8 +112,16 @@ int grid_add(Grid * g, const aabb3 aabb) {
     return handle;
 }
 
+int grid_add(Grid * g, const aabb3 aabb) {
+    return grid_add_user(g, aabb, NULL);
+}
+
+void * grid_user(Grid * g, int handle) {
+    return ((GHandle *)g->aabbs + handle)->user;
+}
+
 static inline void remove_from_cell(Vector * v, int handle) {
-    for (int i = 0; i < v->count; i++)
+    for (unsigned i = 0; i < v->count; i++)
         if (vector_get_int(v, i) == handle) {
             vector_bag_remove_int(v, i);
             return;
@@ -129,7 +140,7 @@ void grid_remove(Grid * g, int handle) {
         remove_from_cell(g->cells + to_index(g, x, y, z), handle);
 
     ptr->flags &= ~ALIVE_BIT;
-    if (handle < g->first_free_index)
+    if ((unsigned) handle < g->first_free_index)
         g->first_free_index = handle;
 
     g->aabb_count--;
@@ -198,7 +209,7 @@ static inline void iterate_grid(iter_fn fn, Grid * g, const aabb3 bounds) {
 
 // Iterator
 int grid_iter_next(Grid * g, int * a) {
-    if (g->iter.count > g->iter_index1) {
+    if (g->iter.count > (unsigned) g->iter_index1) {
         *a = vector_get_int(&g->iter, g->iter_index1++);
         return 1;
     }
@@ -239,7 +250,7 @@ void grid_iter_pairs(Grid * g, const aabb3 bounds) {
 }
 
 int grid_iter_pairs_next(Grid * g, int * a, int * b) {
-    if (g->iter.count > g->iter_index1) {
+    if (g->iter.count > (unsigned) g->iter_index1) {
         if (g->iter_index1 >= 0) {
             g->iter_index1 = vector_get_int(&g->iter, g->iter_index2++);
         }

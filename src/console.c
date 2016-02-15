@@ -38,7 +38,7 @@ static inline float textpad(Text * t) {
     return t->line_count * (fd.lineHeight / CONSOLE_FONT_POINT + CONSOLE_PADDING);
 }
 
-static inline Text * nth_history(int n) {
+static inline Text * nth_history(unsigned n) {
     return history + (history_start + n) % history_capacity;
 }
 
@@ -86,7 +86,7 @@ static void console_log_fn(void * user, const char * message, va_list args) {
 }
 
 static void console_log_clear(void * user) {
-    for (int i = 0; i < history_len; i++) {
+    for (unsigned i = 0; i < history_len; i++) {
         Text * t = nth_history(i);
         text_deinit(t);
     }
@@ -105,7 +105,7 @@ void console_draw() {
     qd_rgba(1, 1, 1, 1);
 
     float y = CONSOLE_BORDER_TOP;
-    for (int i = 0; i < history_len; i++) {
+    for (unsigned i = 0; i < history_len; i++) {
         Text * t = nth_history(i);
         t->position[0] = CONSOLE_BORDER_LEFT;
         t->position[1] = y;
@@ -115,10 +115,10 @@ void console_draw() {
 
 }
 
-void console_set_history(int length) {
+void console_set_history(unsigned length) {
 
     if (length < history_len) { // Delete the oldest text logs
-        for (int i = length; i < history_len; i++) {
+        for (unsigned i = length; i < history_len; i++) {
             Text * t = nth_history(i);
             history_ysize -= textpad(t);
             text_deinit(t);
@@ -126,7 +126,7 @@ void console_set_history(int length) {
         history_len = length;
     }
     Text * history_tmp = malloc(sizeof(Text) * length);
-    for (int i = 0; i < history_len; i++) {
+    for (unsigned i = 0; i < history_len; i++) {
         memcpy(history_tmp + i, nth_history(i), sizeof(Text));
     }
     history = history_tmp;
@@ -173,7 +173,7 @@ void console_init() {
 void console_deinit() {
 
     fnt_deinit(&fd);
-    for(int i = 0; i < history_len; i++) {
+    for(unsigned i = 0; i < history_len; i++) {
         Text * t = history + ((history_start + i) % history_capacity);
         text_deinit(t);
     }

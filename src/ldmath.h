@@ -8,9 +8,9 @@ Math functions inspired by Kazmath (https://github.com/Kazade/kazmath)
 #include <float.h>
 #include <stdlib.h>
 
-#define LD_PI 3.1415926535897932384626
-#define LD_180_OVER_PI (180.0 / LD_PI)
-#define LD_PI_OVER_180 (LD_PI / 180.0)
+#define LD_PI 3.1415926535897932384626f
+#define LD_180_OVER_PI (180.0f / LD_PI)
+#define LD_PI_OVER_180 (LD_PI / 180.0f)
 
 // float functions
 static float ldm_min(float a, float b) {
@@ -316,7 +316,6 @@ static inline void quat_2mat4(const quat q, mat4 m) {
     float qx2 = 2.0f*qx*qx;
     float qy2 = 2.0f*qy*qy;
     float qz2 = 2.0f*qz*qz;
-    float qw2 = 2.0f*qw*qw;
 
     m[0] = 1.0f - qy2 - qz2;
     m[1] = 2.0f*qx*qy - 2.0f*qz*qw;
@@ -389,7 +388,7 @@ static inline void mat4_rot_x(mat4 out, float rad) {
     | 0 sin(A)  cos(A) 0 |
     | 0 0       0      1 |
      */
-    float sin_ = sin(rad), cos_ = cos(rad);
+    float sin_ = sinf(rad), cos_ = cosf(rad);
 
     out[0]  = 1;
     out[1]  = 0;
@@ -420,7 +419,7 @@ static inline void mat4_rot_y(mat4 out, float rad) {
     | -sin(A) 0 cos(A) 0 |
     |  0      0 0      1 |
      */
-    const float sin_ = sin(rad), cos_ = cos(rad);
+    const float sin_ = sinf(rad), cos_ = cosf(rad);
 
     out[0]  = cos_;
     out[1]  = 0;
@@ -451,7 +450,7 @@ static inline void mat4_rot_z(mat4 out, float rad) {
     | 0       0      1 0 |
     | 0       0      0 1 |
      */
-    const float sin_ = sin(rad), cos_ = cos(rad);
+    const float sin_ = sinf(rad), cos_ = cosf(rad);
 
     out[0]  = cos_;
     out[1]  = sin_;
@@ -534,7 +533,7 @@ static inline void mat4_proj_perspective(mat4 out, float fovY, float aspect, flo
         return;
     }
 
-    float uh = 1.0 / tan(fovY / 2.0);
+    float uh = 1.0f / tanf(fovY / 2.0f);
 
     out[0] = uh / aspect;
     out[1] = 0;
@@ -561,7 +560,7 @@ static inline void mat4_proj_perspective(mat4 out, float fovY, float aspect, flo
 static inline void mat4_proj_ortho(mat4 out,
         float left, float right,
         float bottom, float top,
-        float near, float far) {
+        float neardist, float fardist) {
 
     out[0] = 2.0f / (right - left);
     out[1] = 0;
@@ -575,12 +574,12 @@ static inline void mat4_proj_ortho(mat4 out,
 
     out[8] = 0;
     out[9] = 0;
-    out[10] = -2.0f / (far - near);
+    out[10] = -2.0f / (fardist - neardist);
     out[11] = 0;
 
     out[12] = -(right + left) / (right - left);
     out[13] = -(top + bottom) / (top - bottom);
-    out[14] = -(far + near) / (far - near);
+    out[14] = -(fardist + neardist) / (fardist - neardist);
     out[15] = 1.0f;
 
 }

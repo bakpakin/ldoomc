@@ -34,11 +34,15 @@ void grid_deinit(Grid * g);
 
 int grid_add(Grid * g, const aabb3 aabb);
 
+int grid_add_user(Grid * g, const aabb3 aabb, void * user);
+
 void grid_remove(Grid * g, int handle);
 
 void grid_update(Grid * g, int handle, const aabb3 dest);
 
 void grid_aabb(Grid * g, int handle, aabb3 out);
+
+void * grid_user(Grid * g, int handle);
 
 void grid_bounds(Grid * g, aabb3 out);
 

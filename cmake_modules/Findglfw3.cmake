@@ -21,42 +21,48 @@
 
 #Search for the include file...
 FIND_PATH(GLFW3_INCLUDE_DIRS GLFW/glfw3.h DOC "Path to GLFW include directory."
+  
   HINTS
-  $ENV{GLFW3_ROOT}
-  PATH_SUFFIX include #For finding the include file under the root of the glfw expanded archive, typically on Windows.
+	${GLFW3_ROOT}
+	$ENV{GLFW3_ROOT}
+  
   PATHS
-  /usr/include/
-  /usr/local/include/
-  # By default headers are under GLFW subfolder
-  /usr/include/GLFW
-  /usr/local/include/GLFW
-  ${GLFW3_ROOT_DIR}/include/ # added by ptr
+	/usr/include/
+	/usr/local/include/
+	/usr/include/GLFW
+	/usr/local/include/GLFW
+	${GLFW3_ROOT}/include
+	$ENV{GLFW3_ROOT}/include
 )
 
 SET(GLFW3_LIB_NAMES libglfw3.a glfw3 glfw GLFW3.lib)
 
 FIND_LIBRARY(GLFW3_LIBRARIES DOC "Absolute path to GLFW library."
-  NAMES ${GLFW3_LIB_NAMES}
+
+  NAMES 
+	${GLFW3_LIB_NAMES}
+  
   HINTS
-  $ENV{GLFW3_ROOT}
-  PATH_SUFFIXES lib/win32 #For finding the library file under the root of the glfw expanded archive, typically on Windows.
+	${GLFW3_ROOT}
+	$ENV{GLFW3_ROOT}
+  
   PATHS
-  /usr/local/lib
-  /usr/lib
-  ${GLFW3_ROOT_DIR}/lib-msvc100/release # added by ptr
+	/usr/local/lib
+	/usr/lib
+	${GLFW3_ROOT}/lib-vc2015
+	$ENV{GLFW3_ROOT}/lib-vc2015
 )
 IF( APPLE )
-    find_library(IOKIT NAMES IOKit)
-    #find_library(OpenGL NAMES OpenGL)
     find_library(COREVIDEO NAMES CoreVideo)
     find_library(COCOA NAMES Cocoa)
+    find_library(IOKIT NAMES IOKit)
     SET(GLFW_LIBRARIES ${GLFW3_LIBRARIES} ${IOKIT} ${COREVIDEO} ${COCOA})
-endif( APPLE )
+ENDIF( APPLE )
 
 IF(GLFW3_LIBRARIES AND GLFW3_INCLUDE_DIRS)
   SET(GLFW3_FOUND TRUE)
   message(STATUS "Found GLFW3: ${GLFW3_LIBRARIES}")
-ELSE()
+ELSE(GLFW3_LIBRARIES AND GLFW3_INCLUDE_DIRS)
   message(STATUS "GLFW3 NOT found!")
 ENDIF(GLFW3_LIBRARIES AND GLFW3_INCLUDE_DIRS)
 
