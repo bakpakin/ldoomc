@@ -16,7 +16,6 @@ src/platform.c
 src/util.c
 src/log.c
 src/opool.c
-src/grid3d.c
 src/geom.c
 src/shader.c
 src/mesh.c
@@ -28,7 +27,6 @@ src/quickdraw.c
 src/scene.c
 src/mob.c
 src/console.c
-src/teststate.c
 
 ## Thirdparty static libs
 src/lodepng.c

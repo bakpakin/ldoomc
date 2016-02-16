@@ -49,6 +49,8 @@ VECGEN(unsigned, uint);
 
 Camera scene_camera;
 
+static unsigned updates_per_frame = 1;
+
 static Program diffuseshader;
 static GLint diffuse_mvp_loc;
 static GLint diffuse_diffuse_loc;
@@ -235,22 +237,25 @@ void scene_render() {
         glBindTexture(GL_TEXTURE_2D, model->diffuse.id);
         glUniform1i(diffuse_diffuse_loc, 0);
         mat4 mvp;
-        camera_calc_mvp(&scene_camera, mvp, mob->position);
+        mat4 rot;
+        mat4_rot_y(rot, atan2(mob->facing[0], mob->facing[2]));
+        mat4_translation_vec3(mvp, mob->position);
+        mat4_mul(mvp, rot, mvp);
+        mat4_mul(mvp, mvp, camera_matrix(&scene_camera));
         glUniformMatrix4fv(diffuse_mvp_loc, 1, GL_FALSE, mvp);
         mesh_draw(model->mesh);
     }
 
 }
 
-#define PHYSICS_UPDATE (1.0/60.0)
+#define COLLISION_ITERATIONS 3
+#define PHYSICS_TIMESTEP (1.0/60.0)
 
 void scene_update(double dt) {
 
-    timeBuffer += dt;
+    static const vec3 gravity = {0, -0.02f, 0};
 
-    while (timeBuffer > 0) {
-
-        timeBuffer -= PHYSICS_UPDATE;
+    for (unsigned update_count = 0; update_count < updates_per_frame; update_count++) {
 
         // Iterate mobs and integrate for new position.
         for (unsigned i = 0; i < items.count; i++) {
@@ -262,56 +267,90 @@ void scene_update(double dt) {
             vec3_sub(delta, m->position, m->prev_position);
             vec3_scale(delta, delta, m->continuation); // Simulate drag
             vec3_add(delta, delta, m->impulse);
+            vec3_add(delta, delta, gravity);
             vec3_add(m->position, delta, m->position);
+
+            // Check for ground collision
+            if (m->position[1] < 0) m->position[1] = 0;
         }
 
-        for (Vector * v = cells; v < cells + CELLS; v++) {
-            for (unsigned i = 0; i < v->count; i++) {
-                Item * itema = vector_ptr_item(&items, vector_get_uint(v, i));
-                if (itema->type != IT_MOB) continue;
-                Mob * a = itema->data.mob;
-                float ax = a->position[0];
-                float az = a->position[2];
-                float ar = a->type->radius;
-                float a_inv_mass = a->type->inv_mass;
-                float squishy_a = a->type->squishyness;
-                for (unsigned j = i + 1; j < v->count; j++) {
-                    Item * itemb = vector_ptr_item(&items, vector_get_uint(v, j));
-                    if (itemb->type != IT_MOB) continue;
-                    Mob * b = itemb->data.mob;
-                    float br = b->type->radius;
-                    float bx = b->position[0];
-                    float bz = b->position[2];
-                    float r = ar + br;
-                    float r2 = r * r;
-                    float dx = bx - ax;
-                    float dz = bz - az;
-                    float d2 = dx * dx + dz * dz;
-                    if (d2 == 0) { // Prevent strange nan teloporation
-                        dx = 0.00000001f;
-                        d2 = dx * dx;
-                    }
-                    if (r2 > d2) {
-                        float b_inv_mass = b->type->inv_mass;
-                        float squishy_b = b->type->squishyness;
-                        float d = sqrtf(d2);
-                        float factor = (1 - squishy_a) * (1 - squishy_b) * (r - d) / d;
-                        float afactor = factor * a_inv_mass / (a_inv_mass + b_inv_mass);
-                        float bfactor = factor * b_inv_mass / (a_inv_mass + b_inv_mass);
-                        a->position[0] -= afactor * dx;
-                        a->position[2] -= afactor * dz;
-                        b->position[0] += bfactor * dx;
-                        b->position[2] += bfactor * dz;
+        // Iterate over each cell, and check for collisions between mobs in each cell.
+        // If they collide, resolve the collisions by adjusting positions. Verlet integration
+        // takes care of motion.
+        for (int iteration = 0; iteration < COLLISION_ITERATIONS; iteration++)
+            for (Vector * v = cells; v < cells + CELLS; v++) {
+                for (unsigned i = 0; i < v->count; i++) {
+                    Item * itema = vector_ptr_item(&items, vector_get_uint(v, i));
+                    if (itema->type != IT_MOB) continue;
+                    Mob * a = itema->data.mob;
+                    float ax = a->position[0];
+                    float ay = a->position[1];
+                    float az = a->position[2];
+                    float ar = a->type->radius;
+                    float ah = a->type->height;
+                    float a_inv_mass = a->type->inv_mass;
+                    float squishy_a = a->type->squishyness;
+                    for (unsigned j = i + 1; j < v->count; j++) {
+                        Item * itemb = vector_ptr_item(&items, vector_get_uint(v, j));
+                        if (itemb->type != IT_MOB) continue;
+                        Mob * b = itemb->data.mob;
+
+                        //check height differences
+                        float by = b->position[1];
+                        float bh = b->type->height;
+
+                        if (by + bh < ay || ay + ah < by) continue;
+                        float dy;
+                        if (fabs(ay - by - bh) > fabs(ay + ah - by)) {
+                            dy = ay + ah - by;
+                        } else {
+                            dy = ay - by + bh;
+                        }
+
+                        float br = b->type->radius;
+                        float bx = b->position[0];
+                        float bz = b->position[2];
+                        float r = ar + br;
+                        float r2 = r * r;
+                        float dx = bx - ax;
+                        float dz = bz - az;
+                        float d2 = dx * dx + dz * dz;
+                        if (d2 == 0) {
+                            dx = 0.00000001f;
+                            d2 = dx * dx;
+                        }
+                        if (r2 > d2) {
+
+                            float b_inv_mass = b->type->inv_mass;
+                            float squishy_b = b->type->squishyness;
+                            float d = sqrtf(d2);
+                            float squishyfactor = (1 - squishy_a) * (1 - squishy_b);
+                            float afactor = squishyfactor * a_inv_mass / (a_inv_mass + b_inv_mass);
+                            float bfactor = squishyfactor * b_inv_mass / (a_inv_mass + b_inv_mass);
+
+                            if (fabs(r - d) > fabs(dy)) { // Vertical (Y) correction
+                                a->position[1] -= afactor * dy;
+                                b->position[1] += bfactor * dy;
+                            } else { // horizontal (XZ) correction
+                                float factor = (r - d) / d;
+                                a->position[0] -= factor * afactor * dx;
+                                a->position[2] -= factor * afactor * dz;
+                                b->position[0] += factor * bfactor * dx;
+                                b->position[2] += factor * bfactor * dz;
+                            }
+
+                        }
                     }
                 }
             }
-        }
 
         // Update in cells
         for (unsigned i = 0; i < items.count; i++) {
             Item * item = vector_ptr_item(&items, i);
             if (item->type != IT_MOB) continue;
             Mob * m = item->data.mob;
+            // Check for ground collision again
+            if (m->position[1] < 0) m->position[1] = 0;
             mob_update(m);
         }
 

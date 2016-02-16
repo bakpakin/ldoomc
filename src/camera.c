@@ -3,6 +3,16 @@
 #define PROJECTION_DIRTY_BIT 0x01
 #define LOOKAT_DIRTY_BIT 0x02
 
+static void cam_init(Camera * c) {
+    static const vec3 zero = {0, 0, 0};
+    static const vec3 up = {0, 1, 0};
+    static const vec3 forward = {0, 0, 1};
+    vec3_assign(c->position, zero);
+    vec3_assign(c->upDirection,  up);
+    vec3_assign(c->direction, forward);
+    c->dirty = PROJECTION_DIRTY_BIT | LOOKAT_DIRTY_BIT;
+}
+
 static void camera_update_projection(Camera * c) {
     float w2, h2, d;
     float fovY, aspect, znear, zfar;
@@ -23,19 +33,21 @@ static void camera_update_projection(Camera * c) {
     }
 }
 
-void camera_frustum_bounds(Camera * c, aabb3 out) {
-    camera_update(c);
-    c->dirty = 0;
-}
-
 static void camera_update_matrix(Camera * c) {
     mat4 look;
     mat4_look_vec(look, c->position, c->direction, c->upDirection);
     mat4_mul(c->matrix, look, c->projection);
 }
 
-CameraType camera_get_type(const Camera * c) {
-    return c->type;
+static void camera_update(Camera * c) {
+    unsigned char dirty = c->dirty;
+    if (dirty & PROJECTION_DIRTY_BIT) {
+        camera_update_projection(c);
+    }
+    if (dirty & (LOOKAT_DIRTY_BIT | PROJECTION_DIRTY_BIT)) {
+        camera_update_matrix(c);
+    }
+    c->dirty = 0;
 }
 
 void camera_set_perspective(Camera * c, float fovY, float aspect, float zNear, float zFar) {
@@ -70,16 +82,6 @@ void camera_set_up(Camera * c, const vec3 up) {
     c->dirty |= LOOKAT_DIRTY_BIT;
 }
 
-static void cam_init(Camera * c) {
-    static const vec3 zero = {0, 0, 0};
-    static const vec3 up = {0, 1, 0};
-    static const vec3 forward = {0, 0, 1};
-    vec3_assign(c->position, zero);
-    vec3_assign(c->upDirection,  up);
-    vec3_assign(c->direction, forward);
-    c->dirty = PROJECTION_DIRTY_BIT | LOOKAT_DIRTY_BIT;
-}
-
 Camera * camera_init_ortho(Camera * c,
         float width, float height, float depth) {
     camera_set_ortho(c, width, height, depth);
@@ -94,22 +96,9 @@ Camera * camera_init_perspective(Camera * c,
     return c;
 }
 
-void camera_update(Camera * c) {
-    unsigned char dirty = c->dirty;
-    if (dirty & PROJECTION_DIRTY_BIT) {
-        camera_update_projection(c);
-    }
-    if (dirty & (LOOKAT_DIRTY_BIT | PROJECTION_DIRTY_BIT)) {
-        camera_update_matrix(c);
-    }
-    c->dirty = 0;
-}
-
-void camera_calc_mvp(Camera * c, mat4 mvp, vec3 position) {
+const float * camera_matrix(Camera * c) {
     camera_update(c);
-    mat4 translationMatrix;
-    mat4_translation_vec3(translationMatrix, position);
-    mat4_mul(mvp, translationMatrix, c->matrix);
+    return c->matrix;
 }
 
 #undef PROJECTION_DIRTY_BIT

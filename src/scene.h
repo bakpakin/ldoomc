@@ -6,7 +6,6 @@
 #ifndef SCENE_HEADER
 #define SCENE_HEADER
 
-#include "grid3d.h"
 #include "geom.h"
 #include "vector.h"
 #include "spatial.h"

@@ -59,12 +59,6 @@ Camera * camera_init_ortho(Camera * c,
 Camera * camera_init_perspective(Camera * c,
         float fovY, float aspect, float zNear, float zFar);
 
-CameraType camera_get_type(const Camera * c);
-
-void camera_frustum_bounds(Camera * m, aabb3 out);
-
-void camera_update(Camera * c);
-
 void camera_set_perspective(Camera * c, float fovY, float aspect, float zNear, float zFar);
 
 void camera_set_ortho(Camera * c, float width, float height, float depth);
@@ -75,6 +69,6 @@ void camera_set_direction(Camera * c, const vec3 direction);
 
 void camera_set_up(Camera * c, const vec3 up);
 
-void camera_calc_mvp(Camera * c, mat4 mvp, vec3 position);
+const float * camera_matrix(Camera * c);
 
 #endif

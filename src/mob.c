@@ -8,7 +8,7 @@ MobDef * mobdef_init(MobDef * md) {
     md->inv_mass = 1;
     md->starting_health = 100;
     md->user = NULL;
-    md->radius = 5;
+    md->radius = 0.5;
     md->agression_radius = 30;
     md->aggression = 1;
     md->continuation = 1;

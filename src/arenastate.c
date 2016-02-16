@@ -21,22 +21,24 @@ static void init() {
     mesh_init_cylinder(&mesh, 1.0f, 0.5f, 40);
     cyl.mesh = &mesh;
     mobdef.model = &cyl;
-    Mob * ms = malloc(100 * sizeof(Mob));
+    mobdef.height = 1;
+    Mob * ms = malloc(1000 * sizeof(Mob));
     texture_init_resource(&cyl.diffuse, "diffuse.png");
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            vec3 p = {2.5f * i, 0, 2.5f * j};
-            Mob * m = ms + (j + 10 * i);
-            mob_init(m, &mobdef, p);
-            scene_add_mob(m);
-        }
-    }
+    for (int x = 0; x < 10; x++)
+        for (int y = 0; y < 10; y++)
+            for (int z = 0; z < 10; z++) {
+                vec3 p = {2.5f * x, 2.5 * y, 2.5f * z};
+                Mob * m = ms + (x + 10 * y + 100 * z);
+                mob_init(m, &mobdef, p);
+                scene_add_mob(m);
+            }
 
     // Create player
     mobdef_init(&playerdef);
     playerdef.model = &cyl;
     playerdef.inv_mass = 0.5f;
     playerdef.radius = 0.5f;
+    playerdef.height = 1;
     static const vec3 zero = {0, 0, 0};
     mob_init(&player, &playerdef, zero);
     player.continuation = 0;
@@ -83,11 +85,10 @@ static void update(double dt) {
     vec3_assign(cvec, player.position);
     cvec[1] = 1.5f;
     camera_set_position(&scene_camera, cvec);
-    vec3 direction;
-    direction[0] = cosf(pitch) * cos(yaw);
-    direction[1] = sinf(pitch);
-    direction[2] = cosf(pitch) * sin(yaw);
-    camera_set_direction(&scene_camera, direction);
+    player.facing[0] = cosf(pitch) * cos(yaw);
+    player.facing[1] = sinf(pitch);
+    player.facing[2] = cosf(pitch) * sin(yaw);
+    camera_set_direction(&scene_camera, player.facing);
 }
 
 static void draw() {
