@@ -1,47 +1,54 @@
 #include "arenastate.h"
 #include "ldoom.h"
 
-static FontDef fd;
-static Text txt;
-static Scene scene;
-
 static MobDef mobdef;
+static MobDef playerdef;
+static Mob player;
+static Model cyl;
+static Mesh mesh;
 
 static float yaw, pitch;
-static vec3 cam_position;
 
 static void init() {
 
-    // Font init
-    fnt_init(&fd, "consolefont.txt");
-    text_init(&txt, &fd, "fps: 60  ", 14, ALIGN_RIGHT, ALIGN_TOP, 500, 1);
-    txt.threshold = 0.3f;
-    txt.smoothing = 1.0f / 4.0f;
-    txt.position[1] = 5.0f;
-    txt.position[0] = platform_width() - 505;
-
-    scene_init(&scene);
+    scene_init();
 
     // Create 100 mobs
     mobdef_init(&mobdef);
-    mesh_init_quickcube(&mobdef.model.mesh);
-    texture_init_resource(&mobdef.model.diffuse, "diffuse.png");
-    for (int i = 0; i < 10; i++) {
-        for (int j = 0; j < 10; j++) {
-            vec3 p = {2.5f * i - 12.5, 0, 2.5f * j - 12.5};
-            scene_add_mob(&scene, &mobdef, p);
+    mobdef.radius = 0.5f;
+    mobdef.squishyness = 0;
+    mobdef.continuation = 0.85f;
+    mesh_init_cylinder(&mesh, 1.0f, 0.5f, 40);
+    cyl.mesh = &mesh;
+    mobdef.model = &cyl;
+    Mob * ms = malloc(100 * sizeof(Mob));
+    texture_init_resource(&cyl.diffuse, "diffuse.png");
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            vec3 p = {2.5f * i, 0, 2.5f * j};
+            Mob * m = ms + (j + 10 * i);
+            mob_init(m, &mobdef, p);
+            scene_add_mob(m);
         }
     }
+
+    // Create player
+    mobdef_init(&playerdef);
+    playerdef.model = &cyl;
+    playerdef.inv_mass = 0.5f;
+    playerdef.radius = 0.5f;
+    static const vec3 zero = {0, 0, 0};
+    mob_init(&player, &playerdef, zero);
+    player.continuation = 0;
+    scene_add_mob(&player);
 
     ldlog_stdout_set(0);
 }
 
 static void deinit() {
-    fnt_deinit(&fd);
-    text_deinit(&txt);
-    scene_deinit(&scene);
-    mesh_deinit(&mobdef.model.mesh);
-    texture_deinit(&mobdef.model.diffuse);
+    mesh_deinit(&mesh);
+    texture_deinit(&cyl.diffuse);
+    scene_deinit();
 }
 
 static void show() {
@@ -50,10 +57,6 @@ static void show() {
 
 static void hide() {
 
-}
-
-static void resize(int w, int h) {
-    txt.position[0] = w - 505;
 }
 
 static void button(PlatformButton b, PlatformButtonAction a) {
@@ -71,27 +74,24 @@ static void update(double dt) {
     }
     float strafe = platform_poll_axis(PAXIS_X2);
     float forward = platform_poll_axis(PAXIS_Y2);
-    cam_position[0] += (strafe * sinf(yaw) + forward * cosf(yaw)) * platform_delta() * 4;
-    cam_position[2] += (forward * sinf(yaw) - strafe * cosf(yaw)) * platform_delta() * 4;
+    player.impulse[0] = (strafe * sinf(yaw) + forward * cosf(yaw)) * platform_delta() * 4;
+    player.impulse[2] = (forward * sinf(yaw) - strafe * cosf(yaw)) * platform_delta() * 4;
 
-    camera_set_position(&scene.camera, cam_position);
+    scene_update(dt);
+
+    vec3 cvec;
+    vec3_assign(cvec, player.position);
+    cvec[1] = 1.5f;
+    camera_set_position(&scene_camera, cvec);
     vec3 direction;
     direction[0] = cosf(pitch) * cos(yaw);
     direction[1] = sinf(pitch);
     direction[2] = cosf(pitch) * sin(yaw);
-    camera_set_direction(&scene.camera, direction);
-
-    scene_update(&scene, dt);
-}
-
-static void updateTick() {
-    text_format(&txt, 25, "fps: %.0f", platform_fps());
-    ldlog("Logging Test... $@F00Red $@0F8Green $@08FBlue");
+    camera_set_direction(&scene_camera, direction);
 }
 
 static void draw() {
-    scene_render(&scene);
-    text_draw(&txt, platform_screen_matrix());
+    scene_render();
     qd_rgb(1, 0, 0);
     qd_circle(platform_width() / 2, platform_height() / 2, 10, 50, QD_LINELOOP);
 }
@@ -104,6 +104,6 @@ Gamestate arenastate = {
     update,
     button,
     draw,
-    resize,
-    updateTick
+    NULL,
+    NULL
 };

@@ -6,8 +6,8 @@
                           for (unsigned y = MIN.y; y <= MAX.y; y++) \
                           for (unsigned z = MIN.z; z <= MAX.z; z++)
 
-#define ITER_BIT 2
-#define ALIVE_BIT 1
+#define ITER_BIT 256
+#define ALIVE_BIT 512
 
 typedef struct {
     unsigned flags;
@@ -228,7 +228,7 @@ static void iterate_cell_for_pairs(Grid * g, Vector * v, const aabb3 bounds) {
     for (unsigned i = 0; v->count; i++) {
         int ih = vector_get_int(v, i);
         GHandle * h = (GHandle *) g->aabbs + ih;
-        if (~((h->flags ^ mark) & ITER_BIT) && aabb3_overlaps(bounds, h->aabb)) {
+        if (~((h->flags ^ mark) & ITER_BIT) && (!bounds || aabb3_overlaps(bounds, h->aabb))) {
             h->flags ^= ITER_BIT;
             vector_push_int(&g->iter, ih);
             unsigned oldcount = g->iter.count;
@@ -244,6 +244,14 @@ static void iterate_cell_for_pairs(Grid * g, Vector * v, const aabb3 bounds) {
 void grid_iter_pairs(Grid * g, const aabb3 bounds) {
     g->iter.count = 0;
     iterate_grid(iterate_cell_for_pairs, g, bounds);
+    g->mark ^= ITER_BIT;
+    g->iter_index1 = 0;
+    g->iter_index2 = -1;
+}
+
+void grid_iter_pairs_all(Grid * g) {
+    g->iter.count = 0;
+    iterate_grid(iterate_cell_for_pairs, g, NULL);
     g->mark ^= ITER_BIT;
     g->iter_index1 = 0;
     g->iter_index2 = -1;

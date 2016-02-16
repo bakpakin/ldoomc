@@ -6,7 +6,7 @@
 
 typedef struct {
 
-    Mesh mesh;
+    Mesh * mesh;
 
     Texture normal;
     Texture diffuse;

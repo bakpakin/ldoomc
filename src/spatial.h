@@ -16,10 +16,12 @@ typedef struct {
     // Basic capabilities
     float starting_health; // Starting health
     float speed;
-    float weight;
+    float inv_mass;
     float height;
     float radius;
     float jump;
+    float continuation;
+    float squishyness;
     unsigned flags;
 
     // AI parameters
@@ -27,7 +29,7 @@ typedef struct {
     float aggression;
 
     // Rendering
-    Model model;
+    Model * model;
 
     // User defined data.
     void * user;
@@ -45,16 +47,17 @@ typedef struct {
     // Spatial Information
     vec3 position;
     vec3 prev_position;
+    vec3 impulse; // Set impulse to move mob around
     vec3 facing;
 
     // Game Information
+    float continuation;
     float health;
     float speed;
     float jump;
 
-    // Render / Phsyics implementation
-    int renderid;
-    int gridHandle;
+    // Scene implementation
+    unsigned sceneIndex;
 
 } Mob;
 
@@ -67,7 +70,7 @@ typedef struct {
 MobDef * mobdef_init(MobDef * md);
 
 // Mobs: Method like functions
-Mob * mob_init(Mob * m, MobDef * md);
+Mob * mob_init(Mob * m, MobDef * md, const vec3 pos);
 
 void mob_deinit(Mob * m);
 

@@ -50,6 +50,8 @@ void grid_bounds(Grid * g, aabb3 out);
 
 void grid_iter_pairs(Grid * g, const aabb3 bounds);
 
+void grid_iter_pairs_all(Grid * g);
+
 int grid_iter_pairs_next(Grid * g, int * a, int * b);
 
 void grid_iter(Grid * g, const aabb3 bounds);

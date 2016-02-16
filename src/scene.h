@@ -1,5 +1,5 @@
 /*
- * The main type for storing a 3d scene. Includes rendering, physics, collision,
+ * The main module for storing a 3d scene. Includes rendering, physics, collision,
  * and Mob information. Basically, the meat of the game state.
  */
 
@@ -14,41 +14,22 @@
 #include "camera.h"
 #include "opool.h"
 
-typedef struct {
+extern Camera scene_camera;
 
-    Flexpool mobpool;
+void scene_init();
 
-    Vector mobs;
-    Vector statics;
-
-    Camera camera;
-
-    // Buffers for deferred rendering
-    unsigned diffuseBuffer;
-    unsigned normalBuffer;
-    unsigned specularBuffer;
-    unsigned lightBuffer;
-
-    Grid solidGrid;
-
-    double timeBuffer;
-
-} Scene;
-
-Scene * scene_init(Scene * s);
-
-void scene_deinit(Scene * s);
+void scene_deinit();
 
 // Mobs
-Mob * scene_add_mob(Scene * s, MobDef * type, vec3 position);
+void scene_add_mob(Mob * mob);
 
-void scene_remove_mob(Scene * s, Mob * mob);
+void scene_remove_mob(Mob * mob);
 
-void scene_free_mob(Scene * s, Mob * mob);
+// Events
+void scene_update(double dt);
 
-// Update with constant interval for reliable physics.
-void scene_update(Scene * s, double dt);
+void scene_render();
 
-void scene_render(Scene * s);
+void scene_resize(int width, int height);
 
 #endif

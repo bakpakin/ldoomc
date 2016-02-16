@@ -32,7 +32,9 @@ static size_t history_capacity;
 static float history_ysize = 0;
 static Logger logger;
 
-static int console_visible = 1;
+static Text fpsText;
+
+static char console_visible = 1;
 
 static inline float textpad(Text * t) {
     return t->line_count * (fd.lineHeight / CONSOLE_FONT_POINT + CONSOLE_PADDING);
@@ -52,7 +54,7 @@ static void history_put(const char * msg) {
 
     time_t now = time(0);
     struct tm * info = localtime(&now);
-    strftime(pred, 80, "%T: ", info);
+    strftime(pred, 80, "$@F00%T:$@FFF ", info);
 
     Text * next = nth_history(history_len);
     if (history_len == history_capacity) {
@@ -81,7 +83,7 @@ static void console_log_fn(void * user, const char * message, va_list args) {
         }
     }
 
-    history_put(message);
+    history_put(charbuf);
 
 }
 
@@ -94,6 +96,15 @@ static void console_log_clear(void * user) {
 }
 
 void console_draw() {
+
+    static float old_fps = -1;
+
+    if (!console_visible) return;
+
+    if (old_fps != platform_fps()) {
+        old_fps = platform_fps();
+        text_format(&fpsText, 25, "fps: %.0f", old_fps);
+    }
 
     qd_rgba(0.2f, 0.2f, 0.2f, 0.8f);
     qd_rect(
@@ -112,6 +123,9 @@ void console_draw() {
         text_draw(t, platform_screen_matrix());
         y += textpad(t);
     }
+
+    fpsText.position[0] = platform_width() - 505;
+    text_draw(&fpsText, platform_screen_matrix());
 
 }
 
@@ -168,6 +182,11 @@ void console_init() {
 
     ldlog_logger(&logger);
 
+    text_init(&fpsText, &fd, "fps:     ", 14, ALIGN_RIGHT, ALIGN_TOP, 500, 1);
+    fpsText.threshold = 0.3f;
+    fpsText.smoothing = 1.0f / 4.0f;
+    fpsText.position[1] = 5.0f;
+    fpsText.position[0] = platform_width() - 505;
 }
 
 void console_deinit() {
@@ -177,6 +196,7 @@ void console_deinit() {
         Text * t = history + ((history_start + i) % history_capacity);
         text_deinit(t);
     }
+    text_deinit(&fpsText);
     free(history);
     free(charbuf);
 

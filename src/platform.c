@@ -1,9 +1,11 @@
+#include "defines.h"
 #include "platform.h"
 #include "util.h"
 #include "vector.h"
 #include "ldmath.h"
 #include "console.h"
 #include "quickdraw.h"
+#include "scene.h"
 #include "log.h"
 
 //////////////////////////////////////// COMMON START
@@ -306,6 +308,7 @@ static void window_resize_callback(GLFWwindow * window, int width, int height) {
     _platform_width = width;
     _platform_height = height;
     mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
+    scene_resize(width, height);
     if (gs.resize)
         gs.resize(width, height);
 }
@@ -356,8 +359,12 @@ void platform_init() {
 
     // Misc
     mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
+#ifndef NOLOG
     ldlog_init();
+#endif
+#ifndef NOCONSOLE
     console_init();
+#endif
     qd_init();
 }
 
@@ -395,14 +402,20 @@ void platform_mainloop(Gamestate * initial_state) {
         gamestate_update(_platform_delta);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         gamestate_draw();
+#ifndef NOCONSOLE
         console_draw();
+#endif
     }
 }
 
 void platform_deinit() {
 
+#ifndef NOCONSOLE
     console_deinit();
+#endif
+#ifndef NOLOG
     ldlog_deinit();
+#endif
     qd_deinit();
 
     if (current_state.deinit) current_state.deinit();
