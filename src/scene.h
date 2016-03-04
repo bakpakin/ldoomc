@@ -8,7 +8,7 @@
 
 #include "geom.h"
 #include "vector.h"
-#include "spatial.h"
+#include "mob.h"
 #include "ldmath.h"
 #include "camera.h"
 #include "opool.h"
@@ -23,6 +23,11 @@ void scene_deinit();
 void scene_add_mob(Mob * mob);
 
 void scene_remove_mob(Mob * mob);
+
+// Static Models
+void scene_add_model(Model * model);
+
+void scene_remove_model(Model * model);
 
 // Events
 void scene_update(double dt);

@@ -45,6 +45,7 @@ typedef enum {
     PBUTTON_B,
     PBUTTON_C,
     PBUTTON_D,
+    PBUTTON_E,
     PBUTTON_S1,
     PBUTTON_S2,
     PBUTTON_SYS,

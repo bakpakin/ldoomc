@@ -13,50 +13,50 @@ Math functions inspired by Kazmath (https://github.com/Kazade/kazmath)
 #define LD_PI_OVER_180 (LD_PI / 180.0f)
 
 // float functions
-static float ldm_min(float a, float b) {
+static inline float ldm_min(float a, float b) {
     return a < b ? a : b;
 }
 
-static float ldm_max(float a, float b) {
+static inline float ldm_max(float a, float b) {
     return a < b ? b : a;
 }
 
-static float ldm_clamp(float x, float min, float max) {
+static inline float ldm_clamp(float x, float min, float max) {
     if (x < min) x = min;
     if (x > max) x = max;
     return x;
 }
 
-static float ldm_lerp(float a, float b, float t) {
+static inline float ldm_lerp(float a, float b, float t) {
     float one_minus_t = 1 - t;
     return (a * one_minus_t) + b * t;
 }
 
-static float ldm_deg_to_rad(float deg) {
+static inline float ldm_deg_to_rad(float deg) {
     return deg * LD_PI_OVER_180;
 }
 
-static float ldm_rad_to_deg(float rad) {
+static inline float ldm_rad_to_deg(float rad) {
     return rad * LD_180_OVER_PI;
 }
 
-static float ldm_floor(float in) {
+static inline float ldm_floor(float in) {
     return floorf(in);
 }
 
-static float ldm_ceil(float in) {
+static inline float ldm_ceil(float in) {
     return ceilf(in);
 }
 
-static int ldm_almost_equal(float a, float b) {
+static inline int ldm_almost_equal(float a, float b) {
     return fabs(a - b) < FLT_EPSILON;
 }
 
-static int ldm_randi() {
+static inline int ldm_randi() {
     return rand();
 }
 
-static float ldm_randf() {
+static inline float ldm_randf() {
     return (float) rand() / (float) RAND_MAX;
 }
 
@@ -93,9 +93,13 @@ static inline float vec##n##_len2(const vec##n v) { \
 static inline float vec##n##_len(const vec##n v) { \
     return sqrtf(vec##n##_dot(v, v)); \
 } \
-static inline void vec##n##_norm(vec##n out, const vec##n in) { \
-    float inv_len = 1 / vec##n##_len(in); \
+static inline int vec##n##_norm(vec##n out, const vec##n in) { \
+    float len = vec##n##_len(in); \
+    if (len == 0) \
+        return 0; \
+    float inv_len = 1 / len; \
     vec##n##_scale(out, in, inv_len); \
+    return 1; \
 } \
 static inline void vec##n##_addmul(vec##n out, const vec##n in, const vec##n a, float s) { \
     for (int i = 0; i < n; i++) \

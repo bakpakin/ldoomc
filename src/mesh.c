@@ -5,18 +5,8 @@
 
 #define ACTIVE_BIT 0x01
 #define MEMINITED_BIT 0x02
-
-/*
- * Unwrap the DrawType enum in the mesh.
- */
-static inline GLenum get_usage(DrawType d) {
-    switch (d) {
-        case STATIC:
-            return GL_STATIC_DRAW;
-        case DYNAMIC:
-            return GL_DYNAMIC_DRAW;
-    }
-}
+#define OWNS_VERTMEM_BIT 0x04
+#define OWNS_ELMEM_BIT 0x08
 
 /*
  * Get the size of a vertex of the given type.
@@ -46,7 +36,7 @@ static void generate_buffers(Mesh * m) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * m->icount, m->indices, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, m->VBO);
-    glBufferData(GL_ARRAY_BUFFER, get_size(m->mesh_type) * m->vcount, m->vertices.v, get_usage(m->draw_type));
+    glBufferData(GL_ARRAY_BUFFER, get_size(m->mesh_type) * m->vcount, m->vertices.v, m->draw_type);
 }
 
 /*
@@ -101,7 +91,7 @@ Mesh * mesh_init(Mesh * m,
         const GLushort * indices) {
 
     m->primitive_type = GL_TRIANGLES;
-    m->flags= MEMINITED_BIT;
+    m->flags= MEMINITED_BIT | OWNS_ELMEM_BIT;
     m->draw_type = draw_type;
     m->mesh_type = mesh_type;
 
@@ -131,7 +121,7 @@ Mesh * mesh_init_floats(Mesh * m,
         const GLushort * indices) {
 
     m->primitive_type = GL_TRIANGLES;
-    m->flags= MEMINITED_BIT;
+    m->flags= MEMINITED_BIT | OWNS_ELMEM_BIT;
     m->draw_type = draw_type;
     m->mesh_type = mesh_type;
 
@@ -152,7 +142,7 @@ Mesh * mesh_init_floats(Mesh * m,
     return m;
 }
 
-static Mesh * mesh_init_nocopy(Mesh * m,
+Mesh * mesh_init_nocopy(Mesh * m,
         MeshType mesh_type,
         DrawType draw_type,
         unsigned vertdata_length,
@@ -208,8 +198,11 @@ void mesh_unload(Mesh * m) {
 void mesh_clearcpumem(Mesh * m) {
     if (!(m->flags & MEMINITED_BIT))
         return;
-    free(m->indices);
-    m->flags &= ~MEMINITED_BIT;
+    if (m->flags & OWNS_VERTMEM_BIT)
+        free(m->vertices.floats);
+    if (m->flags & OWNS_ELMEM_BIT)
+        free(m->indices);
+    m->flags &= ~(MEMINITED_BIT | OWNS_ELMEM_BIT | OWNS_VERTMEM_BIT);
 }
 
 void mesh_deinit(Mesh * m) {
@@ -236,7 +229,7 @@ static const GLushort quad_indices[] = {
 };
 
 Mesh * mesh_init_quad(Mesh * m) {
-    mesh_init_floats(m, MESHTYPE_2D, STATIC, 16, quad_verts, 4, quad_indices);
+    mesh_init_floats(m, MESHTYPE_2D, GL_STATIC_DRAW, 16, quad_verts, 4, quad_indices);
     m->primitive_type = GL_TRIANGLE_STRIP;
     return m;
 }
@@ -290,7 +283,7 @@ static const GLushort cube_indices[] = {
 };
 
 Mesh * mesh_init_quickcube(Mesh * m) {
-    mesh_init_floats(m, MESHTYPE_3D, STATIC, 6 * 4 * 8, cube_verts, 6 * 6, cube_indices);
+    mesh_init_floats(m, MESHTYPE_3D, GL_STATIC_DRAW, 6 * 4 * 8, cube_verts, 6 * 6, cube_indices);
     return m;
 }
 
@@ -379,7 +372,7 @@ Mesh * mesh_init_cylinder(Mesh * m, float height, float radius, int subdivisions
         }
     }
 
-    mesh_init_nocopy(m, MESHTYPE_3D, STATIC, numverts * 8, fs, numindices, is);
+    mesh_init_nocopy(m, MESHTYPE_3D, GL_STATIC_DRAW, numverts * 8, fs, numindices, is);
 
     mesh_load(m);
 

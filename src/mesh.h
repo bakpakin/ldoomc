@@ -2,7 +2,7 @@
 #define MESH_HEADER
 
 #include "ldmath.h"
-#include "glfw.h"
+#include "opengl.h"
 
 /*
  * Represents the kind of vertices in the mesh.
@@ -11,12 +11,7 @@ typedef enum {
     MESHTYPE_2D, MESHTYPE_SIMPLE_3D, MESHTYPE_3D
 } MeshType;
 
-/*
- * Enum for GL_STATIC_DRAW and GL_DYNAMIC_DRAW
- */
-typedef enum {
-    STATIC, DYNAMIC
-} DrawType;
+typedef GLenum DrawType;
 
 /*
  * The vertex type for 2d meshes, like HUD and text.
@@ -85,6 +80,18 @@ Mesh * mesh_init_floats(Mesh * m,
         const GLfloat * vertdata,
         unsigned indices_count,
         const GLushort * indices);
+
+/*
+ *
+ *
+ */
+Mesh * mesh_init_nocopy(Mesh * m,
+        MeshType mesh_type,
+        DrawType draw_type,
+        unsigned vertdata_length,
+        GLfloat * vertdata,
+        unsigned index_count,
+        GLushort * indices);
 
 /*
  * Pushes the mesh data into the gl context. Called automatically after mesh_inits.

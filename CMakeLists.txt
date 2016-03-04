@@ -27,6 +27,7 @@ src/quickdraw.c
 src/scene.c
 src/mob.c
 src/console.c
+src/sky.c
 
 ## Thirdparty static libs
 src/lodepng.c
@@ -42,9 +43,11 @@ resources/basic.glsl
 resources/diffuseshader.glsl
 resources/consolefont.png
 resources/consolefont.txt
+resources/sky.glsl
 resources/fancy.txt
 resources/fancy.png
 resources/diffuse.png
+resources/grass.png
 )
 
 # Set Executable Target

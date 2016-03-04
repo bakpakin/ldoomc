@@ -1,5 +1,5 @@
-#ifndef SPATIAL_HEADER
-#define SPATIAL_HEADER
+#ifndef MOB_HEADER
+#define MOB_HEADER
 
 #include "ldmath.h"
 #include "model.h"
@@ -20,8 +20,9 @@ typedef struct {
     float height;
     float radius;
     float jump;
-    float continuation;
-    float squishyness;
+    float walk_accel;
+    float restitution;
+    float friction;
     unsigned flags;
 
     // AI parameters
@@ -41,17 +42,22 @@ typedef struct {
 
     unsigned flags;
 
-    // Defins the type of the Mob. Many mobs should share one MobDef.
+    // Defines the type of the Mob. Many mobs should share one MobDef.
     MobDef * type;
 
-    // Spatial Information
+    // Spatial Information; You can change these willy nilly
     vec3 position;
-    vec3 prev_position;
-    vec3 impulse; // Set impulse to move mob around
+    vec3 velocity;
+
+    // Physics Implementation; Don't change these willy nilly
+    vec3 _position_penalty;
+    vec3 _acceleration;
+
     vec3 facing;
 
     // Game Information
-    float continuation;
+    float friction;
+    float walk_acccel;
     float health;
     float speed;
     float jump;
@@ -61,12 +67,6 @@ typedef struct {
 
 } Mob;
 
-// Static geometry in scene
-typedef struct {
-    mat4 matrix;
-    Model * model;
-} Static;
-
 MobDef * mobdef_init(MobDef * md);
 
 // Mobs: Method like functions
@@ -74,9 +74,21 @@ Mob * mob_init(Mob * m, MobDef * md, const vec3 pos);
 
 void mob_deinit(Mob * m);
 
-void mob_look(Mob * m, float yaw, float pitch);
+void mob_apply_force(Mob * m, const vec3 force);
 
-void mob_displacement_flat(Mob * m, vec3 out, float forward, float strafe);
+void mob_apply_impulse(Mob * m, const vec3 impulse);
+
+void mob_limit_speed(Mob * m, float maxspeed);
+
+void mob_limit_hspeed(Mob * m, float maxspeed);
+
+void mob_limit_vspeed(Mob * m, float maxspeed);
+
+void mob_apply_friction(Mob * m, float scale);
+
+void mob_impulse_move(Mob * m, float forward, float strafe);
+
+void mob_look(Mob * m, float yaw, float pitch);
 
 void mob_cameralook(Mob * m, Camera * c);
 

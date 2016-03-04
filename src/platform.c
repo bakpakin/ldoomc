@@ -208,6 +208,7 @@ static int button_a_code = GLFW_KEY_Z;
 static int button_b_code = GLFW_KEY_X;
 static int button_c_code = GLFW_KEY_C;
 static int button_d_code = GLFW_KEY_V;
+static int button_e_code = GLFW_KEY_SPACE;
 static int button_sys_code = GLFW_KEY_ESCAPE;
 
 static PlatformButton get_pbutton(int key) {
@@ -215,6 +216,7 @@ static PlatformButton get_pbutton(int key) {
     if (key == button_b_code) return PBUTTON_B;
     if (key == button_c_code) return PBUTTON_C;
     if (key == button_d_code) return PBUTTON_D;
+    if (key == button_e_code) return PBUTTON_E;
     if (key == button_sys_code) return PBUTTON_SYS;
     return PBUTTON_OTHER;
 }
@@ -331,6 +333,7 @@ void platform_init() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
+	glfwWindowHint(GLFW_SAMPLES, 16);
 	game_window = glfwCreateWindow(1000, 600, "Ldoom", NULL, NULL);
 	glfwGetFramebufferSize(game_window, &_platform_width, &_platform_height);
 	if (!game_window) {
@@ -347,6 +350,7 @@ void platform_init() {
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glEnable(GL_LINE_SMOOTH);
+    glEnable(GL_MULTISAMPLE);
     glDepthFunc(GL_LEQUAL);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
