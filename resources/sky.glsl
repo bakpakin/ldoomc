@@ -1,28 +1,29 @@
 #version 330 core
 
-uniform vec3 direction;
-uniform vec3 sundir;
+uniform mat4 u_vp;
+uniform samplerCube u_skybox;
 
 #ifdef VERTEX
 
-layout(location = 0) in vec2 vert;
+layout(location = 0) in vec3 vert;
 
-out vec3 dir;
+out vec3 texcoord;
 
 void main() {
-    dir = vec3(vert, 1.0);
+    vec4 pos = (u_vp * vec4(vert, 1.0)).xyww;
+    texcoord = vert;
+    gl_Position = pos;
 }
 
 #endif
 
 #ifdef FRAGMENT
 
-in vec3 dir;
-
 out vec4 color;
+in vec3 texcoord;
 
 void main() {
-    color = vec4(dir * sundir, 1.0);
+    color = texture(u_skybox, texcoord);
 }
 
 #endif

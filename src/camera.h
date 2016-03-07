@@ -71,4 +71,6 @@ void camera_set_up(Camera * c, const vec3 up);
 
 const float * camera_matrix(Camera * c);
 
+void camera_fillmatrix(Camera * c, mat4 out);
+
 #endif

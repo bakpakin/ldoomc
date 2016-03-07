@@ -1,4 +1,5 @@
 #include "camera.h"
+#include <string.h>
 
 #define PROJECTION_DIRTY_BIT 0x01
 #define LOOKAT_DIRTY_BIT 0x02
@@ -99,6 +100,10 @@ Camera * camera_init_perspective(Camera * c,
 const float * camera_matrix(Camera * c) {
     camera_update(c);
     return c->matrix;
+}
+
+void camera_fillmatrix(Camera * c, mat4 out) {
+    memcpy(out, camera_matrix(c), 16 * sizeof(float));
 }
 
 #undef PROJECTION_DIRTY_BIT

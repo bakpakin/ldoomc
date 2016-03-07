@@ -8,7 +8,7 @@
  * Represents the kind of vertices in the mesh.
  */
 typedef enum {
-    MESHTYPE_2D, MESHTYPE_SIMPLE_3D, MESHTYPE_3D
+    MESHTYPE_SIMPLE_2D, MESHTYPE_2D, MESHTYPE_SIMPLE_3D, MESHTYPE_3D
 } MeshType;
 
 typedef GLenum DrawType;
@@ -21,12 +21,15 @@ typedef struct {
     GLfloat texcoords[2];
 } Vertex2D;
 
+typedef struct {
+    GLfloat postion[2];
+} SimpleVertex2D;
+
 /*
  * Vertex type for things like skyboxes that don't require normals and the like.
  */
 typedef struct {
     GLfloat position[3];
-    GLfloat texcoords[2];
 } SimpleVertex;
 
 /*
@@ -122,14 +125,14 @@ void mesh_draw(Mesh * m);
 
 /*
  * Initializes a quad mesh. Returns a mesh with 2d vertices, with
- * corners at (0.5, 0.5), (0.5, -0.5), (-0.5, 0.5), and (-0.5, -0.5).
+ * sides of length 2 centered at (0, 0).
  */
-Mesh * mesh_init_quad(Mesh * m);
+Mesh * mesh_init_quad(Mesh * m, int simple, int flip);
 
 /*
  * Creates a cube without texture normals where each side maps to a whole texture.
  */
-Mesh * mesh_init_quickcube(Mesh * m);
+Mesh * mesh_init_quickcube(Mesh * m, int simple, int flip);
 
 /*
  * Creates a cylindrical mesh with texture normals.

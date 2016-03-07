@@ -6,8 +6,6 @@ static MobDef playerdef;
 static Mob player;
 static Model cyl;
 static Mesh mesh;
-static Mesh grassmesh;
-static Model grassmodel;
 
 static float yaw = M_PI / 4;
 static float pitch = 0;
@@ -23,8 +21,8 @@ static void init() {
     cyl.mesh = &mesh;
     mobdef.model = &cyl;
     mobdef.height = 1;
-    mobdef.friction = 0;
-    //mobdef.restitution = 0;
+    mobdef.friction = 0.01;
+    mobdef.restitution = 0.2f;
     /* mobdef.inv_mass = 0; */
     Mob * ms = malloc(1000 * sizeof(Mob));
     texture_init_resource(&cyl.diffuse, "diffuse.png");
@@ -50,10 +48,6 @@ static void init() {
 
     ldlog_stdout_set(0);
 
-    //Load ground
-    mesh_init_quickcube(&grassmesh);
-    grassmodel.mesh = &grassmesh;
-    //texture_init_resource(&grassmodel.diffuse, "grass.png");
 }
 
 static void deinit() {

@@ -1,1 +1,1 @@
-//#define NOCONSOLE
+#define NOCONSOLE

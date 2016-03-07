@@ -92,7 +92,7 @@ void scene_render() {
     }
 
     // Draw sky last
-//    sky_render();
+    sky_render(&scene_camera);
 }
 
 #define D_EPSILON 0.000001f

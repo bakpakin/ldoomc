@@ -48,6 +48,13 @@ resources/fancy.txt
 resources/fancy.png
 resources/diffuse.png
 resources/grass.png
+
+resources/skytop.png
+resources/skybottom.png
+resources/skyleft.png
+resources/skyright.png
+resources/skyfront.png
+resources/skyback.png
 )
 
 # Set Executable Target

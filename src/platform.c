@@ -351,6 +351,7 @@ void platform_init() {
     glEnable(GL_BLEND);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_MULTISAMPLE);
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     glDepthFunc(GL_LEQUAL);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 

@@ -13,6 +13,8 @@
  */
 static size_t get_size(MeshType t) {
     switch (t) {
+        case MESHTYPE_SIMPLE_2D:
+            return sizeof(SimpleVertex2D);
         case MESHTYPE_2D:
             return sizeof(Vertex2D);
         case MESHTYPE_SIMPLE_3D:
@@ -63,10 +65,6 @@ static void setup_mesh_simplevertex(Mesh * m) {
     // Enable the position
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(SimpleVertex), 0);
-
-    // Enable texcoords
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(SimpleVertex), (GLvoid *) offsetof(SimpleVertex, texcoords));
 }
 
 /*
@@ -80,6 +78,15 @@ static void setup_mesh_vertex2d(Mesh * m) {
     // Enable texcoords
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (GLvoid *) offsetof(Vertex2D, texcoords));
+}
+
+/*
+ *
+ */
+static void setup_mesh_simplevertex2d(Mesh * m) {
+    // Enable the position
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(SimpleVertex2D), 0);
 }
 
 Mesh * mesh_init(Mesh * m,
@@ -172,6 +179,9 @@ void mesh_load(Mesh * m) {
         return;
     generate_buffers(m);
     switch(m->mesh_type) {
+        case MESHTYPE_SIMPLE_2D:
+            setup_mesh_simplevertex2d(m);
+            break;
         case MESHTYPE_3D:
             setup_mesh_vertex(m);
             break;
@@ -218,21 +228,78 @@ void mesh_draw(Mesh * m) {
 }
 
 static const GLfloat quad_verts[] = {
-    0.5, 0.5, 1, 1,
-    0.5, -0.5, 1, 0,
-    -0.5, 0.5, 0, 1,
-    -0.5, -0.5, 0, 0
+    1, 1, 1, 1,
+    1, -1, 1, 0,
+    -1, 1, 0, 1,
+    -1, -1, 0, 0
+};
+
+static const GLfloat quad_simple_verts[] = {
+    1, 1,
+    1, -1,
+    -1, 1,
+    -1, -1
 };
 
 static const GLushort quad_indices[] = {
     0, 1, 2, 3
 };
 
-Mesh * mesh_init_quad(Mesh * m) {
-    mesh_init_floats(m, MESHTYPE_2D, GL_STATIC_DRAW, 16, quad_verts, 4, quad_indices);
+static const GLushort quad_indices_flipped[] = {
+    0, 2, 1, 3
+};
+
+Mesh * mesh_init_quad(Mesh * m, int simple, int flip) {
+
+    const GLfloat * vs = simple ? quad_simple_verts : quad_verts;
+    size_t numv = simple ? 8 : 16;
+    MeshType mt = simple ? MESHTYPE_SIMPLE_2D : MESHTYPE_2D;
+
+    const GLushort * is = flip ? quad_indices_flipped : quad_indices;
+
+    mesh_init_floats(m, mt, GL_STATIC_DRAW, numv, vs, 4, is);
     m->primitive_type = GL_TRIANGLE_STRIP;
     return m;
 }
+
+static const GLfloat cube_simple_verts[] = {
+
+    // X pos
+    0.5,  0.5,  0.5,
+    0.5,  0.5, -0.5,
+    0.5, -0.5,  0.5,
+    0.5, -0.5, -0.5,
+
+    // X neg
+    -0.5,  0.5,  0.5,
+    -0.5,  0.5, -0.5,
+    -0.5, -0.5,  0.5,
+    -0.5, -0.5, -0.5,
+
+    // Z pos
+     0.5,  0.5, 0.5,
+     0.5, -0.5, 0.5,
+    -0.5,  0.5, 0.5,
+    -0.5, -0.5, 0.5,
+
+    // Z neg
+     0.5,  0.5, -0.5,
+     0.5, -0.5, -0.5,
+    -0.5,  0.5, -0.5,
+    -0.5, -0.5, -0.5,
+
+    // Y pos
+     0.5, 0.5,  0.5,
+    -0.5, 0.5,  0.5,
+     0.5, 0.5, -0.5,
+    -0.5, 0.5, -0.5,
+
+    // Y neg
+     0.5, -0.5,  0.5,
+    -0.5, -0.5,  0.5,
+     0.5, -0.5, -0.5,
+    -0.5, -0.5, -0.5
+};
 
 static const GLfloat cube_verts[] = {
 
@@ -282,8 +349,25 @@ static const GLushort cube_indices[] = {
     21, 20, 22, 21, 22, 23,
 };
 
-Mesh * mesh_init_quickcube(Mesh * m) {
-    mesh_init_floats(m, MESHTYPE_3D, GL_STATIC_DRAW, 6 * 4 * 8, cube_verts, 6 * 6, cube_indices);
+static const GLushort cube_indices_flipped[] = {
+    0, 2, 1, 1, 2, 3,
+    5, 6, 4, 6, 5, 7,
+    8, 10, 9, 9, 10, 11,
+    13, 14, 12, 14, 13, 15,
+    16, 18, 17, 17, 18, 19,
+    21, 22, 20, 22, 21, 23,
+};
+
+Mesh * mesh_init_quickcube(Mesh * m, int simple, int flip) {
+
+    const GLfloat * vs = simple ? cube_simple_verts : cube_verts;
+    size_t numv = simple ? (6 * 4 * 3) : (6 * 4 * 8);
+    MeshType mt = simple ? MESHTYPE_SIMPLE_3D : MESHTYPE_3D;
+
+    const GLushort * is = flip ? cube_indices_flipped : cube_indices;
+
+    mesh_init_floats(m, mt, GL_STATIC_DRAW, numv, vs, 6 * 6, is);
+    m->mesh_type = mt;
     return m;
 }
 

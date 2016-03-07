@@ -3,47 +3,55 @@
 #include "opengl.h"
 #include "ldmath.h"
 #include "mesh.h"
+#include "texture.h"
+#include "camera.h"
+#include "scene.h"
+#include "string.h"
 
 static Program skyshader;
+static Texture skyboxtex;
+static GLuint cubemap;
+static GLint skyboxTexLocation;
+static GLint vpLocation;
+static Mesh skymesh;
 
-static vec3 sunDirection;
-static vec3 lookDirection;
-static GLint sunUniform;
-static GLint lookUniform;
-
-static Mesh quad;
-
-static GLfloat points[8] = {
-    0.0f, 0.0f,
-    0.0f, 1.0f,
-    1.0f, 1.0f,
-    1.0f, 0.0f
-};
-
-static GLushort els[4] = { 0, 1, 2, 3 };
+static void generateCubemap() {
+    glGenTextures(1, &cubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+	const char * skybox[6] = {
+		"skyright.png",
+		"skyleft.png",
+		"skytop.png",
+		"skybottom.png",
+		"skyback.png",
+		"skyfront.png"
+	};
+	texture_cube_init_resource(&skyboxtex, skybox);
+}
 
 void sky_init() {
     program_init_resource(&skyshader, "sky.glsl");
-    sunUniform = glGetUniformLocation(skyshader.id, "sundir");
-    lookUniform = glGetUniformLocation(skyshader.id, "direction");
-
-    mesh_init_nocopy(&quad,
-        MESHTYPE_2D,
-        GL_STATIC_DRAW,
-        8,
-        points,
-        4,
-        els);
+    skyboxTexLocation = glGetUniformLocation(skyshader.id, "u_skybox");
+    vpLocation = glGetUniformLocation(skyshader.id, "u_vp");
+    mesh_init_quickcube(&skymesh, 1, 1);
+	generateCubemap();
 }
 
 void sky_deinit() {
     program_deinit(&skyshader);
-    //mesh_deinit(&quad);
+	texture_deinit(&skyboxtex);
+	mesh_deinit(&skymesh);
 }
 
 void sky_render() {
+    Camera c;
+    memcpy(&c, &scene_camera, sizeof(Camera));
+    static const vec3 zero = {0, 0, 0};
+    camera_set_position(&c, zero);
     glUseProgram(skyshader.id);
-    glUniform3fv(sunUniform, 1, sunDirection);
-    glUniform3fv(sunUniform, 1, lookDirection);
-    mesh_draw(&quad);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxtex.id);
+    glUniform1i(skyboxTexLocation, 0);
+    glUniformMatrix4fv(vpLocation, 1, GL_FALSE, camera_matrix(&c));
+    mesh_draw(&skymesh);
 }
