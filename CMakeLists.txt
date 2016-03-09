@@ -48,7 +48,7 @@ resources/fancy.txt
 resources/fancy.png
 resources/diffuse.png
 resources/grass.png
-
+resources/reflectshader.glsl
 resources/skytop.png
 resources/skybottom.png
 resources/skyleft.png
