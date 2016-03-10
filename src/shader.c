@@ -24,7 +24,6 @@ static const char * get_source_header(GLint shaderType) {
 
 static GLuint shader_create_shader(const GLchar * source, GLint type, const GLchar * prepend) {
 
-    glBegin(GL_TRIANGLES);
     GLuint s = glCreateShader(type);
 
     char * split_ptr = strstr(source, "#version");
