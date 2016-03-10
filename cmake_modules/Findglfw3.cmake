@@ -15,16 +15,12 @@
 # INCLUDE_DIRECTORIES (${GLFW3_INCLUDE_DIRS})
 # ADD_EXECUTABLE (executable ${EXECUTABLE_SRCS})
 # TARGET_LINK_LIBRARIES (executable ${GLFW3_LIBRARIES})
-#
-# TODO:
-# Allow the user to select to link to a shared library or to a static library.
 
 #Search for the include file...
 FIND_PATH(GLFW3_INCLUDE_DIRS GLFW/glfw3.h DOC "Path to GLFW include directory."
   
   HINTS
 	${GLFW3_ROOT}
-	$ENV{GLFW3_ROOT}
   
   PATHS
 	/usr/include/
@@ -32,25 +28,23 @@ FIND_PATH(GLFW3_INCLUDE_DIRS GLFW/glfw3.h DOC "Path to GLFW include directory."
 	/usr/include/GLFW
 	/usr/local/include/GLFW
 	${GLFW3_ROOT}/include
-	$ENV{GLFW3_ROOT}/include
 )
-
-SET(GLFW3_LIB_NAMES libglfw3.a glfw3 glfw GLFW3.lib)
 
 FIND_LIBRARY(GLFW3_LIBRARIES DOC "Absolute path to GLFW library."
 
   NAMES 
-	${GLFW3_LIB_NAMES}
+    libglfw3.so
+    libglfw3
+    glfw3.so
+    glfw3
   
   HINTS
 	${GLFW3_ROOT}
-	$ENV{GLFW3_ROOT}
   
   PATHS
 	/usr/local/lib
 	/usr/lib
 	${GLFW3_ROOT}/lib-vc2015
-	$ENV{GLFW3_ROOT}/lib-vc2015
 )
 IF( APPLE )
     find_library(COREVIDEO NAMES CoreVideo)
@@ -61,7 +55,8 @@ ENDIF( APPLE )
 
 IF(GLFW3_LIBRARIES AND GLFW3_INCLUDE_DIRS)
   SET(GLFW3_FOUND TRUE)
-  message(STATUS "Found GLFW3: ${GLFW3_LIBRARIES}")
+  message(STATUS "Found GLFW3> Libraries: ${GLFW3_LIBRARIES}")
+  message(STATUS "Found GLFW3> Headers: ${GLFW3_INCLUDE_DIRS}")
 ELSE(GLFW3_LIBRARIES AND GLFW3_INCLUDE_DIRS)
   message(STATUS "GLFW3 NOT found!")
 ENDIF(GLFW3_LIBRARIES AND GLFW3_INCLUDE_DIRS)

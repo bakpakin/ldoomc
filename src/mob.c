@@ -86,7 +86,7 @@ void mob_limit_hspeed(Mob * m, float maxspeed) {
 
 void mob_limit_vspeed(Mob * m, float maxspeed) {
     if (fabs(m->velocity[1]) > maxspeed) {
-        m->velocity[1] = (m->velocity > 0 ? 1 : -1) * maxspeed;
+        m->velocity[1] = (m->velocity[1] > 0 ? 1 : -1) * maxspeed;
     }
 }
 

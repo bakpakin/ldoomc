@@ -148,7 +148,7 @@ static inline void vec3_cross(vec3 out, const vec3 a, const vec3 b) {
 
 #define def_aabbn(n) \
 typedef vec##n aabb##n[2]; \
-static inline int aabb##n##_check(const aabb##n a) { \
+static inline int aabb##n##_check(aabb##n a) { \
     for (int i = 0; i < n; i++) \
         if (a[0][i] > a[1][i]) \
             return -1; \

@@ -30,7 +30,7 @@ void scene_add_model(Model * model);
 void scene_remove_model(Model * model);
 
 // Events
-void scene_update(double dt);
+void scene_update();
 
 void scene_render();
 

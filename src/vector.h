@@ -45,7 +45,7 @@ static void vector_empty_##NAME(Vector * v) { \
 } \
 static void vector_reset_##NAME(Vector * v, unsigned capacity) { \
     v->count = 0; \
-    realloc(v->data, sizeof(TYPE) * capacity); \
+    v->data = realloc(v->data, sizeof(TYPE) * capacity); \
     v->capacity = capacity; \
 } \
 static TYPE * vector_ptr_##NAME(const Vector * v, unsigned index) { \
