@@ -14,9 +14,6 @@ else ()
     set (CMAKE_C_STANDARD 99)
 endif ()
 
-# Import our CMake scripts
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${${TARGET_NAME}_SOURCE_DIR}/cmake_modules)
-
 set(SOURCES
 src/main.c
 src/platform.c
@@ -64,8 +61,6 @@ resources/skyfront.png
 resources/skyback.png
 )
 
-add_subdirectory(glfw)
-
 # Set Executable Target
 if(APPLE)
 
@@ -98,11 +93,13 @@ endif(APPLE)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter")
 
 # Include Library Headers and ste up linking
-include_directories(glfw/include)
+add_subdirectory("glfw")
+include_directories("glfw/include")
+find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIR})
 target_link_libraries(
     ${TARGET_NAME} 
     glfw
     ${GLFW_LIBRARIES}
-    ${OPENGL_LIBRARY})
+    ${OPENGL_LIBRARIES})
 
