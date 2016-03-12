@@ -102,5 +102,7 @@ include_directories(glfw/include)
 include_directories(${OPENGL_INCLUDE_DIR})
 target_link_libraries(
     ${TARGET_NAME} 
-    ${GLFW_LIBRARIES})
+    glfw
+    ${GLFW_LIBRARIES}
+    ${OPENGL_LIBRARY})
 
