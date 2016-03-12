@@ -64,6 +64,8 @@ resources/skyfront.png
 resources/skyback.png
 )
 
+add_subdirectory(glfw)
+
 # Set Executable Target
 if(APPLE)
 
@@ -95,12 +97,10 @@ endif(APPLE)
 # Add custom flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter")
 
-# Set up Libraries
-find_package(glfw3 REQUIRED)
-find_package(OpenGL REQUIRED)
-include_directories(${GLFW3_INCLUDE_DIRS}
-                    ${OPENGL_INCLUDE_DIR})
-target_link_libraries(${TARGET_NAME} 
-                      ${GLFW3_LIBRARIES}
-                      ${OPENGL_gl_LIBRARY})
+# Include Library Headers and ste up linking
+include_directories(glfw/include)
+include_directories(${OPENGL_INCLUDE_DIR})
+target_link_libraries(
+    ${TARGET_NAME} 
+    ${GLFW_LIBRARIES})
 
