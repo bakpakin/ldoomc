@@ -95,7 +95,7 @@ else(APPLE)
 endif(APPLE)
 
 # Add custom flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter -LGL")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter")
 
 # Include Library Headers and ste up linking
 add_subdirectory("glfw")
