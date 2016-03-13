@@ -8,6 +8,8 @@
 #include "scene.h"
 #include "log.h"
 
+#include <string.h>
+
 //////////////////////////////////////// COMMON START
 
 static double _platform_delta = 0.0;
@@ -178,18 +180,18 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 #endif
 //////////////////////////////////////// END APPLE
 
-#ifdef _WIN32
+#if defined _WIN32 || defined __linux__
 
-// For now, just let it build. I don't know the WinAPI very well. :P
+// For now, just let it build. This should be replaced with platfrom specifics later.
 int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
-    static const char * pred = "resources\\";
-    static size_t predsize = strlen(pred);
+    const char * pred = "resources\\";
+    size_t predsize = strlen(pred);
     size_t slen = strlen(resource);
     if (slen + predsize > bufsize + 1) {
         return 0;
     }
     memcpy(pathbuf, pred, predsize);
-    memcpy(pathbuf + predsize, pathbuf, resource);
+    memcpy(pathbuf + predsize, pathbuf, strlen(resource));
     return 1;
 }
 
@@ -199,6 +201,7 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 #ifdef PLATFORM_DESKTOP
 
 #include "glfw.h"
+#include "opengl.h"
 
 static GLFWwindow * game_window;
 

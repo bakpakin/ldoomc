@@ -5,7 +5,6 @@
 #define GLFW_INCLUDE_GLCOREARB
 #endif
 
-#define GLFW_INCLUDE_GLEXT
 #define GLFW_INCLUDE_GL_3
 #include "GLFW/glfw3.h"
 

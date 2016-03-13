@@ -38,7 +38,6 @@ src/lodepng.c
 src/stb_vorbis.c
 )
 
-## Includes
 include_directories(src)
 
 ## Game resources
@@ -60,6 +59,12 @@ resources/skyright.png
 resources/skyfront.png
 resources/skyback.png
 )
+
+# GLFW Options
+option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" OFF)
+option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
+option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
+option(GLFW_INSTALL "Generate installation target" OFF)
 
 # Set Executable Target
 if(APPLE)
@@ -90,16 +95,14 @@ else(APPLE)
 endif(APPLE)
 
 # Add custom flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter -LGL")
 
 # Include Library Headers and ste up linking
 add_subdirectory("glfw")
 include_directories("glfw/include")
 find_package(OpenGL REQUIRED)
-include_directories(${OPENGL_INCLUDE_DIR})
 target_link_libraries(
     ${TARGET_NAME} 
     glfw
     ${GLFW_LIBRARIES}
-    ${OPENGL_LIBRARIES})
-
+    ${OPENGL_gl_LIBRARY})
