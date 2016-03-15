@@ -325,14 +325,11 @@ static void error_callback(int error, const char * message) {
 
 void platform_init() {
 
-    printf("Intializing GLFW...\n");
     glfwInit();
-    printf("GLFW Initialized!\n");
 
     glfwSetErrorCallback(&error_callback);
 
     // GLFW window and context creation
-    printf("Intializing GLFW Window and OpenGL context...\n");
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -341,25 +338,22 @@ void platform_init() {
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
 	glfwWindowHint(GLFW_SAMPLES, 16);
 	game_window = glfwCreateWindow(1000, 600, "Ldoom", NULL, NULL);
-	glfwGetFramebufferSize(game_window, &_platform_width, &_platform_height);
 	if (!game_window) {
 	    glfwTerminate();
     }
     glfwMakeContextCurrent(game_window);
     glfwSwapInterval(1);
-    printf("GLFW Window and OpenGL context initialized!\n");
 
     // Use GLAD to get stuff.
-    printf("Glad load attempt..\n");
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
-        printf("GLAD failed.\n");
         exit(1);
     }
-    printf("Glad load success!\n");
 
     // GL initializing
     int width, height;
     glfwGetFramebufferSize(game_window, &width, &height);
+    _platform_width = width;
+    _platform_height = height;
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -374,7 +368,7 @@ void platform_init() {
     glfwSetKeyCallback(game_window, &key_callback);
     glfwSetMouseButtonCallback(game_window, &mouse_button_callback);
     glfwSetCursorPosCallback(game_window, &cursor_position_callback);
-    glfwSetWindowSizeCallback(game_window, window_resize_callback);
+    glfwSetFramebufferSizeCallback(game_window, window_resize_callback);
     glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Misc
@@ -386,8 +380,6 @@ void platform_init() {
     console_init();
 #endif
     qd_init();
-
-    printf("Platform Initialized!\n");
 }
 
 void platform_mainloop(Gamestate * initial_state) {
@@ -446,7 +438,7 @@ void platform_deinit() {
 }
 
 void platform_exit() {
-    glfwSetWindowShouldClose(game_window, GL_TRUE);
+    glfwSetWindowShouldClose(game_window, 1);
 }
 
 int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result) {

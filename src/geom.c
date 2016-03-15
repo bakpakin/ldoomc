@@ -1,5 +1,5 @@
 #include "geom.h"
-
+#include <float.h>
 #include <stdarg.h>
 
 poly * poly_init(poly * p, int count, ...) {
@@ -114,10 +114,10 @@ int poly_contains_circle(const poly * p, const vec2 point, float r) {
 // Also, SAT allows ignoring interior edges for compound polygons.
 int sat_circle_poly_edges(const vec2 ccenter, float radius, const poly * p, unsigned edgefield, vec2 displacement) {
 
-    float min_sep2; // Current minimum separation from circle center squared
+    float min_sep2 = FLT_MAX; // Current minimum separation from circle center squared
     float r2 = radius * radius;
 
-    vec2 sep;
+    vec2 sep; sep[0] = sep[1] = 0.0f;
     vec2 difference;
     vec2 itocenter, jtocenter;
 

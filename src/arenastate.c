@@ -42,7 +42,7 @@ static void init() {
     playerdef.radius = 0.5f;
     playerdef.height = 1;
     playerdef.friction = 0.02f;
-    static const vec3 start = {-2, 0, -2};
+    const vec3 start = {-2, 0, -2};
     mob_init(&player, &playerdef, start);
     scene_add_mob(&player);
 

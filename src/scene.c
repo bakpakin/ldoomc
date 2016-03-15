@@ -36,7 +36,7 @@ void scene_init(void) {
     timeBuffer = 0.0;
 
     // Generate buffers
-    glGenFramebuffers(4, &gBuffer);
+    glGenFramebuffers(1, &gBuffer);
 
     sky_init();
 
