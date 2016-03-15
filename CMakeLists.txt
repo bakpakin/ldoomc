@@ -32,6 +32,7 @@ src/scene.c
 src/mob.c
 src/console.c
 src/sky.c
+src/glad.c
 
 ## Thirdparty static libs
 src/lodepng.c
@@ -96,6 +97,9 @@ endif(APPLE)
 
 # Add custom flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter")
+if(NOT WIN32)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ldl") # Link to libdl on non-Windows platforms (required by glad)
+endif(NOT WIN32)
 
 # Include Library Headers and ste up linking
 add_subdirectory("glfw")

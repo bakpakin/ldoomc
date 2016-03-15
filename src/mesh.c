@@ -21,6 +21,8 @@ static size_t get_size(MeshType t) {
             return sizeof(SimpleVertex);
         case MESHTYPE_3D:
             return sizeof(Vertex);
+        default:
+            return 0;
     }
 }
 

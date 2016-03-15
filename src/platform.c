@@ -325,11 +325,14 @@ static void error_callback(int error, const char * message) {
 
 void platform_init() {
 
+    printf("Intializing GLFW...\n");
     glfwInit();
+    printf("GLFW Initialized!\n");
 
     glfwSetErrorCallback(&error_callback);
 
     // GLFW window and context creation
+    printf("Intializing GLFW Window and OpenGL context...\n");
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -344,6 +347,15 @@ void platform_init() {
     }
     glfwMakeContextCurrent(game_window);
     glfwSwapInterval(1);
+    printf("GLFW Window and OpenGL context initialized!\n");
+
+    // Use GLAD to get stuff.
+    printf("Glad load attempt..\n");
+    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+        printf("GLAD failed.\n");
+        exit(1);
+    }
+    printf("Glad load success!\n");
 
     // GL initializing
     int width, height;
@@ -374,6 +386,8 @@ void platform_init() {
     console_init();
 #endif
     qd_init();
+
+    printf("Platform Initialized!\n");
 }
 
 void platform_mainloop(Gamestate * initial_state) {
