@@ -27,9 +27,9 @@ void main() {
 
 #ifdef FRAGMENT
 
-in vec2 texcoord;
-in vec3 position;
-in vec3 normal;
+smooth in vec2 texcoord;
+smooth in vec3 position;
+smooth in vec3 normal;
 
 out vec4 color;
 

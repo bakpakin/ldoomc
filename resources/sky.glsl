@@ -7,7 +7,7 @@ uniform samplerCube u_skybox;
 
 layout(location = 0) in vec3 vert;
 
-out vec3 texcoord;
+smooth out vec3 texcoord;
 
 void main() {
     vec4 pos = (u_vp * vec4(vert, 1.0)).xyww;
@@ -20,7 +20,7 @@ void main() {
 #ifdef FRAGMENT
 
 out vec4 color;
-in vec3 texcoord;
+smooth in vec3 texcoord;
 
 void main() {
     color = texture(u_skybox, texcoord);

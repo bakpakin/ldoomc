@@ -24,7 +24,7 @@ void main() {
 
 #ifdef FRAGMENT
 
-in vec3 position;
+smooth in vec3 position;
 out vec4 color;
 
 // Constants

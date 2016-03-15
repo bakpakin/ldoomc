@@ -23,7 +23,7 @@ void main() {
 
 #ifdef FRAGMENT
 
-in vec2 t;
+smooth in vec2 t;
 
 out vec4 color;
 

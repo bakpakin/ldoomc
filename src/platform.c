@@ -1,4 +1,3 @@
-#include "defines.h"
 #include "platform.h"
 #include "util.h"
 #include "vector.h"

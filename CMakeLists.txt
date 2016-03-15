@@ -98,7 +98,7 @@ endif(APPLE)
 # Add custom flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter")
 if(NOT WIN32)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ldl") # Link to libdl on non-Windows platforms (required by glad)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ldl") # Link to libdl on non-Windows platforms (required by glad)
 endif(NOT WIN32)
 
 # Include Library Headers and ste up linking
