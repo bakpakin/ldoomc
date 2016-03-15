@@ -307,7 +307,7 @@ static void process_down_keys() {
                 current_state.button(i, PBA_HOLD);
 }
 
-static void window_resize_callback(GLFWwindow * window, int width, int height) {
+static void window_resize_callback(int width, int height) {
     Gamestate gs = current_state;
     glViewport(0, 0, width, height);
     _platform_width = width;
@@ -368,7 +368,6 @@ void platform_init() {
     glfwSetKeyCallback(game_window, &key_callback);
     glfwSetMouseButtonCallback(game_window, &mouse_button_callback);
     glfwSetCursorPosCallback(game_window, &cursor_position_callback);
-    glfwSetFramebufferSizeCallback(game_window, window_resize_callback);
     glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Misc
@@ -389,13 +388,15 @@ void platform_mainloop(Gamestate * initial_state) {
     double frametime = 0;
     double last_frametime = 0;
 
-    int width, height;
-    glfwGetFramebufferSize(game_window, &width, &height);
-    window_resize_callback(game_window, width, height);
-
     int framecount = 0;
     double fps_check_time = glfwGetTime();
     while (!glfwWindowShouldClose(game_window)) {
+
+        int width, height;
+        glfwGetFramebufferSize(game_window, &width, &height);
+        if (width != _platform_width && height != _platform_height) {
+            window_resize_callback(width, height);
+        }
         framecount++;
         last_frametime = frametime;
         frametime = glfwGetTime();
