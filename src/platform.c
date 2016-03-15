@@ -181,16 +181,17 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 
 #if defined _WIN32 || defined __linux__
 
+static char *platform_path_predicate = "resources/";
+static size_t platform_buffer_predsize = 10; // strlen(platform_path_predicate);
+
 // For now, just let it build. This should be replaced with platfrom specifics later.
 int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
-    const char * pred = "resources\\";
-    size_t predsize = strlen(pred);
     size_t slen = strlen(resource);
-    if (slen + predsize > bufsize + 1) {
+    if (slen + platform_buffer_predsize > bufsize + 1) {
         return 0;
     }
-    memcpy(pathbuf, pred, predsize);
-    memcpy(pathbuf + predsize, pathbuf, strlen(resource));
+    memcpy(pathbuf, platform_path_predicate, platform_buffer_predsize);
+    strcpy(pathbuf + platform_buffer_predsize, resource);
     return 1;
 }
 

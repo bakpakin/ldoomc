@@ -10,6 +10,10 @@ const char * util_filename_ext(const char * path) {
 // Slurped data musted be freed via free.
 char * util_slurp(const char * path, long * length) {
     FILE * fp = fopen(path, "rb");
+    if (!fp) {
+        printf("%s\n", path);
+        uerr("Could not open file.");
+    }
     fseek(fp, 0L, SEEK_END);
     long fsize = ftell(fp);
     char * data = malloc(fsize + 1);
