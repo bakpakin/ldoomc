@@ -14,3 +14,11 @@ build/
 
 ## Ignore YCM compiled conf
 .ycm_extra_conf.pyc
+
+## Luajit targets
+luajit/src/libluajit.so
+luajit/src/libluajit.a
+luajit/src/luajit
+luajit/src/host/buildvm
+luajit/src/host/minilua
+### Probably shoud add some microsoft specific targets

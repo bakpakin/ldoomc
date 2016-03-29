@@ -4,6 +4,9 @@
 cmake_minimum_required(VERSION 2.8)
 project(Ldoom)
 
+# Options
+option(LDOOMC_DEBUG "Debug build (on) or release build (off)." ON)
+
 # Set Some Variables
 set(TARGET_NAME ${PROJECT_NAME})
 if (CMAKE_VERSION VERSION_LESS "3.1")
@@ -67,7 +70,18 @@ option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
 option(GLFW_INSTALL "Generate installation target" OFF)
 
-# Set Executable Target
+# Compile libluajit
+set(LUAJIT_STATIC_LIB ${CMAKE_SOURCE_DIR}/luajit/src/libluajit.a)
+add_custom_target(libluajit DEPENDS ${LUAJIT_STATIC_LIB})
+add_custom_command(
+    OUTPUT ${LUAJIT_STATIC_LIB}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/luajit/src
+    COMMAND make amalg
+    VERBATIM
+)
+# Make it cleanable
+# add_custom_target(clean_luajit)
+
 if(APPLE)
 
     # Create an app bundle for apple
@@ -92,18 +106,23 @@ if(APPLE)
 else(APPLE)
     
     add_executable(${TARGET_NAME} ${SOURCES})
+    file(COPY "${CMAKE_SOURCE_DIR}/resources" DESTINATION "${CMAKE_BINARY_DIR}")
 
 endif(APPLE)
+
+# Make sure dependent projects are compiled
+add_dependencies(${TARGET_NAME} libluajit)
 
 # Add custom flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter -O3")
 
-# Include Library Headers and ste up linking
+# Include Library Headers and set up linking
 add_subdirectory("glfw")
-include_directories("glfw/include")
+include_directories("glfw/include" "luajit/src")
 find_package(OpenGL REQUIRED)
 target_link_libraries(
     ${TARGET_NAME} 
+    ${LUAJIT_STATIC_LIB}
     glfw
     ${GLFW_LIBRARIES}
     ${OPENGL_gl_LIBRARY})

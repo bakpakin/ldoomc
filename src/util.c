@@ -11,14 +11,15 @@ const char * util_filename_ext(const char * path) {
 char * util_slurp(const char * path, long * length) {
     FILE * fp = fopen(path, "rb");
     if (!fp) {
-        printf("%s\n", path);
         uerr("Could not open file.");
     }
     fseek(fp, 0L, SEEK_END);
     long fsize = ftell(fp);
     char * data = malloc(fsize + 1);
     fseek(fp, 0L, SEEK_SET);
-    fread(data, fsize, 1, fp);
+    if (!fread(data, fsize, 1, fp)) {
+        uerr("Could not read file.");
+    }
     // Null terminate the string. This is an extra precaution
     // to prevent string errors down the line. Returned data is binary, though,
     // so there could be embeded 0s in the data.
