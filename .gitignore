@@ -15,6 +15,9 @@ build/
 ## Ignore YCM compiled conf
 .ycm_extra_conf.pyc
 
+## C Stuff
+*.o
+
 ## Luajit targets
 luajit/src/libluajit.so
 luajit/src/libluajit.a
