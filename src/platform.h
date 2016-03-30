@@ -49,6 +49,7 @@ typedef enum {
     PBUTTON_S1,
     PBUTTON_S2,
     PBUTTON_SYS,
+    PBUTTON_SPECIAL,
     PBUTTON_OTHER
 } PlatformButton;
 

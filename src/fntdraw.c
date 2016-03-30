@@ -381,7 +381,7 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
     line_find_value(srcp, "count", buf, BUFLEN);
     fd->charcount = atoi(buf);
 
-    FontCharDef * cd = fd->chars = calloc(128, sizeof(FontCharDef));
+    FontCharDef * cd = fd->chars = calloc(256, sizeof(FontCharDef));
 
     for(;;) {
 
@@ -404,6 +404,9 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
         line_find_value(srcp, "yoffset", buf, BUFLEN); yoff = atof(buf);
         line_find_value(srcp, "xadvance", buf, BUFLEN); xadvance = atof(buf);
 
+        // Ignore non ascii and extended characters. Unicode support would be awesome, though.
+        if (id > 255) continue;
+
         cd[id].valid = 1;
         cd[id].x = x;
         cd[id].y = y;
@@ -414,6 +417,19 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
         cd[id].xadvance = xadvance;
         cd[id].kerning.data = NULL;
 
+    }
+
+    // Infer tabs to be 4 x spaces
+    if (!cd[9].valid && cd[32].valid) {
+        cd[9].valid = 1;
+        cd[9].x = cd[32].x;
+        cd[9].y = cd[32].y;
+        cd[9].w = cd[32].w;
+        cd[9].h = cd[32].h;
+        cd[9].xoffset = cd[32].xoffset;
+        cd[9].yoffset = cd[32].yoffset;
+        cd[9].xadvance = 4 * cd[32].xadvance;
+        cd[9].kerning.data = NULL;
     }
 
     if (srcp)  {
@@ -1030,6 +1046,10 @@ void text_draw(Text * t, const mat4 mvp) {
 
 }
 
+void text_draw_screen(Text * t) {
+    text_draw(t, platform_screen_matrix());
+}
+
 void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length) {
 
     if (start + length > t->text_length) {
@@ -1042,6 +1062,10 @@ void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length) 
     glDrawElements(GL_TRIANGLES, length * 6, GL_UNSIGNED_SHORT, (GLvoid *)(start * 6 * sizeof(GLushort)));
     glBindVertexArray(0);
 
+}
+
+void text_draw_range_screen(Text * t, unsigned start, unsigned length) {
+    text_draw_range(t, platform_screen_matrix(), start, length);
 }
 
 #undef CHAR_VERT_SIZE

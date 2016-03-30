@@ -21,9 +21,11 @@
 #include "lodepng.h"
 #include "fntdraw.h"
 #include "arenastate.h"
+#include "menustate.h"
 #include "mob.h"
 #include "scene.h"
 #include "quickdraw.h"
 #include "sky.h"
+#include "luabootstrap.h"
 
 #endif

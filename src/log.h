@@ -25,6 +25,10 @@ void ldlog_stdout_set(int enabled);
 
 void ldlog(const char * message, ...);
 
+void ldlog_write(const char * piece);
+
+void ldlog_flush();
+
 void ldlog_clear();
 
 void ldlog_logger(Logger * l);

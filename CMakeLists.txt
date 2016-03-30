@@ -30,12 +30,15 @@ src/texture.c
 src/camera.c
 src/fntdraw.c
 src/arenastate.c
+src/menustate.c
 src/quickdraw.c
 src/scene.c
 src/mob.c
+src/ui.c
 src/console.c
 src/sky.c
 src/glad.c
+src/luabootstrap.c
 
 ## Thirdparty static libs
 src/lodepng.c
@@ -50,11 +53,10 @@ resources/basic.glsl
 resources/diffuseshader.glsl
 resources/consolefont.png
 resources/consolefont.txt
+resources/hud.png
+resources/hud.txt
 resources/sky.glsl
-resources/fancy.txt
-resources/fancy.png
 resources/diffuse.png
-resources/grass.png
 resources/reflectshader.glsl
 resources/skytop.png
 resources/skybottom.png
@@ -102,6 +104,9 @@ if(APPLE)
 
     # Link any OSX specific frameworks
     target_link_libraries(${TARGET_NAME} "-framework CoreFoundation")
+
+    # LuaJIT requirement
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pagezero_size 10000 -image_base 100000000")
 
 else(APPLE)
     

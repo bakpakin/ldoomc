@@ -108,6 +108,10 @@ void text_unloadbuffer(Text * t);
 
 void text_draw(Text * t, const mat4 mvp);
 
+void text_draw_screen(Text * t);
+
 void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length);
+
+void text_draw_range_screen(Text * t, unsigned start, unsigned length);
 
 #endif

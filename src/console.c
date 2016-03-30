@@ -12,6 +12,8 @@
 // Console Rendering Definitions
 #define CONSOLE_FONT_POINT 14
 #define CONSOLE_FONT_WIDTH 600
+#define CONSOLE_FONT_SMOOTHING 0.25f
+#define CONSOLE_FONT_THRESHOLD 0.3f
 #define CONSOLE_FONT_NAME "consolefont.txt"
 #define CONSOLE_BORDER_TOP 4
 #define CONSOLE_BORDER_BOTTOM 2
@@ -37,7 +39,7 @@ static Text fpsText;
 static char console_visible = 1;
 
 static inline float textpad(Text * t) {
-    return t->line_count * (fd.lineHeight / CONSOLE_FONT_POINT + CONSOLE_PADDING);
+    return t->line_count * (fd.lineHeight / fd.size * t->pt + CONSOLE_PADDING);
 }
 
 static inline Text * nth_history(unsigned n) {
@@ -45,8 +47,8 @@ static inline Text * nth_history(unsigned n) {
 }
 
 static void text_config(Text * t) {
-    t->threshold = 0.3f;
-    t->smoothing = 1.0f / 4.0f;
+    t->threshold = CONSOLE_FONT_THRESHOLD;
+    t->smoothing = CONSOLE_FONT_SMOOTHING;
 }
 
 static void history_put(const char * msg) {

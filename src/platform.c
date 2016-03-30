@@ -6,6 +6,7 @@
 #include "quickdraw.h"
 #include "scene.h"
 #include "log.h"
+#include "luabootstrap.h"
 
 #include <string.h>
 
@@ -213,6 +214,7 @@ static int button_c_code = GLFW_KEY_C;
 static int button_d_code = GLFW_KEY_V;
 static int button_e_code = GLFW_KEY_SPACE;
 static int button_sys_code = GLFW_KEY_ESCAPE;
+static int button_special_code = GLFW_KEY_BACKSLASH;
 
 static PlatformButton get_pbutton(int key) {
     if (key == button_a_code) return PBUTTON_A;
@@ -221,6 +223,7 @@ static PlatformButton get_pbutton(int key) {
     if (key == button_d_code) return PBUTTON_D;
     if (key == button_e_code) return PBUTTON_E;
     if (key == button_sys_code) return PBUTTON_SYS;
+    if (key == button_special_code) return PBUTTON_SPECIAL;
     return PBUTTON_OTHER;
 }
 
@@ -379,6 +382,7 @@ void platform_init() {
     console_init();
 #endif
     qd_init();
+    luaboot_init();
 }
 
 void platform_mainloop(Gamestate * initial_state) {
@@ -425,6 +429,7 @@ void platform_mainloop(Gamestate * initial_state) {
 
 void platform_deinit() {
 
+    luaboot_deinit();
 #ifndef NOCONSOLE
     console_deinit();
 #endif
