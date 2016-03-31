@@ -63,6 +63,8 @@ resources/skyleft.png
 resources/skyright.png
 resources/skyfront.png
 resources/skyback.png
+## Scripts
+resources/scripts/bootstrap.lua
 )
 
 # GLFW Reset default options
@@ -98,7 +100,17 @@ if(APPLE)
 else(APPLE)
     
     add_executable(${TARGET_NAME} ${SOURCES})
-    file(COPY "${CMAKE_SOURCE_DIR}/resources" DESTINATION "${CMAKE_BINARY_DIR}")
+    add_custom_target(copy_resources)
+    foreach(filename ${RESOURCES})
+        set(SRC "${CMAKE_SOURCE_DIR}/${filename}")
+        set(DST "${CMAKE_BINARY_DIR}/${filename}")
+        add_custom_command(
+            TARGET copy_resources
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC} ${DST}
+            COMMENT "Copying file: ${filename}")
+    endforeach(filename)
+    add_dependencies(${TARGET_NAME} copy_resources)
+    #file(COPY "${CMAKE_SOURCE_DIR}/resources" DESTINATION "${CMAKE_BINARY_DIR}")
 
 endif(APPLE)
 

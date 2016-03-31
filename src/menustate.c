@@ -41,7 +41,7 @@ static void button(PlatformButton b, PlatformButtonAction action) {
 }
 
 static void updateTick() {
-
+    luaboot_event(&les_tick);
 }
 
 Gamestate menustate = {

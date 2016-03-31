@@ -91,11 +91,11 @@ void ldlog_stdout_set(int enabled) {
     stdoutlogger.enabled = enabled;
 }
 
-static void logbuffer_push(const char * str, size_t len) {
+static void logbuffer_push(const char * str, size_t len, int add_t) {
     if (logbuffer_size + len + 1 >= logbuffer_capacity) {
         logbuffer = realloc(logbuffer, ((logbuffer_size + len) * 1.5) + 2);
     }
-    if (logbuffer_size > 0) {
+    if (logbuffer_size > 0 && add_t) {
         logbuffer[logbuffer_size++] = '\t';
     }
     strncpy(logbuffer + logbuffer_size, str, len);
@@ -103,10 +103,11 @@ static void logbuffer_push(const char * str, size_t len) {
 }
 
 void ldlog_write(const char * piece) {
-    logbuffer_push(piece, strlen(piece));
+    logbuffer_push(piece, strlen(piece), 1);
 }
 
 void ldlog_flush() {
+    logbuffer_push("\n", 1, 0);
     logbuffer[logbuffer_size] = 0;
     ldlog(logbuffer);
     logbuffer_size = 0;

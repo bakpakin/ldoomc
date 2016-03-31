@@ -1,7 +1,5 @@
 ldoom = {}
 
-local function receive_event(event, ...)
-    if ldoom[event] then
-        ldoom.event(...)
-    end
+function ldoom.tick(dt)
+    print("tick", 1, 2, 3, 4)
 end

@@ -5,6 +5,12 @@
 
 lua_State * globalLuaState;
 
+static const int update_arg_types[1] = { LUA_TNUMBER };
+
+LuaEventSignature les_tick;
+LuaEventSignature les_update;
+LuaEventSignature les_draw;
+
 int luaboot_loadresource(const char * resource) {
     char file[200];
     platform_res2file(resource, file, 200);
@@ -37,9 +43,6 @@ static int logprint(lua_State * L) {
                 break;
         }
     }
-    if (nargs == 0) {
-        ldlog_write("");
-    }
     ldlog_flush();
     return 0;
 }
@@ -50,6 +53,10 @@ void luaboot_event(LuaEventSignature * les, ...) {
     lua_getglobal(globalLuaState, "ldoom");
     lua_pushstring(globalLuaState, les->name);
     lua_gettable(globalLuaState, -2);
+    if (lua_type(globalLuaState, lua_gettop(globalLuaState)) != LUA_TFUNCTION) {
+        lua_settop(globalLuaState, 0);
+        return;
+    }
     for (int i = 0; i < les->num_args; i++) {
         int argtype = les->arg_types[i];
         switch (argtype) {
@@ -63,6 +70,7 @@ void luaboot_event(LuaEventSignature * les, ...) {
                 lua_pushboolean(globalLuaState, va_arg(args, int));
                 break;
             default:
+                lua_pushnil(globalLuaState);
                 break;
         }
     }
@@ -74,11 +82,26 @@ void luaboot_event(LuaEventSignature * les, ...) {
 
 // Add basic library
 int luaboot_init() {
+
+    // Set up Event Signatures
+    les_update.name = "update";
+    les_update.num_args = 1;
+    les_update.arg_types = update_arg_types;
+    les_tick.name = "tick";
+    les_tick.num_args = 0;
+    les_tick.arg_types = NULL;
+    les_draw.name = "draw";
+    les_draw.num_args = 0;
+    les_draw.arg_types = NULL;
+
     lua_State * L = luaL_newstate();
     globalLuaState = L;
     luaL_openlibs(L);
     lua_pushcfunction(L, logprint);
     lua_setglobal(L, "print");
+    luaboot_doresource("scripts/bootstrap.lua");
+    lua_settop(L, 0);
+
     return 0;
 }
 

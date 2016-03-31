@@ -11,8 +11,12 @@ extern lua_State * globalLuaState;
 typedef struct {
     const char * name;
     int num_args;
-    int * arg_types;
+    const int * arg_types;
 } LuaEventSignature;
+
+extern LuaEventSignature les_tick;
+extern LuaEventSignature les_update;
+extern LuaEventSignature les_draw;
 
 int luaboot_loadresource(const char * resource);
 
