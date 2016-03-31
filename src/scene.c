@@ -57,9 +57,9 @@ void scene_deinit() {
 }
 
 void scene_add_mob(Mob * mob) {
-    if (mob_count >= mob_capacity) {
+    if (mob_count + 1 >= mob_capacity) {
         mob_capacity = 2 * mob_count + 1;
-        mobs = realloc(mobs, mob_capacity);
+        mobs = realloc(mobs, mob_capacity * sizeof(Mob *));
     }
     mobs[mob_count++] = mob;
 }

@@ -66,9 +66,9 @@ void ldlog_clear() {
 }
 
 void ldlog_logger(Logger * l) {
-    if (logger_count >= logger_capacity) {
+    if (logger_count + 1 >= logger_capacity) {
         logger_capacity = logger_count * 2 + 1;
-        loggers = realloc(loggers, logger_capacity);
+        loggers = realloc(loggers, logger_capacity * sizeof(Logger *));
     }
     loggers[logger_count++] = l;
 }
