@@ -172,7 +172,7 @@ void console_init() {
     charbuf_len = 0;
     charbuf = malloc(charbuf_capacity);
 
-    history_capacity = 35;
+    history_capacity = 10;
     history_len = 0;
     history_start = 0;
     history = malloc(sizeof(Text) * history_capacity);
