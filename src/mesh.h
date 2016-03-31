@@ -2,7 +2,7 @@
 #define MESH_HEADER
 
 #include "ldmath.h"
-#include "opengl.h"
+#include "glfw.h"
 
 /*
  * Represents the kind of vertices in the mesh.

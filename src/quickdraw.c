@@ -1,5 +1,5 @@
 #include "quickdraw.h"
-#include "opengl.h"
+#include "glfw.h"
 #include "shader.h"
 #include "platform.h"
 #include <math.h>

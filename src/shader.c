@@ -1,5 +1,4 @@
 #include "shader.h"
-#include "opengl.h"
 #include <string.h>
 #include "util.h"
 #include <stdarg.h>

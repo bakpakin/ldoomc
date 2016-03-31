@@ -1,6 +1,6 @@
 #include "sky.h"
 #include "shader.h"
-#include "opengl.h"
+#include "glfw.h"
 #include "ldmath.h"
 #include "mesh.h"
 #include "texture.h"

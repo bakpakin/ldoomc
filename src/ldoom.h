@@ -6,14 +6,12 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "opengl.h"
+#include "glfw.h"
 #include "platform.h"
 #include "util.h"
 #include "log.h"
 #include "ldmath.h"
 #include "geom.h"
-#include "opool.h"
-#include "vector.h"
 #include "shader.h"
 #include "mesh.h"
 #include "texture.h"

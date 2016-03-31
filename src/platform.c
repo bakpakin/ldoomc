@@ -1,6 +1,5 @@
 #include "platform.h"
 #include "util.h"
-#include "vector.h"
 #include "ldmath.h"
 #include "console.h"
 #include "quickdraw.h"
@@ -202,7 +201,6 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 #ifdef PLATFORM_DESKTOP
 
 #include "glfw.h"
-#include "opengl.h"
 
 static GLFWwindow * game_window;
 

@@ -1,12 +1,16 @@
 #include "log.h"
+#include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
-#include "vector.h"
-
-VECGEN(Logger *, logger);
 
 char ldlog_logging_enabled = 1;
-static Vector loggers;
+
 static Logger stdoutlogger;
+
+static Logger ** loggers;
+static size_t logger_count;
+static size_t logger_capacity;
+
 static char * logbuffer;
 static size_t logbuffer_size;
 static size_t logbuffer_capacity;
@@ -17,7 +21,11 @@ static void filelogger_log(void * user, const char * message, va_list args) {
 }
 
 void ldlog_init() {
-    vector_init_logger(&loggers, 4);
+
+    loggers = malloc(sizeof(Logger*) * 4);
+    logger_count = 0;
+    logger_capacity = 4;
+
     stdoutlogger.log = filelogger_log;
     stdoutlogger.clear = NULL;
     stdoutlogger.user = stdout;
@@ -29,7 +37,7 @@ void ldlog_init() {
 }
 
 void ldlog_deinit() {
-    vector_deinit_logger(&loggers);
+    free(loggers);
 }
 
 void ldlog(const char * message, ...) {
@@ -37,8 +45,8 @@ void ldlog(const char * message, ...) {
         va_list l;
         va_start(l, message);
 
-        for (unsigned i = 0; i < loggers.count; i++) {
-            Logger * lgr = vector_get_logger(&loggers, i);
+        for (unsigned i = 0; i < logger_count; i++) {
+            Logger * lgr = loggers[i];
             if (!lgr->enabled) continue;
             lgr->log(lgr->user, message, l);
         }
@@ -49,8 +57,8 @@ void ldlog(const char * message, ...) {
 
 void ldlog_clear() {
     if (ldlog_logging_enabled) {
-        for (unsigned i = 0; i < loggers.count; i++) {
-            Logger * lgr = vector_get_logger(&loggers, i);
+        for (unsigned i = 0; i < logger_count; i++) {
+            Logger * lgr = loggers[i];
             if ((!lgr->enabled) || (!lgr->clear)) continue;
             lgr->clear(lgr->user);
         }
@@ -58,7 +66,11 @@ void ldlog_clear() {
 }
 
 void ldlog_logger(Logger * l) {
-    vector_push_logger(&loggers, l);
+    if (logger_count >= logger_capacity) {
+        logger_capacity = logger_count * 2 + 1;
+        loggers = realloc(loggers, logger_capacity);
+    }
+    loggers[logger_count++] = l;
 }
 
 Logger * ldlog_filelogger(FILE * fp) {

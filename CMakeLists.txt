@@ -22,7 +22,6 @@ src/main.c
 src/platform.c
 src/util.c
 src/log.c
-src/opool.c
 src/geom.c
 src/shader.c
 src/mesh.c
