@@ -37,7 +37,7 @@ int platform_height() {
     return _platform_height;
 }
 
-#define MAX_STATE_STACK 32
+#define MAX_STATE_STACK 128
 
 static Gamestate * stack[MAX_STATE_STACK];
 static Gamestate current_state;
@@ -373,12 +373,8 @@ void platform_init() {
 
     // Misc
     mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
-#ifndef NOLOG
     ldlog_init();
-#endif
-#ifndef NOCONSOLE
     console_init();
-#endif
     qd_init();
     luai_init();
 }
@@ -419,21 +415,15 @@ void platform_mainloop(Gamestate * initial_state) {
         gamestate_update(_platform_delta);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         gamestate_draw();
-#ifndef NOCONSOLE
         console_draw();
-#endif
     }
 }
 
 void platform_deinit() {
 
     luai_deinit();
-#ifndef NOCONSOLE
     console_deinit();
-#endif
-#ifndef NOLOG
     ldlog_deinit();
-#endif
     qd_deinit();
 
     if (current_state.deinit) current_state.deinit();
@@ -446,7 +436,7 @@ void platform_exit() {
 }
 
 int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result) {
-
+    //TODO
     return 1;
 }
 
