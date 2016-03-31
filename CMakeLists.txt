@@ -84,18 +84,20 @@ if(APPLE)
 
     # Add each resource to resources bundle in the app
     foreach(res ${RESOURCES})
-        set_source_files_properties(${res} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+        get_filename_component(resdir ${res} DIRECTORY)
+        string(REPLACE "resources" "" resdir ${resdir})
+        set_source_files_properties(${res} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/${resdir}")
     endforeach(res)
 
     # Make the executable
     add_executable(${TARGET_NAME} MACOSX_BUNDLE ${ICON_FILE} ${SOURCES} ${RESOURCES})
     set_target_properties(${TARGET_NAME} PROPERTIES MACOSX_BUNDLE TRUE)
 
+    # Add LuaJIT required link flags
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 10000 -image_base 100000000")
+
     # Link any OSX specific frameworks
     target_link_libraries(${TARGET_NAME} "-framework CoreFoundation")
-
-    # LuaJIT requirement
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pagezero_size 10000 -image_base 100000000")
 
 else(APPLE)
     
@@ -110,7 +112,6 @@ else(APPLE)
             COMMENT "Copying file: ${filename}")
     endforeach(filename)
     add_dependencies(${TARGET_NAME} copy_resources)
-    #file(COPY "${CMAKE_SOURCE_DIR}/resources" DESTINATION "${CMAKE_BINARY_DIR}")
 
 endif(APPLE)
 

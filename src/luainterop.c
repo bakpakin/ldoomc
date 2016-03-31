@@ -97,6 +97,7 @@ int luai_init() {
     lua_State * L = luaL_newstate();
     globalLuaState = L;
     luaL_openlibs(L);
+    printf("hi!\n");
     lua_pushcfunction(L, logprint);
     lua_setglobal(L, "print");
     luai_doresource("scripts/bootstrap.lua");
