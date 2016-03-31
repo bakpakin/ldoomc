@@ -65,23 +65,11 @@ resources/skyfront.png
 resources/skyback.png
 )
 
-# GLFW Options
+# GLFW Reset default options
 option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" OFF)
 option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
 option(GLFW_INSTALL "Generate installation target" OFF)
-
-# Compile libluajit
-set(LUAJIT_STATIC_LIB ${CMAKE_SOURCE_DIR}/luajit/src/libluajit.a)
-add_custom_target(libluajit DEPENDS ${LUAJIT_STATIC_LIB})
-add_custom_command(
-    OUTPUT ${LUAJIT_STATIC_LIB}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/luajit/src
-    COMMAND make amalg
-    VERBATIM
-)
-# Make it cleanable
-# add_custom_target(clean_luajit)
 
 if(APPLE)
 
@@ -114,19 +102,31 @@ else(APPLE)
 
 endif(APPLE)
 
-# Make sure dependent projects are compiled
+# LuaJIT Compilation using external build system. 
+# (make on Mac and linux, and custom build script on windows)
+set(LUAJIT_LIB ${CMAKE_SOURCE_DIR}/luajit/src/libluajit.a)
+add_custom_target(libluajit DEPENDS ${LUAJIT_LIB})
 add_dependencies(${TARGET_NAME} libluajit)
+add_custom_command(
+    OUTPUT ${LUAJIT_LIB}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/luajit/src
+    COMMAND make amalg
+    VERBATIM
+)
 
 # Add custom flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-unused-parameter -O3")
 
 # Include Library Headers and set up linking
 add_subdirectory("glfw")
-include_directories("glfw/include" "luajit/src")
 find_package(OpenGL REQUIRED)
+find_package(OpenAL REQUIRED)
+include_directories("glfw/include" "luajit/src" ${OPENAL_INCLUDE_DIR})
 target_link_libraries(
     ${TARGET_NAME} 
-    ${LUAJIT_STATIC_LIB}
+    ${LUAJIT_LIB}
     glfw
     ${GLFW_LIBRARIES}
-    ${OPENGL_gl_LIBRARY})
+    ${OPENGL_gl_LIBRARY}
+    ${OPENAL_LIBRARY}
+)
