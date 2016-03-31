@@ -24,6 +24,6 @@
 #include "scene.h"
 #include "quickdraw.h"
 #include "sky.h"
-#include "luabootstrap.h"
+#include "luainterop.h"
 
 #endif

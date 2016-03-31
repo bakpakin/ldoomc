@@ -5,7 +5,7 @@
 #include "quickdraw.h"
 #include "scene.h"
 #include "log.h"
-#include "luabootstrap.h"
+#include "luainterop.h"
 
 #include <string.h>
 
@@ -380,7 +380,7 @@ void platform_init() {
     console_init();
 #endif
     qd_init();
-    luaboot_init();
+    luai_init();
 }
 
 void platform_mainloop(Gamestate * initial_state) {
@@ -427,7 +427,7 @@ void platform_mainloop(Gamestate * initial_state) {
 
 void platform_deinit() {
 
-    luaboot_deinit();
+    luai_deinit();
 #ifndef NOCONSOLE
     console_deinit();
 #endif

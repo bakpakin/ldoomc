@@ -37,7 +37,7 @@ src/ui.c
 src/console.c
 src/sky.c
 src/glad.c
-src/luabootstrap.c
+src/luainterop.c
 
 ## Thirdparty static libs
 src/lodepng.c

@@ -1,5 +1,5 @@
-#ifndef LUABOOTSTRAP_HEADER
-#define LUABOOTSTRAP_HEADER
+#ifndef LUAINTEROP_HEADER
+#define LUAINTEROP_HEADER
 
 #include <stdarg.h>
 #include <lua.h>
@@ -18,14 +18,14 @@ extern LuaEventSignature les_tick;
 extern LuaEventSignature les_update;
 extern LuaEventSignature les_draw;
 
-int luaboot_loadresource(const char * resource);
+int luai_loadresource(const char * resource);
 
-int luaboot_doresource(const char * resource);
+int luai_doresource(const char * resource);
 
-int luaboot_init();
+int luai_init();
 
-void luaboot_deinit();
+void luai_deinit();
 
-void luaboot_event(LuaEventSignature * les, ...);
+void luai_event(LuaEventSignature * les, ...);
 
-#endif /* end of include guard: LUABOOTSTRAP_HEADER */
+#endif /* end of include guard: LUAINTEROP_HEADER */

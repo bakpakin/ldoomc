@@ -1,4 +1,4 @@
-#include "luabootstrap.h"
+#include "luainterop.h"
 #include "platform.h"
 #include "log.h"
 #include "util.h"
@@ -11,13 +11,13 @@ LuaEventSignature les_tick;
 LuaEventSignature les_update;
 LuaEventSignature les_draw;
 
-int luaboot_loadresource(const char * resource) {
+int luai_loadresource(const char * resource) {
     char file[200];
     platform_res2file(resource, file, 200);
     return luaL_loadfile(globalLuaState, file);
 }
 
-int luaboot_doresource(const char * resource) {
+int luai_doresource(const char * resource) {
     char file[200];
     platform_res2file(resource, file, 200);
     return luaL_dofile(globalLuaState, file);
@@ -47,7 +47,7 @@ static int logprint(lua_State * L) {
     return 0;
 }
 
-void luaboot_event(LuaEventSignature * les, ...) {
+void luai_event(LuaEventSignature * les, ...) {
     va_list args;
     va_start(args, les);
     lua_getglobal(globalLuaState, "ldoom");
@@ -81,7 +81,7 @@ void luaboot_event(LuaEventSignature * les, ...) {
 }
 
 // Add basic library
-int luaboot_init() {
+int luai_init() {
 
     // Set up Event Signatures
     les_update.name = "update";
@@ -99,12 +99,12 @@ int luaboot_init() {
     luaL_openlibs(L);
     lua_pushcfunction(L, logprint);
     lua_setglobal(L, "print");
-    luaboot_doresource("scripts/bootstrap.lua");
+    luai_doresource("scripts/bootstrap.lua");
     lua_settop(L, 0);
 
     return 0;
 }
 
-void luaboot_deinit() {
+void luai_deinit() {
     lua_close(globalLuaState);
 }
