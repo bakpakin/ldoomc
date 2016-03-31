@@ -3,6 +3,6 @@
 
 #include "glad/glad.h"
 #define GLFW_INCLUDE_COREARB 1
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 
 #endif

@@ -6,12 +6,8 @@
 #ifndef SCENE_HEADER
 #define SCENE_HEADER
 
-#include "geom.h"
-#include "vector.h"
 #include "mob.h"
-#include "ldmath.h"
 #include "camera.h"
-#include "opool.h"
 
 extern Camera scene_camera;
 

@@ -24,7 +24,7 @@ static void draw() {
 }
 
 static void resize(int width, int height) {
-
+    title.position[0] = width / 2 - 300;
 }
 
 static void show() {

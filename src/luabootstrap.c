@@ -46,7 +46,6 @@ static int logprint(lua_State * L) {
     return 0;
 }
 
-
 // Add basic library
 int luaboot_init() {
     lua_State * L = luaL_newstate();
@@ -54,10 +53,6 @@ int luaboot_init() {
     luaL_openlibs(L);
     lua_pushcfunction(L, logprint);
     lua_setglobal(L, "print");
-    int result = luaL_dostring(L, "print('hi', 'joe', 'shmoe')");
-    if (result) { //error
-        uerr("Could not initialize Ldoomc Lua libraries.");
-    }
     return 0;
 }
 
