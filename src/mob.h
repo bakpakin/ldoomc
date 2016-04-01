@@ -3,7 +3,6 @@
 
 #include "ldmath.h"
 #include "model.h"
-#include "geom.h"
 #include "camera.h"
 
 #define MOB_INVISIBLE 1

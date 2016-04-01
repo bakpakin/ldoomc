@@ -3,7 +3,7 @@
 int main() {
 
 	platform_init();
-	platform_mainloop(&menustate);
+	platform_mainloop(&arenastate);
 	platform_deinit();
     return 0;
 }
