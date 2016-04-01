@@ -6,10 +6,8 @@
 #include "scene.h"
 #include "log.h"
 #include "luainterop.h"
-
+#include "glfw.h"
 #include <string.h>
-
-//////////////////////////////////////// COMMON START
 
 static double _platform_delta = 0.0;
 static double _platform_fps = 0.0;
@@ -148,9 +146,8 @@ const float * platform_screen_matrix() {
     return screen_matrix;
 }
 
-//////////////////////////////////////// COMMON END
-
-//////////////////////////////////////// APPLE START
+#ifdef RELEASE
+//Platform specific resource resolution
 #ifdef __APPLE__
 
 #include <CoreFoundation/CFBundle.h>
@@ -177,11 +174,16 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 }
 
 #endif
-//////////////////////////////////////// END APPLE
+// End platform specific resource resolution
+#else
 
-#if defined _WIN32 || defined __linux__
+static char *platform_path_predicate = "resources"
+#ifdef _WIN32
+"\\";
+#else
+"/";
+#endif
 
-static char *platform_path_predicate = "resources/";
 static size_t platform_buffer_predsize = 10; // strlen(platform_path_predicate);
 
 // For now, just let it build. This should be replaced with platfrom specifics later.
@@ -196,11 +198,6 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 }
 
 #endif
-
-//////////////////////////////////////// DESKTOP CODE START
-#ifdef PLATFORM_DESKTOP
-
-#include "glfw.h"
 
 static GLFWwindow * game_window;
 
@@ -226,6 +223,7 @@ static PlatformButton get_pbutton(int key) {
 }
 
 static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
+    if (window != game_window) return;
     PlatformButton button = get_pbutton(key);
     if (button == PBUTTON_OTHER) return;
     PlatformButtonAction pba = action == GLFW_PRESS ? PBA_DOWN : PBA_UP;
@@ -242,6 +240,7 @@ static void key_callback(GLFWwindow * window, int key, int scancode, int action,
 static double xmold = 0, ymold = 0;
 static int cursor_tracking_started = 0;
 static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
+    if (window != game_window) return;
     if (pointer_mode == PPOINTERMODE_LOCKED) {
         if (!cursor_tracking_started) {
             cursor_tracking_started = 1;
@@ -271,6 +270,7 @@ void platform_set_pointer_mode(PlatformPointerMode mode) {
 }
 
 static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods) {
+    if (window != game_window) return;
     PlatformButton b = PBUTTON_OTHER;
     if (button == GLFW_MOUSE_BUTTON_LEFT) b = PBUTTON_S1;
     if (button == GLFW_MOUSE_BUTTON_RIGHT) b = PBUTTON_S2;
@@ -320,6 +320,7 @@ static void window_resize_callback(int width, int height) {
 }
 
 static void error_callback(int error, const char * message) {
+    fprintf(stderr, "Error code %d: ", error);
     uerr(message);
 }
 
@@ -411,10 +412,13 @@ void platform_mainloop(Gamestate * initial_state) {
             if (current_state.updateTick) {
                 current_state.updateTick();
             }
+            luai_event(&les_tick);
         }
         gamestate_update(_platform_delta);
+        luai_event(&les_update, _platform_delta);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         gamestate_draw();
+        luai_event(&les_draw);
         console_draw();
     }
 }
@@ -434,12 +438,3 @@ void platform_deinit() {
 void platform_exit() {
     glfwSetWindowShouldClose(game_window, 1);
 }
-
-int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result) {
-    //TODO
-    return 1;
-}
-
-#endif
-
-//////////////////////////////////////// DESKTOP CODE END

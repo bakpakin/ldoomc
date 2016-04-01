@@ -11,6 +11,10 @@ install_manifest.txt
 
 ## Ignore builds
 build/
+Debug/
+debug/
+Release/
+release/
 
 ## Ignore YCM compiled conf
 .ycm_extra_conf.pyc

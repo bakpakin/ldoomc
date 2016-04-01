@@ -8,7 +8,6 @@ project(Ldoom)
 option(LDOOMC_DEBUG "Debug build (on) or release build (off)." ON)
 option(LDOOMC_AMALG "Build all c files together. Might make binary more efficient, or might not work at all." OFF)
 
-
 # Set Some Variables
 set(TARGET_NAME ${PROJECT_NAME})
 if (CMAKE_VERSION VERSION_LESS "3.1")
@@ -80,19 +79,7 @@ option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
 option(GLFW_INSTALL "Generate installation target" OFF)
 
 # Build the executable
-if(${LDOOMC_DEBUG})
-    add_executable(${TARGET_NAME} ${SOURCES})
-    add_custom_target(copy_resources)
-    foreach(filename ${RESOURCES})
-        set(SRC "${CMAKE_SOURCE_DIR}/${filename}")
-        set(DST "${CMAKE_BINARY_DIR}/${filename}")
-        add_custom_command(
-            TARGET copy_resources
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC} ${DST}
-            COMMENT "Copying file: ${filename}")
-    endforeach(filename)
-    add_dependencies(${TARGET_NAME} copy_resources)
-else(${LDOOMC_DEBUG})
+if(CMAKE_BUILD_TYPE EQUAL "Release")
     if(APPLE)
         # Create an app bundle for apple
         set(ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/osx/icon.icns)
@@ -113,10 +100,23 @@ else(${LDOOMC_DEBUG})
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 10000 -image_base 100000000")
         # Link any OSX specific frameworks
         target_link_libraries(${TARGET_NAME} "-framework CoreFoundation")
-    else(APPLE)
+    else()
         message(FATAL_ERROR "Release build not yet implemented for this platform.")
-    endif(APPLE)
-endif(${LDOOMC_DEBUG})
+    endif()
+else()
+    set(CMAKE_BUILD_TYPE "Debug")
+    add_executable(${TARGET_NAME} ${SOURCES})
+    add_custom_target(copy_resources)
+    foreach(filename ${RESOURCES})
+        set(SRC "${CMAKE_SOURCE_DIR}/${filename}")
+        set(DST "${CMAKE_BINARY_DIR}/${filename}")
+        add_custom_command(
+            TARGET copy_resources
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC} ${DST}
+            COMMENT "Copying file: ${filename}")
+    endforeach(filename)
+    add_dependencies(${TARGET_NAME} copy_resources)
+endif()
 
 # LuaJIT Compilation using external build system. 
 # (make on Mac and linux, and custom build script on windows)
@@ -131,7 +131,8 @@ add_custom_command(
 )
 
 # Add custom flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter -O3 -s -ffast-math -fno-math-errno")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DRELEASE -O3 -ffast-math -fno-math-errno")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -Wall -Wextra -ffast-math -fno-math-errno")
 
 # Include Library Headers and set up linking
 add_subdirectory("glfw")

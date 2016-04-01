@@ -103,7 +103,7 @@ static void ARS_draw() {
 }
 
 static void ARS_updateTick() {
-    ldlog("$@F00Colored Text: $@8FF Blah blah....");
+
 }
 
 Gamestate arenastate = {

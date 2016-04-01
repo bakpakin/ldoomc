@@ -106,7 +106,7 @@ void scene_render() {
 
 #define D_EPSILON 0.000001f
 
-static int resolve_mob_collision(Mob * a, Mob * b) {
+static int scene_resolve_mob_collision(Mob * a, Mob * b) {
     float by = b->position[1];
     float bh = b->type->height;
     float ay = a->position[1];
@@ -187,7 +187,7 @@ void scene_update() {
             for (unsigned j = i + 1; j < mob_count; j++) {
                 Mob * b = mobs[j];
                 if (b->flags & MOB_NOCOLLIDE) continue;
-                resolve_mob_collision(a, b);
+                scene_resolve_mob_collision(a, b);
             }
         }
 

@@ -1,5 +1,11 @@
 ldoom = {}
 
-function ldoom.tick(dt)
-    print("tick", 1, 2, 3, 4)
+local stuff = 0
+
+function ldoom.tick()
+    print(stuff)
+end
+
+function ldoom.update(dt)
+    stuff = stuff + dt
 end

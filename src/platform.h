@@ -32,8 +32,6 @@ typedef struct {
 
 void platform_get_window(PlatformWindow * w);
 
-int platform_set_window(PlatformWindow * newWindow, PlatformWindow * result);
-
 int platform_width();
 int platform_height();
 const float * platform_screen_matrix(); // Returns the orthographic projection matrix to convert NDC to pixel space.
