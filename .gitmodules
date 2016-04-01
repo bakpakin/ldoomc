@@ -1,6 +1,0 @@
-[submodule "glfw"]
-	path = glfw
-	url = https://github.com/glfw/glfw.git
-[submodule "luajit-2.0"]
-	path = luajit-2.0
-	url = http://luajit.org/git/luajit-2.0.git

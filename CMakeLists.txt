@@ -72,12 +72,6 @@ resources/skyback.png
 resources/scripts/bootstrap.lua
 )
 
-# GLFW Reset default options
-option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" OFF)
-option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
-option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
-option(GLFW_INSTALL "Generate installation target" OFF)
-
 # Build the executable
 if(CMAKE_BUILD_TYPE EQUAL "Release")
     if(APPLE)
