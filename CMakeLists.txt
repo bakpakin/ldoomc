@@ -96,8 +96,6 @@ if(CMAKE_BUILD_TYPE EQUAL "Release")
         # Make the executable
         add_executable(${TARGET_NAME} MACOSX_BUNDLE ${ICON_FILE} ${SOURCES} ${RESOURCES})
         set_target_properties(${TARGET_NAME} PROPERTIES MACOSX_BUNDLE TRUE)
-        # Add LuaJIT required link flags
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 10000 -image_base 100000000")
         # Link any OSX specific frameworks
         target_link_libraries(${TARGET_NAME} "-framework CoreFoundation")
     else()
@@ -129,6 +127,9 @@ add_custom_command(
     COMMAND make amalg
     VERBATIM
 )
+if(APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pagezero_size 10000 -image_base 100000000")
+endif(APPLE)
 
 # Add custom flags
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DRELEASE -O3 -ffast-math -fno-math-errno")

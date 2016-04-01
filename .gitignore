@@ -21,6 +21,7 @@ release/
 
 ## C Stuff
 *.o
+*.s
 
 ## Luajit targets
 luajit/src/libluajit.so
