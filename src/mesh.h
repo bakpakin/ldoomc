@@ -74,7 +74,7 @@ Mesh * mesh_init(Mesh * m,
 
 /*
  * Initializes a mesh from an array of GLfloats. More convenient to use this to
- * Initialize programatically.
+ * initialize programatically.
  */
 Mesh * mesh_init_floats(Mesh * m,
         MeshType mesh_type,
@@ -85,7 +85,7 @@ Mesh * mesh_init_floats(Mesh * m,
         const GLushort * indices);
 
 /*
- *
+ * Initializes a mesh from an arrya of floats, but does not copy the array.
  *
  */
 Mesh * mesh_init_nocopy(Mesh * m,

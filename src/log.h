@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-typedef void (*LogFn)(void * user, const char * message, va_list args);
+typedef void (*LogFn)(void * user, const char * message);
 typedef void (*LogClearFn)(void * user);
 
 extern char ldlog_logging_enabled;

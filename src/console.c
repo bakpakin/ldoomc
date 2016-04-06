@@ -23,10 +23,6 @@
 
 static FontDef fd;
 
-static char * charbuf;
-static size_t charbuf_len;
-static size_t charbuf_capacity;
-
 static Text * history;
 static size_t history_len;
 static size_t history_start;
@@ -71,22 +67,8 @@ static void history_put(const char * msg) {
     }
 }
 
-static void console_log_fn(void * user, const char * message, va_list args) {
-
-    int done = 0;
-    while (!done) {
-        int result = vsnprintf(charbuf, charbuf_capacity, message, args);
-        if (result == -1) {
-            charbuf_capacity *= 2;
-            charbuf = realloc(charbuf, charbuf_capacity);
-        } else {
-            done = 1;
-            charbuf_len = result;
-        }
-    }
-
-    history_put(charbuf);
-
+static void console_log_fn(void * user, const char * message) {
+    history_put(message);
 }
 
 static void console_log_clear(void * user) {
@@ -168,10 +150,6 @@ void console_init() {
 
     fnt_init(&fd, CONSOLE_FONT_NAME);
 
-    charbuf_capacity = 80;
-    charbuf_len = 0;
-    charbuf = malloc(charbuf_capacity);
-
     history_capacity = 10;
     history_len = 0;
     history_start = 0;
@@ -200,6 +178,5 @@ void console_deinit() {
     }
     text_deinit(&fpsText);
     free(history);
-    free(charbuf);
 
 }

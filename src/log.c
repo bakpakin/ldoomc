@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-char ldlog_logging_enabled = 1;
+char ldlog_logging_enabled = 0;
 
 static Logger stdoutlogger;
 
@@ -15,9 +15,13 @@ static char * logbuffer;
 static size_t logbuffer_size;
 static size_t logbuffer_capacity;
 
-static void filelogger_log(void * user, const char * message, va_list args) {
+static char * charbuf;
+static size_t charbuf_capacity;
+static size_t charbuf_len;
+
+static void filelogger_log(void * user, const char * message) {
     FILE * fp = (FILE *) user;
-    vfprintf(fp, message, args);
+    fprintf(fp, "%s\n", message);
 }
 
 void ldlog_init() {
@@ -34,6 +38,12 @@ void ldlog_init() {
     logbuffer = malloc(100);
     logbuffer_size = 0;
     logbuffer_capacity = 100;
+
+    charbuf_capacity = 100;
+    charbuf_len = 0;
+    charbuf = malloc(sizeof(char) * charbuf_capacity);
+
+    ldlog_logging_enabled = 1;
 }
 
 void ldlog_deinit() {
@@ -45,10 +55,22 @@ void ldlog(const char * message, ...) {
         va_list l;
         va_start(l, message);
 
+        int done = 0;
+        while (!done) {
+            int result = vsnprintf(charbuf, charbuf_capacity, message, l);
+            if (result == -1) {
+                charbuf_capacity *= 2;
+                charbuf = realloc(charbuf, charbuf_capacity);
+            } else {
+                done = 1;
+                charbuf_len = result;
+            }
+        }
+
         for (unsigned i = 0; i < logger_count; i++) {
             Logger * lgr = loggers[i];
             if (!lgr->enabled) continue;
-            lgr->log(lgr->user, message, l);
+            lgr->log(lgr->user, charbuf);
         }
 
         va_end(l);

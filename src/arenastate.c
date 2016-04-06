@@ -25,8 +25,9 @@ static void ARS_init() {
     ARS_cyl.mesh = &ARS_mesh;
     ARS_mobdef.model = &ARS_cyl;
     ARS_mobdef.height = 1;
-    ARS_mobdef.friction = 0.01;
+    ARS_mobdef.friction = 0;
     ARS_mobdef.restitution = 0.2f;
+
     /* mobdef.inv_mass = 0; */
     Mob * ms = malloc(1000 * sizeof(Mob));
     texture_init_resource(&ARS_cyl.diffuse, "diffuse.png");
@@ -73,6 +74,8 @@ static void ARS_button(PlatformButton b, PlatformButtonAction a) {
         platform_set_pointer_mode(
                 platform_get_pointer_mode() == PPOINTERMODE_LOCKED ?
                 PPOINTERMODE_FREE : PPOINTERMODE_LOCKED);
+    } else if (b == PBUTTON_SPECIAL) {
+        platform_exit();
     }
 }
 

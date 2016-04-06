@@ -339,12 +339,17 @@ void platform_init() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
 	glfwWindowHint(GLFW_SAMPLES, 16);
-	game_window = glfwCreateWindow(1000, 600, "Ldoom", NULL, NULL);
+
+    GLFWmonitor * monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode * mode = glfwGetVideoMode(monitor);
+
+    glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+
+	game_window = glfwCreateWindow(mode->width, mode->height, "Ldoom", glfwGetPrimaryMonitor(), NULL);
 	if (!game_window) {
 	    glfwTerminate();
     }
     glfwMakeContextCurrent(game_window);
-    glfwSwapInterval(1);
 
     // Use GLAD to get stuff.
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
@@ -389,6 +394,8 @@ void platform_mainloop(Gamestate * initial_state) {
 
     int framecount = 0;
     double fps_check_time = glfwGetTime();
+    glfwSwapInterval(1);
+
     while (!glfwWindowShouldClose(game_window)) {
 
         int width, height;
