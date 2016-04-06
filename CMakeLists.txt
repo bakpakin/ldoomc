@@ -24,7 +24,6 @@ src/platform.c
 src/util.c
 src/ldmath.c
 src/log.c
-src/geom.c
 src/shader.c
 src/mesh.c
 src/texture.c
@@ -85,7 +84,7 @@ if(CMAKE_BUILD_TYPE EQUAL "Release")
         set(ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/osx/icon.icns)
         set(MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/osx/Info.plist)
         set(MACOSX_BUNDLE_BUNDLE_NAME ${TARGET_NAME})
-        set(MACOSX_BUNDLE_ICON_FILE icon.icns) 
+        set(MACOSX_BUNDLE_ICON_FILE icon.icns)
         set_source_files_properties(${ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
         # Add each resource to resources bundle in the app
         foreach(res ${RESOURCES})
@@ -116,7 +115,7 @@ else()
     add_dependencies(${TARGET_NAME} copy_resources)
 endif()
 
-# LuaJIT Compilation using external build system. 
+# LuaJIT Compilation using external build system.
 # (make on Mac and linux, and custom build script on windows)
 set(LUAJIT_LIB ${CMAKE_SOURCE_DIR}/luajit/src/libluajit.a)
 add_custom_target(libluajit DEPENDS ${LUAJIT_LIB})
@@ -132,8 +131,8 @@ if(APPLE)
 endif(APPLE)
 
 # Add custom flags
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DRELEASE -O3 -ffast-math -fno-math-errno")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -Wall -Wextra -ffast-math -fno-math-errno")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s -DRELEASE -O3 -ffast-math -fno-math-errno -Wno-unused-parameter")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -Wall -Wextra -ffast-math -fno-math-errno -Wno-unused-parameter")
 
 # Include Library Headers and set up linking
 add_subdirectory("glfw")
@@ -141,7 +140,7 @@ find_package(OpenGL REQUIRED)
 find_package(OpenAL REQUIRED)
 include_directories("glfw/include" "luajit/src" ${OPENAL_INCLUDE_DIR})
 target_link_libraries(
-    ${TARGET_NAME} 
+    ${TARGET_NAME}
     ${LUAJIT_LIB}
     glfw
     ${GLFW_LIBRARIES}

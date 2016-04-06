@@ -1,4 +1,5 @@
-#include "ldoom.h"
+#include "platform.h"
+#include "arenastate.h"
 
 int main() {
 

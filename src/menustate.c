@@ -1,5 +1,5 @@
-#include "ldoom.h"
 #include "menustate.h"
+#include "fntdraw.h"
 
 static FontDef hudft;
 static Text title;

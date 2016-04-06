@@ -4,6 +4,7 @@
 #include "platform.h"
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define DM_STROKE 0
 #define DM_FILL 1
@@ -13,8 +14,8 @@ static int drawing = 0;
 static float color[4] = {1.0, 1.0, 1.0, 1.0};
 
 static float * pbuffer = NULL;
-static int pbuffer_len = 0;
-static int pbuffer_capacity = 0;
+static unsigned pbuffer_len = 0;
+static unsigned pbuffer_capacity = 0;
 
 static Program program;
 
@@ -34,7 +35,7 @@ static GLint umatrix_loc;
 static GLuint VAO;
 static GLuint VBO;
 
-static inline void ensure_capacity(int cap) {
+static inline void ensure_capacity(unsigned cap) {
     if (pbuffer_capacity < cap) {
         pbuffer_capacity = cap;
         pbuffer = realloc(pbuffer, sizeof(float) * cap);
@@ -160,13 +161,20 @@ void qd_rect(float x, float y, float w, float h, unsigned type) {
     qd_draw(type);
 }
 
-void qd_poly(const poly * p, unsigned type) {
+void qd_poly(unsigned type, unsigned count, float * points) {
     if (drawing) return;
-    for (unsigned i = 0; i < p->count; i++) {
-        pbuffer[2 * i] = p->points[i][0];
-        pbuffer[2 * i + 1] = p->points[i][1];
-    }
+    // Temporarily set pbuffer
+    float * oldpbuffer = pbuffer;
+    unsigned oldsize = pbuffer_len;
+    pbuffer = points;
+    pbuffer_len = count;
+
+    // Draw stuff
     qd_draw(type);
+
+    // Set it back
+    pbuffer = oldpbuffer;
+    pbuffer_len = oldsize;
 }
 
 static GLenum get_gl_draw_type(unsigned t) {

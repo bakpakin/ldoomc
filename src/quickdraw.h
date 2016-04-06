@@ -2,7 +2,6 @@
 #define QUICKDRAW_HEADER
 
 #include <stdlib.h>
-#include "geom.h"
 
 #define QD_NONE 0
 #define QD_LINES 1
@@ -39,7 +38,7 @@ void qd_circle(float x, float y, float r, int segs, unsigned type);
 
 void qd_rect(float x, float y, float w, float h, unsigned type);
 
-void qd_poly(const poly * p, unsigned type);
+void qd_poly(unsigned type, unsigned count, float * points);
 
 void qd_end();
 

@@ -24,7 +24,6 @@ int ldm_almost_equal(float a, float b) {
     return fabs(a - b) < FLT_EPSILON;
 }
 
-
 /*
  * Defines a vector type with n components.
  */

@@ -1,5 +1,10 @@
 #include "arenastate.h"
-#include "ldoom.h"
+#include "mob.h"
+#include "scene.h"
+#include "log.h"
+#include "console.h"
+#include "quickdraw.h"
+
 static MobDef ARS_mobdef;
 static MobDef ARS_playerdef;
 static Mob ARS_player;
