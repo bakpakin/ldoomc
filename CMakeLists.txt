@@ -73,6 +73,7 @@ resources/skyleft.png
 resources/skyright.png
 resources/skyfront.png
 resources/skyback.png
+resources/floortile.png
 ## Scripts
 resources/scripts/bootstrap.lua
 )

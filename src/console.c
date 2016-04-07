@@ -90,6 +90,13 @@ void console_draw() {
         text_format(&fpsText, 25, "fps: %.0f", old_fps);
     }
 
+
+    fpsText.position[0] = platform_width() - 505;
+    text_draw(&fpsText, platform_screen_matrix());
+
+    // Get out of the way if there is nothing to draw.
+    if (history_len == 0) return;
+
     qd_rgba(0.2f, 0.2f, 0.2f, 0.8f);
     qd_rect(
             -1,
@@ -107,9 +114,6 @@ void console_draw() {
         text_draw(t, platform_screen_matrix());
         y += textpad(t);
     }
-
-    fpsText.position[0] = platform_width() - 505;
-    text_draw(&fpsText, platform_screen_matrix());
 
 }
 

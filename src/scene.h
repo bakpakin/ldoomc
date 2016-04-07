@@ -7,6 +7,7 @@
 #define SCENE_HEADER
 
 #include "mob.h"
+#include "ldmath.h"
 #include "camera.h"
 
 extern Camera scene_camera;

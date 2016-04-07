@@ -85,16 +85,18 @@ Mesh * mesh_init_floats(Mesh * m,
         const GLushort * indices);
 
 /*
- * Initializes a mesh from an arrya of floats, but does not copy the array.
+ * Initializes a mesh from arrays of floats, but does not copy the arrays.
  *
  */
-Mesh * mesh_init_nocopy(Mesh * m,
+Mesh * mesh_init_mem(Mesh * m,
         MeshType mesh_type,
         DrawType draw_type,
         unsigned vertdata_length,
         GLfloat * vertdata,
+        int vertdata_owned,
         unsigned index_count,
-        GLushort * indices);
+        GLushort * indices,
+        int elemdata_owned);
 
 /*
  * Pushes the mesh data into the gl context. Called automatically after mesh_inits.

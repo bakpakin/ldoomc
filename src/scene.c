@@ -13,13 +13,17 @@ static unsigned updates_per_frame = 1;
 static Program diffuseshader;
 static GLint diffuse_mvp_loc;
 static GLint diffuse_diffuse_loc;
-static GLuint gBuffer;
+//static GLuint gBuffer;
 
 static double timeBuffer = 0.0;
 
-static Mob ** mobs;
-static size_t mob_capacity;
-static size_t mob_count;
+static Mob ** scene_mobs;
+static size_t scene_mob_capacity;
+static size_t scene_mob_count;
+
+static Model ** scene_models;
+static size_t scene_model_capacity;
+static size_t scene_model_count;
 
 void scene_init(void) {
 
@@ -31,13 +35,18 @@ void scene_init(void) {
     platform_get_window(&window);
     camera_init_perspective(&scene_camera, 1.5f, window.width / (float) window.height, 0.05f, 100.0f);
 
-    mob_capacity = 10;
-    mob_count = 0;
-    mobs = malloc(mob_capacity * sizeof(Mob *));
+    scene_mob_capacity = 10;
+    scene_mob_count = 0;
+    scene_mobs = malloc(scene_mob_capacity * sizeof(Mob *));
+
+    scene_model_capacity = 10;
+    scene_model_count = 0;
+    scene_models = malloc(scene_model_capacity * sizeof(Model *));
+
     timeBuffer = 0.0;
 
     // Generate buffers
-    glGenFramebuffers(1, &gBuffer);
+    //glGenFramebuffers(1, &gBuffer);
 
     sky_init();
 
@@ -46,10 +55,11 @@ void scene_init(void) {
 void scene_deinit() {
 
     // Deinitialize space for mobs
-    free(mobs);
+    free(scene_mobs);
+    free(scene_models);
 
     // Deallocate buffers
-    glDeleteFramebuffers(1, &gBuffer);
+    //glDeleteFramebuffers(1, &gBuffer);
 
     program_deinit(&diffuseshader);
 
@@ -57,23 +67,35 @@ void scene_deinit() {
 }
 
 void scene_add_mob(Mob * mob) {
-    if (mob_count + 1 >= mob_capacity) {
-        mob_capacity = 2 * mob_count + 1;
-        mobs = realloc(mobs, mob_capacity * sizeof(Mob *));
+    if (scene_mob_count + 1 >= scene_mob_capacity) {
+        scene_mob_capacity = 2 * scene_mob_count + 1;
+        scene_mobs = realloc(scene_mobs, scene_mob_capacity * sizeof(Mob *));
     }
-    mobs[mob_count++] = mob;
+    scene_mobs[scene_mob_count++] = mob;
 }
 
 void scene_remove_mob(Mob * mob) {
-     for (unsigned i = 0; i < mob_count; i++) {
-         if (mobs[i] == mob) {
-             mob_count--;
-             if (i != mob_count) {
-                 mobs[i] = mobs[mob_count];
+     for (unsigned i = 0; i < scene_mob_count; i++) {
+         if (scene_mobs[i] == mob) {
+             scene_mob_count--;
+             if (i != scene_mob_count) {
+                 scene_mobs[i] = scene_mobs[scene_mob_count];
              }
              return;
          }
      }
+}
+
+void scene_add_model(Model * model) {
+    if (scene_model_count + 1 >= scene_model_capacity) {
+        scene_model_capacity = 2 * scene_model_count + 1;
+        scene_models = realloc(scene_models, scene_model_capacity * sizeof(Model *));
+    }
+    scene_models[scene_model_count++] = model;
+}
+
+void scene_remove_model(Model * model) {
+
 }
 
 void scene_resize(int width, int height) {
@@ -84,7 +106,8 @@ void scene_render() {
 
     // For now, just render everything as diffuse. No spatial partitioning yet.
     glUseProgram(diffuseshader.id);
-    for (Mob ** mobp = mobs; mobp < mobs + mob_count; mobp++) {
+
+    for (Mob ** mobp = scene_mobs; mobp < scene_mobs + scene_mob_count; mobp++) {
         Mob * mob = *mobp;
         Model * model = mob->type->model;
         glActiveTexture(GL_TEXTURE0);
@@ -97,6 +120,15 @@ void scene_render() {
         mat4_mul(mvp, rot, mvp);
         mat4_mul(mvp, mvp, camera_matrix(&scene_camera));
         glUniformMatrix4fv(diffuse_mvp_loc, 1, GL_FALSE, mvp);
+        mesh_draw(model->mesh);
+    }
+
+    for (Model ** modp = scene_models; modp < scene_models + scene_model_count; modp++) {
+        Model * model = *modp;
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, model->diffuse.id);
+        glUniform1i(diffuse_diffuse_loc, 0);
+        glUniformMatrix4fv(diffuse_mvp_loc, 1, GL_FALSE, camera_matrix(&scene_camera));
         mesh_draw(model->mesh);
     }
 
@@ -166,8 +198,8 @@ void scene_update() {
     for (unsigned update_count = 0; update_count < updates_per_frame; update_count++) {
 
         // Iterate mobs and integrate for new position.
-        for (unsigned i = 0; i < mob_count; i++) {
-            Mob * m = mobs[i];
+        for (unsigned i = 0; i < scene_mob_count; i++) {
+            Mob * m = scene_mobs[i];
             vec3 oldpos;
             vec3_assign(oldpos, m->position);
             vec3_add(m->position, oldpos, m->velocity);
@@ -181,11 +213,11 @@ void scene_update() {
         }
 
         // Better broadphase later. This was giving me so many headaches. Ill just use N^2 approach.
-        for (unsigned i = 0; i < mob_count; i++) {
-            Mob * a = mobs[i];
+        for (unsigned i = 0; i < scene_mob_count; i++) {
+            Mob * a = scene_mobs[i];
             if (a->flags & MOB_NOCOLLIDE) continue;
-            for (unsigned j = i + 1; j < mob_count; j++) {
-                Mob * b = mobs[j];
+            for (unsigned j = i + 1; j < scene_mob_count; j++) {
+                Mob * b = scene_mobs[j];
                 if (b->flags & MOB_NOCOLLIDE) continue;
                 scene_resolve_mob_collision(a, b);
             }
@@ -193,8 +225,8 @@ void scene_update() {
 
         // Apply penalty collision displacement to make collisions look better and not explode.
         // (I.E. Restitution force and position penalty not applied multiple times)
-        for (unsigned i = 0; i < mob_count; i++) {
-            Mob * m = mobs[i];
+        for (unsigned i = 0; i < scene_mob_count; i++) {
+            Mob * m = scene_mobs[i];
             vec3 oldpos;
             vec3_assign(oldpos, m->position);
             vec3_add(m->position, m->position, m->_position_penalty);

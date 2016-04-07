@@ -151,7 +151,7 @@ Mesh * mesh_init_floats(Mesh * m,
     return m;
 }
 
-Mesh * mesh_init_nocopy(Mesh * m,
+static Mesh * mesh_init_nocopy(Mesh * m,
         MeshType mesh_type,
         DrawType draw_type,
         unsigned vertdata_length,
@@ -174,6 +174,25 @@ Mesh * mesh_init_nocopy(Mesh * m,
     mesh_load(m);
 
     return m;
+}
+
+Mesh * mesh_init_mem(Mesh * m,
+        MeshType mesh_type,
+        DrawType draw_type,
+        unsigned vertdata_length,
+        GLfloat * vertdata,
+        int vertdata_owned,
+        unsigned index_count,
+        GLushort * indices,
+        int elemdata_owned) {
+
+    mesh_init_nocopy(m, mesh_type, draw_type, vertdata_length, vertdata, index_count, indices);
+
+    if (vertdata_owned) m->flags |= OWNS_VERTMEM_BIT;
+    if (elemdata_owned) m->flags |= OWNS_ELMEM_BIT;
+
+    return m;
+
 }
 
 void mesh_load(Mesh * m) {
