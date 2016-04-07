@@ -57,7 +57,7 @@ static GLFWbool parseVersionString(int* api, int* major, int* minor, int* rev)
     if (!version)
     {
         _glfwInputError(GLFW_PLATFORM_ERROR,
-                        "Failed to retrieve context version string");
+                        "Client API version string retrieval is broken");
         return GLFW_FALSE;
     }
 
@@ -76,7 +76,7 @@ static GLFWbool parseVersionString(int* api, int* major, int* minor, int* rev)
     if (!sscanf(version, "%d.%d.%d", major, minor, rev))
     {
         _glfwInputError(GLFW_PLATFORM_ERROR,
-                        "No version found in context version string");
+                        "No version found in client API version string");
         return GLFW_FALSE;
     }
 
@@ -94,7 +94,9 @@ GLFWbool _glfwIsValidContextConfig(const _GLFWctxconfig* ctxconfig)
         ctxconfig->api != GLFW_OPENGL_API &&
         ctxconfig->api != GLFW_OPENGL_ES_API)
     {
-        _glfwInputError(GLFW_INVALID_ENUM, "Invalid client API");
+        _glfwInputError(GLFW_INVALID_ENUM,
+                        "Invalid client API %i",
+                        ctxconfig->api);
         return GLFW_FALSE;
     }
 
@@ -123,7 +125,8 @@ GLFWbool _glfwIsValidContextConfig(const _GLFWctxconfig* ctxconfig)
                 ctxconfig->profile != GLFW_OPENGL_COMPAT_PROFILE)
             {
                 _glfwInputError(GLFW_INVALID_ENUM,
-                                "Invalid OpenGL profile");
+                                "Invalid OpenGL profile %i",
+                                ctxconfig->profile);
                 return GLFW_FALSE;
             }
 
@@ -171,7 +174,8 @@ GLFWbool _glfwIsValidContextConfig(const _GLFWctxconfig* ctxconfig)
             ctxconfig->robustness != GLFW_LOSE_CONTEXT_ON_RESET)
         {
             _glfwInputError(GLFW_INVALID_ENUM,
-                            "Invalid context robustness mode");
+                            "Invalid context robustness mode %i",
+                            ctxconfig->robustness);
             return GLFW_FALSE;
         }
     }
@@ -182,7 +186,8 @@ GLFWbool _glfwIsValidContextConfig(const _GLFWctxconfig* ctxconfig)
             ctxconfig->release != GLFW_RELEASE_BEHAVIOR_FLUSH)
         {
             _glfwInputError(GLFW_INVALID_ENUM,
-                            "Invalid context release behavior");
+                            "Invalid context release behavior %i",
+                            ctxconfig->release);
             return GLFW_FALSE;
         }
     }
@@ -370,6 +375,24 @@ GLFWbool _glfwRefreshContextAttribs(const _GLFWctxconfig* ctxconfig)
         return GLFW_FALSE;
     }
 
+    if (window->context.major < ctxconfig->major ||
+        (window->context.major == ctxconfig->major &&
+         window->context.minor < ctxconfig->minor))
+    {
+        // The desired OpenGL version is greater than the actual version
+        // This only happens if the machine lacks {GLX|WGL}_ARB_create_context
+        // /and/ the user has requested an OpenGL version greater than 1.0
+
+        // For API consistency, we emulate the behavior of the
+        // {GLX|WGL}_ARB_create_context extension and fail here
+
+        _glfwInputError(GLFW_VERSION_UNAVAILABLE,
+                        "Requested client API version %i.%i, got version %i.%i",
+                        ctxconfig->major, ctxconfig->minor,
+                        window->context.major, window->context.minor);
+        return GLFW_FALSE;
+    }
+
     if (window->context.major >= 3)
     {
         // OpenGL 3.0+ uses a different function for extension string retrieval
@@ -490,28 +513,6 @@ GLFWbool _glfwRefreshContextAttribs(const _GLFWctxconfig* ctxconfig)
     return GLFW_TRUE;
 }
 
-GLFWbool _glfwIsValidContext(const _GLFWctxconfig* ctxconfig)
-{
-    _GLFWwindow* window = _glfwPlatformGetCurrentContext();
-
-    if (window->context.major < ctxconfig->major ||
-        (window->context.major == ctxconfig->major &&
-         window->context.minor < ctxconfig->minor))
-    {
-        // The desired OpenGL version is greater than the actual version
-        // This only happens if the machine lacks {GLX|WGL}_ARB_create_context
-        // /and/ the user has requested an OpenGL version greater than 1.0
-
-        // For API consistency, we emulate the behavior of the
-        // {GLX|WGL}_ARB_create_context extension and fail here
-
-        _glfwInputError(GLFW_VERSION_UNAVAILABLE, NULL);
-        return GLFW_FALSE;
-    }
-
-    return GLFW_TRUE;
-}
-
 GLFWbool _glfwStringInExtensionString(const char* string, const char* extensions)
 {
     const char* start = extensions;
@@ -610,7 +611,7 @@ GLFWAPI int glfwExtensionSupported(const char* extension)
 
     if (*extension == '\0')
     {
-        _glfwInputError(GLFW_INVALID_VALUE, NULL);
+        _glfwInputError(GLFW_INVALID_VALUE, "Extension name is empty string");
         return GLFW_FALSE;
     }
 
@@ -630,7 +631,7 @@ GLFWAPI int glfwExtensionSupported(const char* extension)
             if (!en)
             {
                 _glfwInputError(GLFW_PLATFORM_ERROR,
-                                "Failed to retrieve extension string %i", i);
+                                "Extension string retrieval is broken");
                 return GLFW_FALSE;
             }
 
@@ -647,7 +648,7 @@ GLFWAPI int glfwExtensionSupported(const char* extension)
         if (!extensions)
         {
             _glfwInputError(GLFW_PLATFORM_ERROR,
-                            "Failed to retrieve extension string");
+                            "Extension string retrieval is broken");
             return GLFW_FALSE;
         }
 

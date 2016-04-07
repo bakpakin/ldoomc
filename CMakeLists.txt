@@ -116,7 +116,7 @@ else()
 endif()
 
 # LuaJIT Compilation using external build system.
-# (make on Mac and linux, and custom build script on windows)
+# (make on Mac and linux, and custom build script on Windows)
 set(LUAJIT_LIB ${CMAKE_SOURCE_DIR}/luajit/src/libluajit.a)
 add_custom_target(libluajit DEPENDS ${LUAJIT_LIB})
 add_dependencies(${TARGET_NAME} libluajit)

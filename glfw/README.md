@@ -77,6 +77,8 @@ does not find Doxygen, the documentation will not be generated.
  - Added `glfwVulkanSupported`, `glfwGetRequiredInstanceExtensions`,
    `glfwGetInstanceProcAddress`, `glfwGetPhysicalDevicePresentationSupport` and
    `glfwCreateWindowSurface` for platform independent Vulkan support
+ - Added `glfwSetWindowMonitor` for switching between windowed and full screen
+   modes and updating the monitor and desired video mode of full screen windows
  - Added `glfwMaximizeWindow` and `GLFW_MAXIMIZED` for window maximization
  - Added `glfwFocusWindow` for giving windows input focus
  - Added `glfwSetWindowSizeLimits` and `glfwSetWindowAspectRatio` for setting
@@ -86,18 +88,19 @@ does not find Doxygen, the documentation will not be generated.
  - Added `glfwWaitEventsTimeout` for waiting for events for a set amount of time
  - Added `glfwSetWindowIcon` for setting the icon of a window
  - Added `glfwGetTimerValue` and `glfwGetTimerFrequency` for raw timer access
- - Added `GLFWuint64` for platform-independent 64-bit unsigned values
+ - Added `glfwSetJoystickCallback` and `GLFWjoystickfun` for joystick connection
+   and disconnection events
  - Added `GLFW_NO_API` for creating window without contexts
  - Added `GLFW_CONTEXT_NO_ERROR` context hint for `GL_KHR_no_error` support
  - Added `GLFW_INCLUDE_VULKAN` for including the Vulkan header
  - Added `GLFW_TRUE` and `GLFW_FALSE` as client API independent boolean values
- - Added `glfwGetGLXWindow` to query the `GLXWindow` of a window
  - Added icons to examples on Windows and OS X
  - Relaxed rules for native access header macros
  - Removed dependency on external OpenGL or OpenGL ES headers
  - Removed `_GLFW_USE_OPENGL`, `_GLFW_USE_GLESV1` and `_GLFW_USE_GLESV2`
    configuration macros
  - [Win32] Added support for Windows 8.1 per-monitor DPI
+ - [Win32] Replaced winmm with XInput and DirectInput for joystick input
  - [Win32] Bugfix: Window creation would segfault if video mode setting required
                    the system to be restarted
  - [Win32] Bugfix: MinGW import library lacked the `lib` prefix
@@ -106,18 +109,24 @@ does not find Doxygen, the documentation will not be generated.
  - [Win32] Bugfix: Activating or deactivating displays in software did not
                    trigger monitor callback
  - [Win32] Bugfix: No monitors were listed on headless and VMware guest systems
+ - [Win32] Bugfix: Pressing Ctrl+Pause would report `GLFW_KEY_UNKNOWN`
+ - [Cocoa] Made joystick polling more efficient
  - [Cocoa] Removed support for OS X 10.6
  - [Cocoa] Bugfix: Full screen windows on secondary monitors were mispositioned
  - [Cocoa] Bugfix: Connecting a joystick that reports no name would segfault
  - [Cocoa] Bugfix: Modifier flags cache was not updated when window became key
  - [Cocoa] Bugfix: Dead key character composition did not work
+ - [Cocoa] Bugfix: The CGL context was not released until the autorelease pool
+                   was drained by another function
  - [X11] Bugfix: Monitor connection and disconnection events were not reported
  - [X11] Bugfix: Decoding of UTF-8 text from XIM could continue past the end
  - [X11] Bugfix: An XKB structure was leaked during `glfwInit`
  - [X11] Bugfix: XInput2 `XI_Motion` events interfered with the Steam overlay
  - [POSIX] Bugfix: An unrelated TLS key could be deleted by `glfwTerminate`
+ - [Linux] Made joystick polling more efficient
  - [WGL] Changed extension loading to only be performed once
  - [WGL] Removed dependency on external WGL headers
+ - [GLX] Added `glfwGetGLXWindow` to query the `GLXWindow` of a window
  - [GLX] Replaced legacy drawable with `GLXWindow`
  - [GLX] Removed dependency on external GLX headers
  - [GLX] Bugfix: NetBSD does not provide `libGL.so.1`
@@ -186,6 +195,7 @@ skills.
  - heromyth
  - Lucas Hinderberger
  - Paul Holden
+ - IntellectualKitty
  - Aaron Jacobs
  - Toni Jovanoski
  - Arseny Kapoulkine

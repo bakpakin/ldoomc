@@ -126,7 +126,11 @@ void _glfwInputMonitorChange(void)
         for (window = _glfw.windowListHead;  window;  window = window->next)
         {
             if (window->monitor == monitors[i])
-                window->monitor = NULL;
+            {
+                int width, height;
+                _glfwPlatformGetWindowSize(window, &width, &height);
+                _glfwPlatformSetWindowMonitor(window, NULL, 0, 0, width, height, 0);
+            }
         }
 
         if (_glfw.callbacks.monitor)
@@ -156,6 +160,11 @@ void _glfwInputMonitorChange(void)
     }
 
     _glfwFreeMonitors(monitors, monitorCount);
+}
+
+void _glfwInputMonitorWindowChange(_GLFWmonitor* monitor, _GLFWwindow* window)
+{
+    monitor->window = window;
 }
 
 
@@ -400,7 +409,7 @@ GLFWAPI void glfwSetGamma(GLFWmonitor* handle, float gamma)
 
     if (gamma != gamma || gamma <= 0.f || gamma > FLT_MAX)
     {
-        _glfwInputError(GLFW_INVALID_VALUE, "Invalid gamma value");
+        _glfwInputError(GLFW_INVALID_VALUE, "Invalid gamma value %f", gamma);
         return;
     }
 

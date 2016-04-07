@@ -155,18 +155,18 @@ static GLFWbool chooseFBConfigs(const _GLFWctxconfig* ctxconfig,
         u->samples = getConfigAttrib(n, EGL_SAMPLES);
         u->doublebuffer = GLFW_TRUE;
 
-        u->egl = n;
+        u->handle = (uintptr_t) n;
         usableCount++;
     }
 
     closest = _glfwChooseFBConfig(desired, usableConfigs, usableCount);
     if (closest)
-        *result = closest->egl;
+        *result = (EGLConfig) closest->handle;
 
     free(nativeConfigs);
     free(usableConfigs);
 
-    return closest ? GLFW_TRUE : GLFW_FALSE;
+    return closest != NULL;
 }
 
 
@@ -269,9 +269,14 @@ GLFWbool _glfwInitEGL(void)
 //
 void _glfwTerminateEGL(void)
 {
-    if (_glfw.egl.handle)
+    if (_glfw.egl.display)
     {
         eglTerminate(_glfw.egl.display);
+        _glfw.egl.display = EGL_NO_DISPLAY;
+    }
+
+    if (_glfw.egl.handle)
+    {
         _glfw_dlclose(_glfw.egl.handle);
         _glfw.egl.handle = NULL;
     }

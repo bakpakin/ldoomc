@@ -241,29 +241,32 @@ static double xmold = 0, ymold = 0;
 static int cursor_tracking_started = 0;
 static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
     if (window != game_window) return;
-    if (pointer_mode == PPOINTERMODE_LOCKED) {
-        if (!cursor_tracking_started) {
-            cursor_tracking_started = 1;
-            xmold = xpos; ymold = ypos;
+    if (!cursor_tracking_started) {
+        cursor_tracking_started = 1;
+        xmold = xpos; ymold = ypos;
+    } else {
+        if (pointer_mode == PPOINTERMODE_LOCKED) {
+            platform_axes[0] = (xpos - xmold) * _platform_delta;
+            platform_axes[1] = (ypos - ymold) * _platform_delta;
+            xmold = xpos;
+            ymold = ypos;
+        } else if (pointer_mode == PPOINTERMODE_FREE) {
+            platform_axes[0] = _platform_width * 2 / xpos - 1;
+            platform_axes[1] = _platform_height * 2 / ypos - 1;
+        } else { // PPOINTERMODE_PIXEL
+            platform_axes[0] = xpos;
+            platform_axes[1] = ypos;
         }
-        platform_axes[0] = (xpos - xmold) * _platform_delta;
-        platform_axes[1] = (ypos - ymold) * _platform_delta;
-        xmold = xpos;
-        ymold = ypos;
-    } else if (pointer_mode == PPOINTERMODE_FREE) {
-        platform_axes[0] = _platform_width * 2 / xpos - 1;
-        platform_axes[1] = _platform_height * 2 / ypos - 1;
-    } else { // PPOINTERMODE_PIXEL
-        platform_axes[0] = xpos;
-        platform_axes[1] = ypos;
     }
 }
 
 void platform_set_pointer_mode(PlatformPointerMode mode) {
+    if (pointer_mode == mode) return;
     pointer_mode = mode;
+    cursor_tracking_started = 0;
     if (mode == PPOINTERMODE_LOCKED) {
-        glfwGetCursorPos(game_window, &xmold, &ymold);
         glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        platform_axes[0] = platform_axes[1] = 0;
     } else {
         glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
@@ -324,7 +327,6 @@ static void error_callback(int error, const char * message) {
     uerr(message);
 }
 
-
 void platform_init() {
 
     glfwInit();
@@ -343,17 +345,17 @@ void platform_init() {
     GLFWmonitor * monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode * mode = glfwGetVideoMode(monitor);
 
-    glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+	game_window = glfwCreateWindow(mode->width, mode->height, "Ldoom", monitor, NULL);
 
-	game_window = glfwCreateWindow(mode->width, mode->height, "Ldoom", glfwGetPrimaryMonitor(), NULL);
 	if (!game_window) {
 	    glfwTerminate();
     }
     glfwMakeContextCurrent(game_window);
+    glfwSwapInterval(1);
 
     // Use GLAD to get stuff.
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
-        exit(1);
+        glfwTerminate();
     }
 
     // GL initializing
@@ -394,7 +396,6 @@ void platform_mainloop(Gamestate * initial_state) {
 
     int framecount = 0;
     double fps_check_time = glfwGetTime();
-    glfwSwapInterval(1);
 
     while (!glfwWindowShouldClose(game_window)) {
 
@@ -423,7 +424,7 @@ void platform_mainloop(Gamestate * initial_state) {
         }
         gamestate_update(_platform_delta);
         luai_event(&les_update, _platform_delta);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         gamestate_draw();
         luai_event(&les_draw);
         console_draw();
@@ -440,6 +441,7 @@ void platform_deinit() {
     if (current_state.deinit) current_state.deinit();
     glfwDestroyWindow(game_window);
     glfwTerminate();
+
 }
 
 void platform_exit() {

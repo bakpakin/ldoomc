@@ -329,13 +329,13 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
             return GLFW_FALSE;
     }
 
-    if (wndconfig->monitor)
+    if (window->monitor)
     {
         wl_shell_surface_set_fullscreen(
             window->wl.shell_surface,
             WL_SHELL_SURFACE_FULLSCREEN_METHOD_DEFAULT,
             0,
-            wndconfig->monitor->wl.output);
+            window->monitor->wl.output);
     }
     else
     {
@@ -487,6 +487,16 @@ void _glfwPlatformFocusWindow(_GLFWwindow* window)
 {
     // TODO
     fprintf(stderr, "_glfwPlatformFocusWindow not implemented yet\n");
+}
+
+void _glfwPlatformSetWindowMonitor(_GLFWwindow* window,
+                                   _GLFWmonitor* monitor,
+                                   int xpos, int ypos,
+                                   int width, int height,
+                                   int refreshRate)
+{
+    // TODO
+    fprintf(stderr, "_glfwPlatformSetWindowMonitor not implemented yet\n");
 }
 
 int _glfwPlatformWindowFocused(_GLFWwindow* window)
@@ -837,7 +847,7 @@ const char* _glfwPlatformGetClipboardString(_GLFWwindow* window)
     return NULL;
 }
 
-char** _glfwPlatformGetRequiredInstanceExtensions(unsigned int* count)
+char** _glfwPlatformGetRequiredInstanceExtensions(uint32_t* count)
 {
     char** extensions;
 
@@ -856,7 +866,7 @@ char** _glfwPlatformGetRequiredInstanceExtensions(unsigned int* count)
 
 int _glfwPlatformGetPhysicalDevicePresentationSupport(VkInstance instance,
                                                       VkPhysicalDevice device,
-                                                      unsigned int queuefamily)
+                                                      uint32_t queuefamily)
 {
     PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR vkGetPhysicalDeviceWaylandPresentationSupportKHR =
         (PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR)
