@@ -343,7 +343,23 @@ void platform_init() {
 	glfwWindowHint(GLFW_SAMPLES, 16);
 
     GLFWmonitor * monitor = glfwGetPrimaryMonitor();
+    int mcount;
     const GLFWvidmode * mode = glfwGetVideoMode(monitor);
+    const GLFWvidmode * modes = glfwGetVideoModes(monitor, &mcount);
+    int max = 0;
+    for (int i = 0; i < mcount; i++) {
+        const GLFWvidmode * m = modes + i;
+        int size = m->width + m->height + m->refreshRate;
+        if (size > max) {
+            max = size;
+            mode = m;
+        }
+    }
+
+    glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 
 	game_window = glfwCreateWindow(mode->width, mode->height, "Ldoom", monitor, NULL);
 

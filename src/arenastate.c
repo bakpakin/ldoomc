@@ -43,9 +43,9 @@ static void ARS_init() {
     ARS_mobdef.restitution = 0.2f;
     Mob * ms = malloc(1000 * sizeof(Mob));
     texture_init_resource(&ARS_cyl.diffuse, "diffuse.png");
-    for (int x = 1; x < 3; x++)
+    for (int x = 0; x < 10; x++)
         for (int y = 0; y < 1; y++)
-            for (int z = 1; z < 3; z++) {
+            for (int z = 0; z < 10; z++) {
                 vec3 p = {2.5f * x, 2.5 * y, 2.5f * z};
                 Mob * m = ms + (x + 10 * y + 100 * z);
                 mob_init(m, &ARS_mobdef, p);
