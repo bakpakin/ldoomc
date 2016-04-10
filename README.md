@@ -23,7 +23,7 @@ open Ldoom.app
 Ldoomc is built with Cmake. Should build straight out of the box on OSX, and with
 some dependencies on linux. To install dependencies on ubuntu and debian derivatives, run:
 ```bash
-sudo apt-get install libgl1-mesa-dev libxrandr-dev libxcursor-dev libopenal-dev
+sudo apt-get install libgl1-mesa-dev libxrandr-dev libxcursor-dev libopenal-dev libxinerama-dev
 ```
 
 Requires OpenGL 3.3, so make sure you have good drivers.
