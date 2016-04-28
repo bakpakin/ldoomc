@@ -29,4 +29,8 @@ luajit/src/libluajit.a
 luajit/src/luajit
 luajit/src/host/buildvm
 luajit/src/host/minilua
+
 ### Probably shoud add some microsoft specific targets
+
+# Intellij (CLion) - The project just adds useless stuff
+.idea
