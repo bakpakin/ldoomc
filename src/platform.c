@@ -414,6 +414,8 @@ void platform_init() {
     qd_init();
     audio_init();
     luai_init();
+
+    luai_event(&les_load);
 }
 
 void platform_mainloop(Gamestate * initial_state) {
@@ -461,6 +463,8 @@ void platform_mainloop(Gamestate * initial_state) {
 }
 
 void platform_deinit() {
+
+    luai_event(&les_unload);
 
     luai_deinit();
     console_deinit();

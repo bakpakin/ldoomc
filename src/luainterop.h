@@ -17,6 +17,8 @@ typedef struct {
 extern LuaEventSignature les_tick;
 extern LuaEventSignature les_update;
 extern LuaEventSignature les_draw;
+extern LuaEventSignature les_load;
+extern LuaEventSignature les_unload;
 
 int luai_loadresource(const char * resource);
 

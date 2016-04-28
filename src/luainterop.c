@@ -3,6 +3,9 @@
 #include "log.h"
 #include "util.h"
 
+// Libraries to wrap
+#include "audio.h"
+
 lua_State * globalLuaState;
 
 static const int update_arg_types[1] = { LUA_TNUMBER };
@@ -10,6 +13,8 @@ static const int update_arg_types[1] = { LUA_TNUMBER };
 LuaEventSignature les_tick;
 LuaEventSignature les_update;
 LuaEventSignature les_draw;
+LuaEventSignature les_load;
+LuaEventSignature les_unload;
 
 int luai_loadresource(const char * resource) {
     char file[200];
@@ -21,30 +26,6 @@ int luai_doresource(const char * resource) {
     char file[200];
     platform_res2file(resource, file, 200);
     return luaL_dofile(globalLuaState, file);
-}
-
-// Printing goes to the logger instead of stdout.
-static int logprint(lua_State * L) {
-    int nargs = lua_gettop(L);
-    for (int i=1; i <= nargs; i++) {
-        int t = lua_type(L, i);
-        switch (t) {
-            case LUA_TSTRING:
-                ldlog_write(lua_tostring(L, i));
-                break;
-            case LUA_TBOOLEAN:
-                ldlog_write(lua_toboolean(L, i) ? "true" : "false");
-                break;
-            case LUA_TNUMBER:
-                ldlog_write(lua_tostring(L, i));
-                break;
-            default:
-                ldlog_write(lua_typename(L, t));
-                break;
-        }
-    }
-    ldlog_flush();
-    return 0;
 }
 
 void luai_event(LuaEventSignature * les, ...) {
@@ -78,6 +59,60 @@ void luai_event(LuaEventSignature * les, ...) {
     if(lua_pcall(globalLuaState, les->num_args, 0, 0)) {
         ldlog("Lua Event \"%s\" failed.", les->name);
     }
+    return;
+}
+
+// Lua object utils
+void luai_make_userdata_type(const char * name) {
+
+}
+
+// BASIC UTILS
+
+// Printing goes to the logger instead of stdout.
+int logprint(lua_State * L) {
+    int nargs = lua_gettop(L);
+    for (int i=1; i <= nargs; i++) {
+        int t = lua_type(L, i);
+        switch (t) {
+            case LUA_TSTRING:
+                ldlog_write(lua_tostring(L, i));
+                break;
+            case LUA_TBOOLEAN:
+                ldlog_write(lua_toboolean(L, i) ? "true" : "false");
+                break;
+            case LUA_TNUMBER:
+                ldlog_write(lua_tostring(L, i));
+                break;
+            default:
+                ldlog_write(lua_typename(L, t));
+                break;
+        }
+    }
+    ldlog_flush();
+    return 0;
+}
+
+
+// AUDIO
+
+int luai_audio_sound_make(lua_State * L) {
+    const char * resource = lua_tostring(L, 1);
+    Sound * s = lua_newuserdata(L, sizeof(Sound));
+    audio_sound_init_resource(s, resource);
+    return 1;
+}
+
+int luai_audio_sound_delete(lua_State * L) {
+    Sound * s = (Sound *) lua_touserdata(L, 1);
+    audio_sound_deinit(s);
+    return 0;
+}
+
+int luai_audio_sound_play(lua_State * L) {
+    Sound * s = (Sound *) lua_touserdata(L, 1);
+    audio_sound_play(s);
+    return 0;
 }
 
 // Add basic library
@@ -93,6 +128,12 @@ int luai_init() {
     les_draw.name = "draw";
     les_draw.num_args = 0;
     les_draw.arg_types = NULL;
+    les_load.name = "load";
+    les_load.num_args = 0;
+    les_load.arg_types = NULL;
+    les_unload.name = "unload";
+    les_unload.num_args = 0;
+    les_unload.arg_types = NULL;
 
     lua_State * L = luaL_newstate();
     globalLuaState = L;
@@ -101,6 +142,14 @@ int luai_init() {
     lua_setglobal(L, "print");
     luai_doresource("scripts/bootstrap.lua");
     lua_settop(L, 0);
+
+    // Initialize bindings
+    lua_pushcfunction(L, luai_audio_sound_make);
+    lua_setglobal(L, "makesound");
+    lua_pushcfunction(L, luai_audio_sound_delete);
+    lua_setglobal(L, "deletesound");
+    lua_pushcfunction(L, luai_audio_sound_play);
+    lua_setglobal(L, "playsound");
 
     return 0;
 }
