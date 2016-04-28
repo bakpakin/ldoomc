@@ -7,6 +7,7 @@
 #include "log.h"
 #include "luainterop.h"
 #include "glfw.h"
+#include "audio.h"
 #include <string.h>
 
 static double _platform_delta = 0.0;
@@ -197,6 +198,15 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
     return 1;
 }
 
+char * platform_res2file_ez(const char * resource) {
+    uqfree_if_needed();
+    size_t slen = strlen(resource);
+    char * pathbuf = uqmalloc(slen + platform_buffer_predsize);
+    memcpy(pathbuf, platform_path_predicate, platform_buffer_predsize);
+    strcpy(pathbuf + platform_buffer_predsize, resource);
+    return pathbuf;
+}
+
 #endif
 
 static GLFWwindow * game_window;
@@ -281,9 +291,11 @@ static void mouse_button_callback(GLFWwindow * window, int button, int action, i
     switch(action) {
         case GLFW_PRESS:
             pba = PBA_DOWN;
+            button_flags |= (1 << b);
             break;
         case GLFW_RELEASE:
             pba = PBA_UP;
+            button_flags &= ~(1 << b);
             break;
         default:
             break;
@@ -400,6 +412,7 @@ void platform_init() {
     ldlog_init();
     console_init();
     qd_init();
+    audio_init();
     luai_init();
 }
 
@@ -453,6 +466,7 @@ void platform_deinit() {
     console_deinit();
     ldlog_deinit();
     qd_deinit();
+    audio_deinit();
 
     if (current_state.deinit) current_state.deinit();
     glfwDestroyWindow(game_window);

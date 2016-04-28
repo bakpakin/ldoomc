@@ -25,7 +25,9 @@ void * uqmalloc(size_t size);
 void * uqrealloc(size_t size);
 
 // Frees data allocated with uqmalloc.
-void uqfree();
+void uqfree(void * ptr);
+
+void uqfree_if_needed();
 
 // Slurped data musted be freed via free.
 char * util_slurp(const char * path, long * length);

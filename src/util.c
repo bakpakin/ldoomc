@@ -55,6 +55,10 @@ void * uqrealloc(size_t size) {
     return staticbuffer;
 }
 
+void uqfree_if_needed() {
+    buffer_in_use = 0;
+}
+
 // Frees data allocated with uqmalloc.
 void uqfree(void * ptr) {
     if (ptr != staticbuffer)

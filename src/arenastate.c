@@ -4,12 +4,14 @@
 #include "log.h"
 #include "console.h"
 #include "quickdraw.h"
+#include "audio.h"
 
 static MobDef ARS_mobdef;
 static MobDef ARS_playerdef;
 static Mob ARS_player;
 static Model ARS_cyl;
 static Mesh ARS_mesh;
+static Sound snd;
 
 static Mesh ARS_floormesh;
 static Model ARS_floor;
@@ -29,6 +31,8 @@ static const GLushort ifloor_elems[] = {
 };
 
 static void ARS_init() {
+
+    audio_sound_init_resource(&snd, "snd.ogg");
 
     scene_init();
 
@@ -77,6 +81,7 @@ static void ARS_deinit() {
     texture_deinit(&ARS_cyl.diffuse);
     texture_deinit(&ARS_floor.diffuse);
     scene_deinit();
+    audio_sound_deinit(&snd);
 }
 
 static void ARS_show() {
@@ -94,6 +99,10 @@ static void ARS_button(PlatformButton b, PlatformButtonAction a) {
                 PPOINTERMODE_FREE : PPOINTERMODE_LOCKED);
     } else if (b == PBUTTON_SPECIAL) {
         platform_exit();
+    } else if (a == PBA_DOWN) {
+        audio_sound_loop(&snd);
+    } else if (a == PBA_UP) {
+        audio_sound_stop_looping(&snd);
     }
 }
 

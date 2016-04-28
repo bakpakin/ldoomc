@@ -20,6 +20,7 @@ endif ()
 
 set(SOURCES
 src/main.c
+src/audio.c
 src/platform.c
 src/util.c
 src/ldmath.c
@@ -74,6 +75,7 @@ resources/skyright.png
 resources/skyfront.png
 resources/skyback.png
 resources/floortile.png
+resources/snd.ogg
 ## Scripts
 resources/scripts/bootstrap.lua
 )
