@@ -644,14 +644,6 @@ static void calc_wrap(Text * t) {
     }
     t->lines = realloc(lines, line * sizeof(TextLine));
     t->line_count = line;
-
-    printf("t->text: %s\n", t->text);
-    printf("t->line_count: %d\n", t->line_count);
-    printf("t->lines:\n");
-    for (unsigned i = 0; i < t->line_count; i++) {
-        TextLine * l = t->lines + i;
-        printf("\tfirst: %d last: %d width: %f charcount: %d\n\n", l->first, l->last, l->width, l->visibleCharCount);
-    }
 }
 
 static unsigned calc_num_quads(Text * t) {
