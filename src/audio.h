@@ -11,6 +11,7 @@ void audio_init();
 
 void audio_deinit();
 
+#define AUDIO_ACTIVE 0x02
 #define AUDIO_OWNS_DATA 0x04
 
 typedef struct {

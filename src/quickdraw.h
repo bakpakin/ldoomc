@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 
+// Mesh draw modes
 #define QD_NONE 0
 #define QD_LINES 1
 #define QD_LINESTRIP 2
@@ -11,6 +12,10 @@
 #define QD_TRIANGLESTRIP 16
 #define QD_TRIANGLEFAN 32
 #define QD_POINTS 64
+
+// Fill modes
+#define QD_FILL 32
+#define QD_STROKE 4
 
 void qd_init();
 

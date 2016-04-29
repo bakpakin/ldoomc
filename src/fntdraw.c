@@ -225,6 +225,14 @@ static void skip_whitespace(const char ** p) {
     *p = c;
 }
 
+static int is_eol(const char c) {
+    return c == '\r' || c == '\n' || c == '\0';
+}
+
+static int is_whitespace(const char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
 static void skip_whitespace_notabs(const char ** p) {
     const char * c = *p;
     while (*c == ' '|| *c == '\n' || *c == '\r')
@@ -487,6 +495,20 @@ void fnt_deinit(FontDef * fd) {
     }
 }
 
+TextOptions * fnt_default_options(FontDef * fd, TextOptions * out) {
+    out->width = 500;
+    out->halign = ALIGN_CENTER;
+    out->valign = ALIGN_CENTER;
+    out->font = fd;
+    out->pt = 14;
+    out->dynamic = 1;
+    out->threshold = 0.5;
+    out->smoothing = 1.0f / 16.0f;
+    out->position[0] = out->position[1] = 0.0f;
+    out->startColor[0] = out->startColor[1] = out->startColor[2] = out->startColor[3] = 1.0f;
+    return out;
+}
+
 static const char * skip_text_escape_chars(const char * c) {
     if (*c == FNTDRAW_ESCAPE) {
         char next = *++c;
@@ -497,21 +519,21 @@ static const char * skip_text_escape_chars(const char * c) {
                 // Skip 7 chracters, or until there is an end of string.
                 while(n-- && *++c)
                     ;
-                break;
+                return skip_text_escape_chars(c);
             case FNTDRAW_3COLOR:
                 n = 4;
                 // Skip 4 chracters, or until there is an end of string.
                 while(n-- && *++c)
                     ;
-                break;
+                return skip_text_escape_chars(c);
             case FNTDRAW_ALPHA:
                 n = 3;
                 // Skip 3 characters, or until there is an end of string.
                 while(n-- && *++c)
                     ;
-                break;
+                return skip_text_escape_chars(c);
             default:
-                break;
+                return c + 1;
         }
     }
     return c;
@@ -526,14 +548,14 @@ static float get_kerning(FontCharDef * fcd, unsigned long next) {
 }
 
 // Count the number of lines that need to be rendered in order to fit
-// in the space given. This inlcudes newlines and a linebreaks inserted
+// in the space given. This inlcudes newlines and linebreaks inserted
 // when a word goes outside the clip width.
 static void calc_wrap(Text * t) {
 
     const char * text = t->text;
     const FontDef * fd = t->fontdef;
     float max_width = t->max_width;
-    float scale = t->pt / (double) fd->size;
+    float scale = t->pt / fd->size;
     unsigned capacity;
     TextLine * lines;
 
@@ -548,56 +570,49 @@ static void calc_wrap(Text * t) {
     unsigned line = 0;
     unsigned lineCharCount = 0;
     float current_length = 0.0f;
-    const char * first = text;
-    const char * last = text;
+    float valid_length = 0.0f;
+    const char * first, *  last;
+    first = text;
     while (*first != '\0') {
         if (line >= capacity) {
             capacity = line * 2;
             lines = realloc(lines, capacity * sizeof(TextLine));
         }
         lineCharCount = 0;
-        current_length = 0.0f;
-        last = first;
-        last = skip_text_escape_chars(last);
-        while ((max_width == 0 || current_length <= max_width) && *last != '\0' && *last != '\n') {
-            FontCharDef * fcd = fd->chars + *last++;
-            if (!fcd->valid) {
-                fcd = fd->chars + ' ';
+        const char * next, * current;
+        current = last = skip_text_escape_chars(first);
+        if (is_eol(*current)) {
+            break;
+        }
+        FontCharDef * fcd = fd->chars + *current; if (!fcd->valid) fcd = fd->chars + ' ';
+        valid_length = current_length = fcd->xadvance * scale;
+        next = skip_text_escape_chars(current + 1);
+        lineCharCount = 1;
+        for(;;) {
+            if (is_eol(*next)) {
+                break;
             }
-            float kerning = get_kerning(fcd, *last);
+            fcd = fd->chars + *current; if (!fcd->valid) fcd = fd->chars + ' ';
+            float kerning = get_kerning(fcd, *next);
             current_length += (fcd->xadvance + kerning) * scale;
             lineCharCount++;
-            last = skip_text_escape_chars(last);
-        }
-        const char * old_last = last;
-        while (*last != ' '  &&
-                *last != '\t' &&
-                *last != '\r' &&
-                *last != '\n' &&
-                *last != '\0' &&
-                last > first) {
-            FontCharDef * fcd = fd->chars + *--last;
-            if (!fcd->valid) {
-                fcd = fd->chars + ' ';
+            if (max_width != 0  && current_length > max_width) break;
+            current = next;
+            next = skip_text_escape_chars(current + 1);
+            if (is_whitespace(*next) || is_eol(*next)) {
+                valid_length = current_length;
+                last = current;
             }
-            float kerning = get_kerning(fcd, *(last + 1));
-            current_length -= (fcd->xadvance + kerning) * scale;
         }
-        if (last == first) {
-            last = old_last - 1;
-        } else {
-            last--;
-        }
-
         lines[line].first = first - text;
         lines[line].last = last - text;
-        lines[line].width = current_length;
+        lines[line].width = valid_length;
         lines[line].visibleCharCount = lineCharCount;
         line++;
         first = last + 1;
         skip_whitespace_notabs(&first);
     }
-    t->lines = lines = realloc(lines, line * sizeof(TextLine));
+    t->lines = realloc(lines, line * sizeof(TextLine));
     t->line_count = line;
 }
 
@@ -821,20 +836,22 @@ void text_unloadbuffer(Text * t) {
 
 }
 
-static void text_init_common(Text * t, const FontDef * fd, size_t slen, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic) {
+static void text_init_common(Text * t, const TextOptions * options, size_t slen) {
 
     // Initilaize basic variables
-    t->flags = dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0;
-    t->fontdef = fd;
+    t->flags = options->dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0;
+    t->fontdef = options->font;
     t->text_length = slen;
-    t->pt = pt;
-    t->halign = halign;
-    t->valign = valign;
-    t->max_width = max_width;
-    t->smoothing = 1.0f / 16.0f;
-    t->threshold = 0.5f;
-    t->color[0] = t->color[1] = t->color[2] = t->color[3] = 1.0f;
-    t->position[0] = t->position[1] = 0.0f;
+    t->pt = options->pt;
+    t->halign = options->halign;
+    t->valign = options->valign;
+    t->max_width = options->width;
+    t->smoothing = options->smoothing;
+    t->threshold = options->threshold;
+    for (int i = 0; i < 4; i++)
+        t->color[i] = options->startColor[i];
+    for (int i = 0; i < 2; i++)
+        t->position[0] = options->position[i];
 
     // Get the number of lines and store the line buffer.
     t->lines = NULL;
@@ -857,7 +874,7 @@ static void text_init_common(Text * t, const FontDef * fd, size_t slen, float pt
     text_loadbuffer(t);
 }
 
-Text * text_init_multi(Text * t, const FontDef * fd, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic, int textcount, ...) {
+Text * text_init_multi(Text * t, const TextOptions * options, int textcount, ...) {
 
     va_list args;
     size_t slen = 0;
@@ -885,12 +902,12 @@ Text * text_init_multi(Text * t, const FontDef * fd, float pt, TextAlign halign,
     }
     va_end(args);
 
-    text_init_common(t, fd, slen, pt, halign, valign, max_width, dynamic);
+    text_init_common(t, options, slen);
 
     return t;
 }
 
-Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic) {
+Text * text_init(Text * t, const TextOptions * options, const char * text) {
 
     size_t slen = strlen(text);
 
@@ -900,7 +917,7 @@ Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, Text
     t->text_length = slen;
     memcpy(t->text, text, slen + 1);
 
-    text_init_common(t, fd, slen, pt, halign, valign, max_width, dynamic);
+    text_init_common(t, options, slen);
 
     return t;
 }

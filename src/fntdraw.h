@@ -21,8 +21,6 @@ typedef struct {
     } kerning;
 } FontCharDef;
 
-// TODO - Add Structure to intelligently handle kerning
-
 typedef struct {
     unsigned size;
     float lineHeight;
@@ -53,6 +51,20 @@ typedef struct {
 } TextLine;
 
 typedef struct {
+    FontDef * font;
+    float pt;
+    float smoothing;
+    float threshold;
+    TextAlign halign;
+    TextAlign valign;
+    float width;
+    int dynamic;
+    int distanceField;
+    vec4 startColor;
+    vec2 position;
+} TextOptions;
+
+typedef struct {
 
     // Misc
     unsigned flags;
@@ -64,7 +76,7 @@ typedef struct {
 
     // Rendering
     const FontDef * fontdef;
-    GLuint VBO; // Vertex Buffer Object for position and texture coordiate data
+    GLuint VBO; // Vertex Buffer Object for position and texture coordinate data
     GLuint EBO;
     GLuint VAO;
     GLushort * elementBuffer;
@@ -90,9 +102,11 @@ FontDef * fnt_init(FontDef * fd, const char * resource);
 
 void fnt_deinit(FontDef * fd);
 
-Text * text_init(Text * t, const FontDef * fd, const char * text, float pt, TextAlign halign, TextAlign valign, float max_width, int dymanic);
+TextOptions * fnt_default_options(FontDef * fd, TextOptions * out);
 
-Text * text_init_multi(Text * t, const FontDef * fd, float pt, TextAlign halign, TextAlign valign, float max_width, int dynamic, int textcount, ...);
+Text * text_init(Text * t, const TextOptions * options, const char * text);
+
+Text * text_init_multi(Text * t, const TextOptions * options, int textcount, ...);
 
 void text_set_multi(Text * t, int textcount, ...);
 

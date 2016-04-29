@@ -21,7 +21,8 @@
 #define CONSOLE_BORDER_RIGHT 5
 #define CONSOLE_PADDING 8
 
-static FontDef fd;
+static FontDef console_fd;
+static TextOptions console_text_options;
 
 static Text * history;
 static size_t history_len;
@@ -35,16 +36,11 @@ static Text fpsText;
 static char console_visible = 1;
 
 static inline float textpad(Text * t) {
-    return t->line_count * (fd.lineHeight / fd.size * t->pt + CONSOLE_PADDING);
+    return t->line_count * (console_fd.lineHeight / console_fd.size * t->pt + CONSOLE_PADDING);
 }
 
 static inline Text * nth_history(unsigned n) {
     return history + (history_start + n) % history_capacity;
-}
-
-static void text_config(Text * t) {
-    t->threshold = CONSOLE_FONT_THRESHOLD;
-    t->smoothing = CONSOLE_FONT_SMOOTHING;
 }
 
 static void history_put(const char * msg) {
@@ -62,7 +58,7 @@ static void history_put(const char * msg) {
         history_ysize += textpad(next);
     } else {
         history_len++;
-        text_config(text_init_multi(next, &fd, CONSOLE_FONT_POINT, ALIGN_LEFT, ALIGN_TOP, CONSOLE_FONT_WIDTH, 0, 2, pred, msg));
+        text_init_multi(next, &console_text_options, 2, pred, msg);
         history_ysize += textpad(next);
     }
 }
@@ -81,7 +77,7 @@ static void console_log_clear(void * user) {
 
 void console_draw() {
 
-    static float old_fps = -1;
+    static float old_fps = 0;
 
     if (!console_visible) return;
 
@@ -89,7 +85,6 @@ void console_draw() {
         old_fps = platform_fps();
         text_format(&fpsText, 25, "fps: %.0f", old_fps);
     }
-
 
     fpsText.position[0] = platform_width() - 505;
     text_draw(&fpsText, platform_screen_matrix());
@@ -101,9 +96,9 @@ void console_draw() {
     qd_rect(
             -1,
             -1,
-            CONSOLE_FONT_WIDTH + CONSOLE_BORDER_LEFT + CONSOLE_BORDER_RIGHT,
-            history_ysize + CONSOLE_BORDER_TOP + CONSOLE_BORDER_BOTTOM,
-            QD_TRIANGLEFAN);
+            CONSOLE_FONT_WIDTH + CONSOLE_BORDER_LEFT + CONSOLE_BORDER_RIGHT + 1,
+            history_ysize + CONSOLE_BORDER_TOP + CONSOLE_BORDER_BOTTOM + 1,
+            QD_FILL);
     qd_rgba(1, 1, 1, 1);
 
     float y = CONSOLE_BORDER_TOP;
@@ -152,7 +147,14 @@ void console_set_visible(int visible) {
 
 void console_init() {
 
-    fnt_init(&fd, CONSOLE_FONT_NAME);
+    fnt_init(&console_fd, CONSOLE_FONT_NAME);
+    fnt_default_options(&console_fd, &console_text_options);
+    console_text_options.width = CONSOLE_FONT_WIDTH;
+    console_text_options.pt = CONSOLE_FONT_POINT;
+    console_text_options.valign = ALIGN_TOP;
+    console_text_options.halign = ALIGN_LEFT;
+    console_text_options.threshold = CONSOLE_FONT_THRESHOLD;
+    console_text_options.smoothing = 1.0f / 4.0f;
 
     history_capacity = 10;
     history_len = 0;
@@ -166,16 +168,16 @@ void console_init() {
 
     ldlog_logger(&logger);
 
-    text_init(&fpsText, &fd, "fps:     ", 14, ALIGN_RIGHT, ALIGN_TOP, 500, 1);
-    fpsText.threshold = 0.3f;
-    fpsText.smoothing = 1.0f / 4.0f;
+    console_text_options.halign = ALIGN_RIGHT;
+    text_init(&fpsText, &console_text_options, "fps:     ");
+    console_text_options.halign = ALIGN_LEFT;
     fpsText.position[1] = 5.0f;
     fpsText.position[0] = platform_width() - 505;
 }
 
 void console_deinit() {
 
-    fnt_deinit(&fd);
+    fnt_deinit(&console_fd);
     for(unsigned i = 0; i < history_len; i++) {
         Text * t = history + ((history_start + i) % history_capacity);
         text_deinit(t);

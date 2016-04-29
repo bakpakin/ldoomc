@@ -84,7 +84,7 @@ Sound * audio_sound_init(Sound * sound, SoundData * data) {
     static const vec3 zero = {0, 0, 0};
     vec3_assign(sound->position, zero);
     sound->data = data;
-    sound->flags = 0;
+    sound->flags = AUDIO_ACTIVE;
     sound->volume = 1;
     sound->pitch = 1;
     sound->gain = 1;
@@ -103,10 +103,13 @@ Sound * audio_sound_init_resource(Sound * sound, const char * resource) {
 }
 
 void audio_sound_deinit(Sound * sound) {
-    alDeleteSources(1, &sound->source);
-    if (sound->flags & AUDIO_OWNS_DATA) {
-        audio_data_deinit(sound->data);
-        free(sound->data);
+    if (sound->flags & AUDIO_ACTIVE) {
+        sound->flags &= ~AUDIO_ACTIVE;
+        alDeleteSources(1, &sound->source);
+        if (sound->flags & AUDIO_OWNS_DATA) {
+            audio_data_deinit(sound->data);
+            free(sound->data);
+        }
     }
 }
 

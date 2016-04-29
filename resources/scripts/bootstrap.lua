@@ -1,14 +1,9 @@
-ldoom = {}
-
 function ldoom.load()
-    snd = makesound("snd.ogg")
-end
-
-function ldoom.unload()
-    deletesound(snd)
+    snd = ldoom.audio.loadSound("snd.ogg")
+    print(snd)
 end
 
 function ldoom.tick()
-    print "hi."
-    playsound(snd)
+    print(snd)
+    snd:play()
 end

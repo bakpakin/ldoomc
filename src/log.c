@@ -1,4 +1,5 @@
 #include "log.h"
+#include "util.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -53,27 +54,26 @@ void ldlog_deinit() {
 void ldlog(const char * message, ...) {
     if (ldlog_logging_enabled) {
         va_list l;
-        va_start(l, message);
-
         int done = 0;
         while (!done) {
+            va_start(l, message);
             int result = vsnprintf(charbuf, charbuf_capacity, message, l);
-            if (result == -1) {
+            if (result < 0) {
+                uerr("ldlog: Encoding error in vsnprintf.");
+            } else if ((unsigned) result > charbuf_capacity) {
                 charbuf_capacity *= 2;
                 charbuf = realloc(charbuf, charbuf_capacity);
             } else {
                 done = 1;
                 charbuf_len = result;
             }
+            va_end(l);
         }
-
         for (unsigned i = 0; i < logger_count; i++) {
             Logger * lgr = loggers[i];
             if (!lgr->enabled) continue;
             lgr->log(lgr->user, charbuf);
         }
-
-        va_end(l);
     }
 }
 
