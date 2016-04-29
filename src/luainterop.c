@@ -1,7 +1,7 @@
 #include "luainterop.h"
 #include "platform.h"
-#include "log.h"
 #include "util.h"
+#include "console.h"
 
 // Libraries to wrap
 #include "audio.h"
@@ -65,7 +65,7 @@ void luai_event(LuaEventSignature * les, ...) {
     }
     va_end(args);
     if(lua_pcall(globalLuaState, les->num_args, 0, 0)) {
-        ldlog("Lua Event \"%s\" failed: %s", les->name, lua_tostring(globalLuaState, -1));
+        console_log("Lua Event \"%s\" failed: %s", les->name, lua_tostring(globalLuaState, -1));
     }
     return;
 }
@@ -82,6 +82,9 @@ void luai_pushreg(lua_State * L, const luaL_Reg * regs) {
 
 void luai_newclass(lua_State * L, const char * name, const luaL_Reg * methods, const luaL_Reg * metamethods) {
     luaL_newmetatable(L, name); // mt = {}, register metatable
+    if (metamethods != NULL) {
+        luai_pushreg(L, metamethods);
+    }
     lua_pushstring(L, "__type");
     lua_pushstring(L, name);
     lua_rawset(L, -3); // mt['__type'] = name
@@ -91,10 +94,7 @@ void luai_newclass(lua_State * L, const char * name, const luaL_Reg * methods, c
     lua_rawset(L, -4); // mt['__index'] = index
     if (methods != NULL)
         luai_pushreg(L, methods);
-    lua_pop(L, 1);
-    if (metamethods != NULL)
-        luai_pushreg(L, metamethods);
-    lua_pop(L, 1);
+    lua_pop(L, 2);
 }
 
 void luai_addsubmodule(lua_State * L, const char * name, const luaL_Reg * regs) {
@@ -108,31 +108,12 @@ void luai_addsubmodule(lua_State * L, const char * name, const luaL_Reg * regs) 
     lua_pop(L, 1);
 }
 
-// BASIC UTILS
+#define LUAI_REG(NAME) luai_method_reg_##NAME
+#define LUAI_FUNC(NAME) luai_method_##NAME
 
-// Printing goes to the logger instead of stdout.
-int logprint(lua_State * L) {
-    int nargs = lua_gettop(L);
-    for (int i=1; i <= nargs; i++) {
-        int t = lua_type(L, i);
-        switch (t) {
-            case LUA_TSTRING:
-                ldlog_write(lua_tostring(L, i));
-                break;
-            case LUA_TBOOLEAN:
-                ldlog_write(lua_toboolean(L, i) ? "true" : "false");
-                break;
-            case LUA_TNUMBER:
-                ldlog_write(lua_tostring(L, i));
-                break;
-            default:
-                ldlog_write(lua_typename(L, t));
-                break;
-        }
-    }
-    ldlog_flush();
-    return 0;
-}
+#define LUAI_NEWREG(NAME) int LUAI_FUNC(NAME)(lua_State * L); \
+    const luaL_Reg LUAI_FUNC(NAME) = { #NAME , LUAI_FUNC(NAME) }; \
+    int LUAI_FUNC(NAME)(lua_State * L)
 
 // AUDIO
 
@@ -168,26 +149,87 @@ int luai_audio_sound_play(lua_State * L) {
     return 0;
 }
 
-const luaL_Reg luai_audio_sound_methods [] = {
-    {"play", luai_audio_sound_play},
-    {"destory", luai_audio_sound_delete},
-    {NULL, NULL}
-};
-
-const luaL_Reg luai_audio_sound_metamethods [] = {
-    {"__gc", luai_audio_sound_delete},
-    {"__tostring", luai_audio_sound_tostring},
-    {NULL, NULL}
-};
-
-const luaL_Reg luai_audio_module [] = {
-    {"loadSound", luai_audio_sound_make},
-    {NULL, NULL}
-};
-
 void luai_audio_loadlib(lua_State * L) {
-    luai_newclass(L, "ldoom.Sound", luai_audio_sound_methods, luai_audio_sound_metamethods);
-    luai_addsubmodule(L, "audio", luai_audio_module);
+    const luaL_Reg methods [] = {
+        {"play", luai_audio_sound_play},
+        {"destory", luai_audio_sound_delete},
+        {NULL, NULL}
+    };
+    const luaL_Reg metamethods [] = {
+        {"__gc", luai_audio_sound_delete},
+        {"__tostring", luai_audio_sound_tostring},
+        {NULL, NULL}
+    };
+    const luaL_Reg module [] = {
+        {"loadOgg", luai_audio_sound_make},
+        {NULL, NULL}
+    };
+    luai_newclass(L, "ldoom.Sound", methods, metamethods);
+    luai_addsubmodule(L, "audio", module);
+}
+
+// CONSOLE
+
+int luai_console_log_impl(lua_State * L) {
+    int n = lua_gettop(L);  /* number of arguments */
+    int i;
+    lua_getglobal(L, "tostring");
+    for (i=1; i<=n; i++) {
+        const char *s;
+        size_t l;
+        lua_pushvalue(L, -1);  /* function to be called */
+        lua_pushvalue(L, i);   /* value to print */
+        lua_call(L, 1, 1);
+        s = lua_tolstring(L, -1, &l);  /* get result */
+        if (s == NULL) {
+            console_clearflush();
+            return luaL_error(L,
+                    LUA_QL("tostring") " must return a string to " LUA_QL("print"));
+        }
+        if (i>1) console_pushn("\t", 1);
+        console_pushn(s, l);
+        lua_pop(L, 1);  /* pop result */
+    }
+    return 0;
+}
+
+int luai_console_log(lua_State * L) {
+    console_clearflush();
+    int result = luai_console_log_impl(L);
+    console_flush(1, 0);
+    return result;
+}
+
+int luai_console_logc(lua_State * L) {
+    console_clearflush();
+    int result = luai_console_log_impl(L);
+    console_flush(1, 1);
+    return result;
+}
+
+int luai_console_write(lua_State * L) {
+    console_clearflush();
+    int result = luai_console_log_impl(L);
+    console_flush(0, 0);
+    return result;
+}
+
+int luai_console_writec(lua_State * L) {
+    console_clearflush();
+    int result = luai_console_log_impl(L);
+    console_flush(0, 1);
+    return result;
+}
+
+void luai_console_loadlib(lua_State * L) {
+    const luaL_Reg module[] = {
+        {"log", luai_console_log},
+        {"logc", luai_console_logc},
+        {"write", luai_console_write},
+        {"writec", luai_console_writec},
+        {NULL, NULL}
+    };
+    luai_addsubmodule(L, "console", module);
 }
 
 // INITIALIZE
@@ -216,13 +258,12 @@ int luai_init() {
     luaL_openlibs(L);
     lua_newtable(L);
     lua_setglobal(L, "ldoom");
-    lua_pushcfunction(L, logprint);
-    lua_setglobal(L, "print");
     luai_doresource("scripts/bootstrap.lua");
     lua_settop(L, 0);
 
     // Initialize bindings
     luai_audio_loadlib(L);
+    luai_console_loadlib(L);
 
     return 0;
 }

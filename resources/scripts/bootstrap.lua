@@ -1,9 +1,9 @@
 function ldoom.load()
-    snd = ldoom.audio.loadSound("snd.ogg")
-    print(snd)
+    snd = ldoom.audio.loadOgg("snd.ogg")
+    ldoom.console.log "$@F0FHi"
+    ldoom.console.writec "Hi"
 end
 
 function ldoom.tick()
-    print(snd)
     snd:play()
 end

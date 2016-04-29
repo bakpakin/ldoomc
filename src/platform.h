@@ -108,6 +108,8 @@ typedef struct {
     void (*updateTick)();
 } Gamestate;
 
+extern Gamestate * EMPTY_GAMESTATE;
+
 /*
  * Initializes a gamestate to Null values.
  */

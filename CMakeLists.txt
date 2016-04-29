@@ -24,7 +24,6 @@ src/audio.c
 src/platform.c
 src/util.c
 src/ldmath.c
-src/log.c
 src/shader.c
 src/mesh.c
 src/texture.c

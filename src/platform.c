@@ -4,7 +4,6 @@
 #include "console.h"
 #include "quickdraw.h"
 #include "scene.h"
-#include "log.h"
 #include "luainterop.h"
 #include "glfw.h"
 #include "audio.h"
@@ -41,6 +40,26 @@ int platform_height() {
 static Gamestate * stack[MAX_STATE_STACK];
 static Gamestate current_state;
 static unsigned current_index = 0;
+
+static void platform_empty_gamestate_button(PlatformButton b, PlatformButtonAction a) {
+    if (b == PBUTTON_SPECIAL) {
+        platform_exit();
+    }
+}
+
+static Gamestate EMPTY_GAMESTATE_DATA = {
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    platform_empty_gamestate_button,
+    NULL,
+    NULL,
+    NULL
+};
+
+Gamestate * EMPTY_GAMESTATE = &EMPTY_GAMESTATE_DATA;
 
 /*
  * Initialize a gamestate structure.
@@ -409,7 +428,6 @@ void platform_init() {
 
     // Misc
     mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
-    ldlog_init();
     console_init();
     qd_init();
     audio_init();
@@ -468,7 +486,6 @@ void platform_deinit() {
 
     luai_deinit();
     console_deinit();
-    ldlog_deinit();
     qd_deinit();
     audio_deinit();
 

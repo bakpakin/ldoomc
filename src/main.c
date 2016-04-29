@@ -1,10 +1,10 @@
 #include "platform.h"
-#include "arenastate.h"
 
 int main() {
 
 	platform_init();
-	platform_mainloop(&arenastate);
+	platform_mainloop(EMPTY_GAMESTATE);
 	platform_deinit();
+
     return 0;
 }

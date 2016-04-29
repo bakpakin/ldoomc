@@ -4,6 +4,7 @@
 #include "glfw.h"
 #include "texture.h"
 #include "ldmath.h"
+#include <stdarg.h>
 
 typedef struct {
     unsigned char valid;
@@ -38,6 +39,7 @@ typedef struct {
 #define FNTDRAW_TEXT_LOADED_BIT 0x01
 #define FNTDRAW_TEXT_DYNAMIC_BIT 0x02
 #define FNTDRAW_TEXT_NODF_BIT 0x04
+#define FNTDRAW_TEXT_MARKUP_BIT 0x08
 
 typedef enum {
     ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, ALIGN_JUSTIFY, ALIGN_TOP, ALIGN_BOTTOM
@@ -60,6 +62,7 @@ typedef struct {
     float width;
     int dynamic;
     int distanceField;
+    int useMarkup;
     vec4 startColor;
     vec2 position;
 } TextOptions;
@@ -106,13 +109,19 @@ TextOptions * fnt_default_options(FontDef * fd, TextOptions * out);
 
 Text * text_init(Text * t, const TextOptions * options, const char * text);
 
-Text * text_init_multi(Text * t, const TextOptions * options, int textcount, ...);
+Text * text_init_format(Text * t, const TextOptions * options, const char * format, ...);
 
-void text_set_multi(Text * t, int textcount, ...);
+Text * text_init_formatv(Text * t, const TextOptions * options, const char * format, va_list args);
+
+Text * text_init_multi(Text * t, const TextOptions * options, int n, const char * separator, const char ** messages);
 
 void text_set(Text * t, const char * newtext);
 
-void text_format(Text * t, size_t maxlength, const char * format, ...);
+int text_set_format(Text * t, const char * format, ...);
+
+int text_set_formatv(Text * t, const char * format, va_list args);
+
+void text_set_multi(Text * t, int n, const char * separator, const char ** messages);
 
 void text_deinit(Text * t);
 
@@ -127,5 +136,25 @@ void text_draw_screen(Text * t);
 void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length);
 
 void text_draw_range_screen(Text * t, unsigned start, unsigned length);
+
+// Auxilary
+
+size_t textutil_get_escapedlength(const char * text);
+
+size_t textutil_get_visiblelength(const char * markup);
+
+int textutil_escape(const char * text, size_t buflen, char * buffer);
+
+int textutil_escape_inplace(char * text, size_t buflen);
+
+int textutil_normalize(const char * text, size_t buflen, char * buffer);
+
+void textutil_normalize_inplace(char * text);
+
+char * textutil_join(int n, const char ** parts, const char * sep);
+
+char * textutil_escapex(const char * text);
+
+char * textutil_normalizex(const char * text);
 
 #endif

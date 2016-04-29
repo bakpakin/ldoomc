@@ -502,6 +502,7 @@ TextOptions * fnt_default_options(FontDef * fd, TextOptions * out) {
     out->font = fd;
     out->pt = 14;
     out->dynamic = 1;
+    out->useMarkup = 1;
     out->threshold = 0.5;
     out->smoothing = 1.0f / 16.0f;
     out->position[0] = out->position[1] = 0.0f;
@@ -509,7 +510,8 @@ TextOptions * fnt_default_options(FontDef * fd, TextOptions * out) {
     return out;
 }
 
-static const char * skip_text_escape_chars(const char * c) {
+static const char * first_printable_token(const char * c, int escape) {
+    if (!escape) return c;
     if (*c == FNTDRAW_ESCAPE) {
         char next = *++c;
         int n;
@@ -519,24 +521,50 @@ static const char * skip_text_escape_chars(const char * c) {
                 // Skip 7 chracters, or until there is an end of string.
                 while(n-- && *++c)
                     ;
-                return skip_text_escape_chars(c);
+                return first_printable_token(c, 1);
             case FNTDRAW_3COLOR:
                 n = 4;
                 // Skip 4 chracters, or until there is an end of string.
                 while(n-- && *++c)
                     ;
-                return skip_text_escape_chars(c);
+                return first_printable_token(c, 1);
             case FNTDRAW_ALPHA:
                 n = 3;
                 // Skip 3 characters, or until there is an end of string.
                 while(n-- && *++c)
                     ;
-                return skip_text_escape_chars(c);
+                return first_printable_token(c, 1);
             default:
-                return c + 1;
+                return c;
         }
     }
     return c;
+}
+
+static size_t fntdraw_string_join_len(int n, const char ** strings, const char * sep) {
+    if (n < 1) return 0;
+    size_t seplen = 0;
+    if (sep) seplen = strlen(sep);
+    size_t finallen = (n - 1) * seplen;
+    for (int i = 0; i < n; i++) {
+        finallen += strlen(strings[i]);
+    }
+    return finallen;
+}
+
+static void fntdraw_string_join(char * buffer, int n, const char ** strings, const char * sep) {
+    char * current = buffer;
+    for (int i = 0; i < n; i++) {
+        if (i) {
+            for (const char * c = sep; *c; c++) {
+                *current++ = *c;
+            }
+        }
+        for (const char * c = strings[i]; *c; c++) {
+            *current++ = *c;
+        }
+    }
+    *current = 0;
 }
 
 // Gets the kerning between two characters
@@ -548,7 +576,7 @@ static float get_kerning(FontCharDef * fcd, unsigned long next) {
 }
 
 // Count the number of lines that need to be rendered in order to fit
-// in the space given. This inlcudes newlines and linebreaks inserted
+// in the space given. This includes newlines and linebreaks inserted
 // when a word goes outside the clip width.
 static void calc_wrap(Text * t) {
 
@@ -556,6 +584,7 @@ static void calc_wrap(Text * t) {
     const FontDef * fd = t->fontdef;
     float max_width = t->max_width;
     float scale = t->pt / fd->size;
+    int escape = t->flags & FNTDRAW_TEXT_MARKUP_BIT;
     unsigned capacity;
     TextLine * lines;
 
@@ -579,14 +608,15 @@ static void calc_wrap(Text * t) {
             lines = realloc(lines, capacity * sizeof(TextLine));
         }
         lineCharCount = 0;
+        valid_length = current_length = 0;
         const char * next, * current;
-        current = last = skip_text_escape_chars(first);
+        current = last = first_printable_token(first, escape);
         if (is_eol(*current)) {
             break;
         }
         FontCharDef * fcd = fd->chars + *current; if (!fcd->valid) fcd = fd->chars + ' ';
         valid_length = current_length = fcd->xadvance * scale;
-        next = skip_text_escape_chars(current + 1);
+        next = first_printable_token(current + 1, escape);
         lineCharCount = 1;
         for(;;) {
             if (is_eol(*next)) {
@@ -596,9 +626,9 @@ static void calc_wrap(Text * t) {
             float kerning = get_kerning(fcd, *next);
             current_length += (fcd->xadvance + kerning) * scale;
             lineCharCount++;
-            if (max_width != 0  && current_length > max_width) break;
+            if (max_width != 0 && current_length > max_width) break;
             current = next;
-            next = skip_text_escape_chars(current + 1);
+            next = first_printable_token(current + 1, escape);
             if (is_whitespace(*next) || is_eol(*next)) {
                 valid_length = current_length;
                 last = current;
@@ -614,6 +644,14 @@ static void calc_wrap(Text * t) {
     }
     t->lines = realloc(lines, line * sizeof(TextLine));
     t->line_count = line;
+
+    printf("t->text: %s\n", t->text);
+    printf("t->line_count: %d\n", t->line_count);
+    printf("t->lines:\n");
+    for (unsigned i = 0; i < t->line_count; i++) {
+        TextLine * l = t->lines + i;
+        printf("\tfirst: %d last: %d width: %f charcount: %d\n\n", l->first, l->last, l->width, l->visibleCharCount);
+    }
 }
 
 static unsigned calc_num_quads(Text * t) {
@@ -695,7 +733,7 @@ static void fill_buffers(Text * t) {
             char c = t->text[j];
 
             // Test for special characters (Escape character)
-            if (c == FNTDRAW_ESCAPE) {
+            if ((t->flags & FNTDRAW_TEXT_MARKUP_BIT) && c == FNTDRAW_ESCAPE) {
 
                 c = t->text[++j];
                 switch(c) {
@@ -839,7 +877,8 @@ void text_unloadbuffer(Text * t) {
 static void text_init_common(Text * t, const TextOptions * options, size_t slen) {
 
     // Initilaize basic variables
-    t->flags = options->dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0;
+    t->flags = (options->dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0) |
+               (options->useMarkup ? FNTDRAW_TEXT_MARKUP_BIT : 0);
     t->fontdef = options->font;
     t->text_length = slen;
     t->pt = options->pt;
@@ -870,41 +909,23 @@ static void text_init_common(Text * t, const TextOptions * options, size_t slen)
     t->quad_capacity = t->num_quads;
 
     fill_buffers(t);
-
     text_loadbuffer(t);
 }
 
-Text * text_init_multi(Text * t, const TextOptions * options, int textcount, ...) {
-
-    va_list args;
-    size_t slen = 0;
-
-    int lengths[textcount];
-
-    va_start(args, textcount);
-    for (int i = 0; i < textcount; i++) {
-        const char * part = va_arg(args, const char *);
-        size_t len = strlen(part);
-        lengths[i] = len;
-        slen += len;
+static int text_set_formatv_impl(Text * t, const char * format, va_list list) {
+    va_list vcopy;
+    va_copy(vcopy, list);
+    int result = vsnprintf(t->text, t->text_capacity, format, list);
+    if (result < 0) {
+        return result;
+    } else if (((unsigned) result) >= t->text_capacity) {
+        t->text_capacity = result + 1;
+        t->text = realloc(t->text, t->text_capacity);
+        return vsnprintf(t->text, t->text_capacity, format, vcopy);
+    } else {
+        t->text_length = (unsigned) result;
+        return result;
     }
-    va_end(args);
-
-    t->text = malloc(slen + 1);
-    char * current = t->text;
-
-    va_start(args, textcount);
-    for (int i = 0; i < textcount; i++) {
-        const char * part = va_arg(args, const char *);
-        size_t len = lengths[i];
-        memcpy(current, part, len + 1);
-        current += len;
-    }
-    va_end(args);
-
-    text_init_common(t, options, slen);
-
-    return t;
 }
 
 Text * text_init(Text * t, const TextOptions * options, const char * text) {
@@ -919,6 +940,43 @@ Text * text_init(Text * t, const TextOptions * options, const char * text) {
 
     text_init_common(t, options, slen);
 
+    return t;
+}
+
+Text * text_init_format(Text * t, const TextOptions * options, const char * format, ...) {
+    t->text_capacity = (strlen(format) * 3) / 2 ;
+    t->text = malloc(t->text_capacity);
+    va_list list;
+    va_start(list, format);
+    int result = text_set_formatv_impl(t, format, list);
+    va_end(list);
+    if (result < 0) {
+        free(t->text);
+        return NULL;
+    }
+    text_init_common(t, options, t->text_length);
+    return t;
+}
+
+Text * text_init_formatv(Text * t, const TextOptions * options, const char * format, va_list args) {
+    t->text_capacity = (strlen(format) * 3) / 2 ;
+    t->text = malloc(t->text_capacity);
+    int result = text_set_formatv_impl(t, format, args);
+    if (result < 0) {
+        free(t->text);
+        return NULL;
+    }
+    text_init_common(t, options, t->text_length);
+    return t;
+}
+
+Text * text_init_multi(Text * t, const TextOptions * options, int n, const char * separator, const char ** messages) {
+    unsigned slen = fntdraw_string_join_len(n, messages, separator);
+    t->text_length = slen;
+    t->text_capacity = slen;
+    t->text = malloc(slen + 1);
+    fntdraw_string_join(t->text, n, messages, separator);
+    text_init_common(t, options, t->text_length);
     return t;
 }
 
@@ -952,42 +1010,6 @@ static void update_buffers(Text * t) {
 
 }
 
-void text_set_multi(Text * t, int textcount, ...) {
-
-    size_t lengths[textcount];
-    size_t slen = 0;
-
-    va_list args;
-    va_start(args, textcount);
-    for (int i = 0; i < textcount; i++) {
-        const char * part = va_arg(args, const char *);
-        size_t len = strlen(part);
-        lengths[i] = len;
-        slen += len;
-    }
-    va_end(args);
-
-    if (slen > t->text_capacity) {
-        t->text_capacity = slen;
-        t->text = realloc(t->text, slen + 1);
-    }
-    char * current = t->text;
-    t->text_length = slen;
-
-    va_start(args, textcount);
-    for (int i = 0; i < textcount; i++) {
-        const char * part = va_arg(args, const char *);
-        size_t len = lengths[i];
-        memcpy(current, part, len + 1);
-        current += len;
-    }
-    va_end(args);
-
-    calc_wrap(t);
-
-    update_buffers(t);
-}
-
 void text_set(Text * t, const char * newtext) {
 
     unsigned slen = strlen(newtext);
@@ -1004,23 +1026,32 @@ void text_set(Text * t, const char * newtext) {
     update_buffers(t);
 }
 
-void text_format(Text * t, size_t maxlength, const char * format, ...) {
-
-    va_list list;
-
-    if (maxlength > t->text_capacity) {
-        t->text = realloc(t->text, maxlength + 1);
-        t->text_capacity = maxlength;
+int text_set_formatv(Text * t, const char * format, va_list args) {
+    int result = text_set_formatv_impl(t, format, args);
+    if (result >= 0) {
+        calc_wrap(t);
+        update_buffers(t);
     }
+    return result;
+}
 
+int text_set_format(Text * t, const char * format, ...) {
+    va_list list;
     va_start(list, format);
-    vsprintf(t->text, format, list);
+    int result = text_set_formatv(t, format, list);
     va_end(list);
+    return result;
+}
 
-    t->text_length = strlen(t->text);
-
+void text_set_multi(Text * t, int n, const char * separator, const char ** messages) {
+    unsigned slen = fntdraw_string_join_len(n, messages, separator);
+    t->text_length = slen;
+    if (slen > t->text_capacity) {
+        t->text_capacity = slen;
+        t->text = realloc(t->text, slen + 1);
+    }
+    fntdraw_string_join(t->text, n, messages, separator);
     calc_wrap(t);
-
     update_buffers(t);
 }
 
@@ -1083,6 +1114,113 @@ void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length) 
 
 void text_draw_range_screen(Text * t, unsigned start, unsigned length) {
     text_draw_range(t, platform_screen_matrix(), start, length);
+}
+
+// TEXT UTIL
+
+size_t textutil_get_escapedlength(const char * text) {
+    size_t ret = 0;
+    const char * scanner = text;
+    char last;
+    while ((last = *scanner++) != '\0') {
+        if (last == FNTDRAW_ESCAPE) {
+            ret += 2;
+        } else {
+            ret++;
+        }
+    }
+    return ret;
+}
+
+size_t textutil_get_visiblelength(const char * markup) {
+    if (!markup) return 0;
+    size_t ret = 1;
+    while((markup = first_printable_token(markup + 1, 1)))
+        ret++;
+    return ret;
+}
+
+static void textutil_escape_impl(const char * text, char * buffer) {
+    const char * scanner = text;
+    char * printer = buffer;
+    char last;
+    while ((last = *scanner++) != '\0') {
+        if (last == FNTDRAW_ESCAPE) {
+            *printer++ = FNTDRAW_ESCAPE;
+            *printer++ = FNTDRAW_ESCAPE;
+        } else {
+            *printer++ = last;
+        }
+    }
+    *printer = '\0';
+}
+
+int textutil_escape(const char * text, size_t buflen, char * buffer) {
+    size_t final_len = textutil_get_escapedlength(text);
+    if (final_len + 1 <= buflen) {
+        textutil_escape_impl(text, buffer);
+    }
+    return final_len;
+}
+
+int textutil_escape_inplace(char * text, size_t buflen) {
+    size_t final_len = textutil_get_escapedlength(text);
+    if (final_len < buflen) {
+        int scanner = strlen(text);
+        int printer = final_len;
+        char last;
+        while (scanner >= 0) {
+            if ((last = text[scanner--]) == FNTDRAW_ESCAPE) {
+                text[printer] = FNTDRAW_ESCAPE;
+                text[printer - 1] = FNTDRAW_ESCAPE;
+                printer -= 2;
+            } else {
+                text[printer--] = last;
+            }
+        }
+    }
+    return final_len;
+}
+
+char * textutil_escapex(const char * text) {
+    size_t final_len = textutil_get_escapedlength(text);
+    char * out = malloc(final_len + 1);
+    textutil_escape_impl(text, out);
+    return out;
+}
+
+static void textutil_normalize_impl(char * out, const char * in) {
+    const char * leading = in;
+    char * trailing = out;
+    while (*leading != '\0') {
+        *trailing = *leading;
+        trailing++;
+        leading = first_printable_token(leading + 1, 1);
+    }
+}
+
+int textutil_normalize(const char * text, size_t buflen, char * buffer) {
+    size_t final_len = textutil_get_visiblelength(text);
+    if (final_len + 1 > buflen) return final_len;
+    textutil_normalize_impl(buffer, text);
+    return final_len;
+}
+
+char * textutil_normalizex(const char * text) {
+    size_t final_len = textutil_get_visiblelength(text);
+    char * out = malloc(final_len + 1);
+    textutil_normalize_impl(out, text);
+    return out;
+}
+
+void textutil_normalize_inplace(char * text) {
+    textutil_normalize_impl(text, text);
+}
+
+char * textutil_join(int n, const char ** parts, const char * sep) {
+    char * buf = malloc(fntdraw_string_join_len(n, parts, sep) + 1);
+    fntdraw_string_join(buf, n, parts, sep);
+    return buf;
 }
 
 #undef CHAR_VERT_SIZE

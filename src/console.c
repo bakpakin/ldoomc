@@ -3,7 +3,7 @@
 #include "fntdraw.h"
 #include "ldmath.h"
 #include "quickdraw.h"
-#include "log.h"
+#include "util.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,11 +29,14 @@ static size_t history_len;
 static size_t history_start;
 static size_t history_capacity;
 static float history_ysize = 0;
-static Logger logger;
 
-static Text fpsText;
+static char * console_write_buffer = NULL;
+static size_t console_write_buffer_capacity = 0;
+static size_t console_write_buffer_len = 0;
 
 static char console_visible = 1;
+
+static const char * CONSOLE_TIME_STR = "$@F00%T:$@FFF ";
 
 static inline float textpad(Text * t) {
     return t->line_count * (console_fd.lineHeight / console_fd.size * t->pt + CONSOLE_PADDING);
@@ -43,31 +46,42 @@ static inline Text * nth_history(unsigned n) {
     return history + (history_start + n) % history_capacity;
 }
 
-static void history_put(const char * msg) {
-    char pred[80];
+void console_log(const char * format, ...) {
+    va_list list;
+    va_start(list, format);
+    console_logv(format, list);
+    va_end(list);
+}
 
-    time_t now = time(0);
-    struct tm * info = localtime(&now);
-    strftime(pred, 80, "$@F00%T:$@FFF ", info);
-
+void console_logv(const char * format, va_list args) {
     Text * next = nth_history(history_len);
     if (history_len == history_capacity) {
         history_start = (history_start + 1) % history_capacity;
         history_ysize -= textpad(next);
-        text_set_multi(next, 2, pred, msg);
+        text_set_formatv(next, format, args);
         history_ysize += textpad(next);
     } else {
         history_len++;
-        text_init_multi(next, &console_text_options, 2, pred, msg);
+        text_init_formatv(next, &console_text_options, format, args);
         history_ysize += textpad(next);
     }
 }
 
-static void console_log_fn(void * user, const char * message) {
-    history_put(message);
+void console_logn(int n, const char ** args) {
+    Text * next = nth_history(history_len);
+    if (history_len == history_capacity) {
+        history_start = (history_start + 1) % history_capacity;
+        history_ysize -= textpad(next);
+        text_set_multi(next, n, "\t", args);
+        history_ysize += textpad(next);
+    } else {
+        history_len++;
+        text_init_multi(next, &console_text_options, n, "\t", args);
+        history_ysize += textpad(next);
+    }
 }
 
-static void console_log_clear(void * user) {
+void console_clear() {
     for (unsigned i = 0; i < history_len; i++) {
         Text * t = nth_history(i);
         text_deinit(t);
@@ -77,17 +91,7 @@ static void console_log_clear(void * user) {
 
 void console_draw() {
 
-    static float old_fps = 0;
-
     if (!console_visible) return;
-
-    if (old_fps != platform_fps()) {
-        old_fps = platform_fps();
-        text_format(&fpsText, 25, "fps: %.0f", old_fps);
-    }
-
-    fpsText.position[0] = platform_width() - 505;
-    text_draw(&fpsText, platform_screen_matrix());
 
     // Get out of the way if there is nothing to draw.
     if (history_len == 0) return;
@@ -106,7 +110,7 @@ void console_draw() {
         Text * t = nth_history(i);
         t->position[0] = CONSOLE_BORDER_LEFT;
         t->position[1] = y;
-        text_draw(t, platform_screen_matrix());
+        text_draw_screen(t);
         y += textpad(t);
     }
 
@@ -136,7 +140,6 @@ int console_get_history() {
     return history_capacity;
 }
 
-
 int console_get_visible() {
     return console_visible;
 }
@@ -161,18 +164,10 @@ void console_init() {
     history_start = 0;
     history = malloc(sizeof(Text) * history_capacity);
 
-    logger.log = console_log_fn,
-    logger.clear = console_log_clear,
-    logger.user = NULL,
-    logger.enabled = 1;
+    console_write_buffer_capacity = 63;
+    console_write_buffer_len = 0;
+    console_write_buffer = malloc(console_write_buffer_capacity + 1);
 
-    ldlog_logger(&logger);
-
-    console_text_options.halign = ALIGN_RIGHT;
-    text_init(&fpsText, &console_text_options, "fps:     ");
-    console_text_options.halign = ALIGN_LEFT;
-    fpsText.position[1] = 5.0f;
-    fpsText.position[0] = platform_width() - 505;
 }
 
 void console_deinit() {
@@ -182,7 +177,51 @@ void console_deinit() {
         Text * t = history + ((history_start + i) % history_capacity);
         text_deinit(t);
     }
-    text_deinit(&fpsText);
     free(history);
-
+    free(console_write_buffer);
 }
+
+void console_push(const char * string) {
+    console_pushn(string, strlen(string));
+}
+
+void console_pushn(const char * string, size_t n) {
+    size_t oldlen = console_write_buffer_len;
+    console_write_buffer_len = oldlen + n;
+    if (console_write_buffer_len > console_write_buffer_capacity) {
+        console_write_buffer_capacity = console_write_buffer_len * 1.5 + 1;
+        console_write_buffer = realloc(console_write_buffer, console_write_buffer_capacity + 1);
+    }
+    strcpy(console_write_buffer + oldlen, string);
+}
+
+static void console_escape_buffer() {
+    size_t newlen = textutil_get_escapedlength(console_write_buffer);
+    if (newlen > console_write_buffer_capacity) {
+        console_write_buffer_capacity = newlen;
+        console_write_buffer = realloc(console_write_buffer, newlen + 1);
+    }
+    textutil_escape_inplace(console_write_buffer, newlen + 1);
+}
+
+void console_flush(int includeTime, int useMarkup) {
+    if (console_write_buffer_len == 0) return;
+    if (!useMarkup)
+        console_escape_buffer();
+    printf("Console buffer: %s\n", console_write_buffer);
+    if (includeTime) {
+        char pred[32];
+        time_t now = time(0);
+        struct tm * info = localtime(&now);
+        strftime(pred, 32, CONSOLE_TIME_STR, info);
+        console_log("%s%s", pred, console_write_buffer);
+    } else {
+        console_log("%s", console_write_buffer);
+    }
+    console_write_buffer_len = 0;
+}
+
+void console_clearflush() {
+    console_write_buffer_len = 0;
+}
+

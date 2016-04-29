@@ -3,7 +3,6 @@
 #include "shader.h"
 #include "platform.h"
 #include "camera.h"
-#include "log.h"
 #include "sky.h"
 
 Camera scene_camera;
