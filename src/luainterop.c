@@ -91,10 +91,10 @@ void luai_newclass(lua_State * L, const char * name, const luaL_Reg * methods, c
     lua_rawset(L, -4); // mt['__index'] = index
     if (methods != NULL)
         luai_pushreg(L, methods);
-    lua_remove(L, 1);
+    lua_pop(L, 1);
     if (metamethods != NULL)
         luai_pushreg(L, metamethods);
-    lua_remove(L, 1);
+    lua_pop(L, 1);
 }
 
 void luai_addsubmodule(lua_State * L, const char * name, const luaL_Reg * regs) {
@@ -103,9 +103,9 @@ void luai_addsubmodule(lua_State * L, const char * name, const luaL_Reg * regs) 
     lua_pushstring(L, name);
     lua_pushvalue(L, -3);
     lua_rawset(L, -3);
-    lua_remove(L, 1);
+    lua_pop(L, 1);
     luai_pushreg(L, regs);
-    lua_remove(L, 1);
+    lua_pop(L, 1);
 }
 
 // BASIC UTILS
