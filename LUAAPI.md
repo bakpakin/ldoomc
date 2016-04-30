@@ -15,7 +15,7 @@ under the global table `levent`.
 * `levent.update(dt)`
 * `levent.draw()`
 * `levent.mouse(button, x, y)`
-* `levent.keyboard(key, action, scancode)
+* `levent.keyboard(key, action, scancode)`
 * `levent.resize(width, height)`
 * `levent.tick()`
 
