@@ -5,9 +5,38 @@
 #include "quickdraw.h"
 #include "scene.h"
 #include "luainterop.h"
+#include "fntdraw.h"
 #include "glfw.h"
 #include "audio.h"
 #include <string.h>
+#include <ctype.h>
+
+// Set up Lua Interop
+
+static const LuaEventSignature les_tick = { "tick", 0, NULL };
+static const LuaEventSignature les_draw = { "draw", 0, NULL };
+static const LuaEventSignature les_load = { "load", 0, NULL };
+static const LuaEventSignature les_unload = { "unload", 0, NULL };
+
+static const int les_update_args[] = { LUA_TNUMBER };
+static const LuaEventSignature les_update = { "update", 1, les_update_args };
+
+static const int les_mouse_args[] = { LUA_TNUMBER, LUA_TSTRING, LUA_TNUMBER, LUA_TNUMBER };
+static const LuaEventSignature les_mouse = { "mouse", 4, les_mouse_args };
+
+static const int les_keyboard_args[] = { LUA_TSTRING, LUA_TSTRING, LUA_TNUMBER, LUA_TNUMBER };
+static const LuaEventSignature les_keyboard = { "keyboard", 4, les_keyboard_args };
+
+static const int les_error_args[] = { LUA_TSTRING };
+static const LuaEventSignature les_error = { "error", 1, les_error_args };
+
+static const int les_resize_args[] = { LUA_TNUMBER, LUA_TNUMBER };
+static const LuaEventSignature les_resize = { "resize", 2, les_resize_args };
+
+static const int les_wheel_args[] = { LUA_TNUMBER, LUA_TNUMBER };
+static const LuaEventSignature les_wheel = { "wheel", 2, les_wheel_args };
+
+// Platform stuff
 
 static double _platform_delta = 0.0;
 static double _platform_fps = 0.0;
@@ -33,128 +62,6 @@ int platform_width() {
 
 int platform_height() {
     return _platform_height;
-}
-
-#define MAX_STATE_STACK 128
-
-static Gamestate * stack[MAX_STATE_STACK];
-static Gamestate current_state;
-static unsigned current_index = 0;
-
-static void platform_empty_gamestate_button(PlatformButton b, PlatformButtonAction a) {
-    if (b == PBUTTON_SPECIAL) {
-        platform_exit();
-    }
-}
-
-static Gamestate EMPTY_GAMESTATE_DATA = {
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    platform_empty_gamestate_button,
-    NULL,
-    NULL,
-    NULL
-};
-
-Gamestate * EMPTY_GAMESTATE = &EMPTY_GAMESTATE_DATA;
-
-/*
- * Initialize a gamestate structure.
- */
-Gamestate * gamestate_init(Gamestate * gs) {
-    memset(gs, 0, sizeof(Gamestate));
-    return gs;
-}
-
-/*
- * Switch to a new gamestate and remove the current state from the stack.
- */
-void gamestate_switch(Gamestate * gs) {
-    if (current_state.deinit) current_state.deinit();
-    stack[current_index] = gs;
-    current_state = *gs;
-    if (current_state.init) current_state.init();
-    if (current_state.show) current_state.show();
-}
-
-/*
- * Jump to a gamestate index less than the current index and jump to that state.
- */
-void gamestate_jump(unsigned index) {
-    if (index > current_index)
-        uerr("Invalid gamestate jump index.");
-    for (unsigned i = current_index; i > index; i--) {
-        if (stack[i]->deinit)
-            stack[i]->deinit();
-    }
-    if (current_state.show) current_state.show();
-}
-
-/*
- * Pop index number of states of the state stack.
- */
-void gamestate_jump_back(unsigned index) {
-    if (index > current_index)
-        uerr("Invalid gamestate jump index.");
-    gamestate_jump(current_index - index);
-}
-
-/*
- * Push a new state onto the state stack.
- */
-void gamestate_push(Gamestate * gs) {
-    if (current_index == MAX_STATE_STACK) {
-        uerr("Gamestate stack overflow.");
-    }
-    if (current_state.hide) current_state.hide();
-    stack[current_index++] = gs;
-    current_state = *gs;
-    if (current_state.init) current_state.init();
-    if (current_state.show) current_state.show();
-}
-
-/*
- * Pop a gamestate off of the state stack.
- */
-void gamestate_pop() {
-    if (current_index == 0) {
-        uerr("Gamestate stack underflow.");
-    }
-    if (current_state.deinit) current_state.deinit();
-    current_state = *stack[--current_index];
-    if (current_state.init) current_state.init();
-}
-
-static void gamestate_update(double dt) {
-    if (current_state.update) {
-        current_state.update(dt);
-    }
-}
-
-static void gamestate_draw() {
-    if (current_state.draw) {
-        current_state.draw();
-    }
-}
-
-static unsigned int platform_buttons;
-static float platform_axes[4];
-
-int platform_poll_button(PlatformButton button) {
-    return platform_buttons & (1 << button);
-}
-
-float platform_poll_axis(PlatformAxis axis) {
-    return platform_axes[axis];
-}
-
-static PlatformPointerMode pointer_mode = PPOINTERMODE_LOCKED;
-
-PlatformPointerMode platform_get_pointer_mode() {
-    return pointer_mode;
 }
 
 static mat4 screen_matrix = {1.0, 0.0, 0.0, 0.0,
@@ -230,133 +137,211 @@ char * platform_res2file_ez(const char * resource) {
 
 static GLFWwindow * game_window;
 
-static unsigned long button_flags;
+static const char * platform_get_action(int action) {
+    switch (action) {
+        case GLFW_PRESS: return "down";
+        case GLFW_RELEASE: return "up";
+        case GLFW_REPEAT: return "repeat";
+        default: return "unknown";
+    }
+}
 
-static int button_a_code = GLFW_KEY_Z;
-static int button_b_code = GLFW_KEY_X;
-static int button_c_code = GLFW_KEY_C;
-static int button_d_code = GLFW_KEY_V;
-static int button_e_code = GLFW_KEY_SPACE;
-static int button_sys_code = GLFW_KEY_ESCAPE;
-static int button_special_code = GLFW_KEY_BACKSLASH;
-
-static PlatformButton get_pbutton(int key) {
-    if (key == button_a_code) return PBUTTON_A;
-    if (key == button_b_code) return PBUTTON_B;
-    if (key == button_c_code) return PBUTTON_C;
-    if (key == button_d_code) return PBUTTON_D;
-    if (key == button_e_code) return PBUTTON_E;
-    if (key == button_sys_code) return PBUTTON_SYS;
-    if (key == button_special_code) return PBUTTON_SPECIAL;
-    return PBUTTON_OTHER;
+static const char * platform_get_key(int key) {
+    switch(key) {
+        case GLFW_KEY_SPACE: return " ";
+        case GLFW_KEY_APOSTROPHE: return "'";
+        case GLFW_KEY_COMMA: return ",";
+        case GLFW_KEY_MINUS: return "-";
+        case GLFW_KEY_PERIOD: return ".";
+        case GLFW_KEY_SLASH: return "/";
+        case GLFW_KEY_0: return "0";
+        case GLFW_KEY_1: return "1";
+        case GLFW_KEY_2: return "2";
+        case GLFW_KEY_3: return "3";
+        case GLFW_KEY_4: return "4";
+        case GLFW_KEY_5: return "5";
+        case GLFW_KEY_6: return "6";
+        case GLFW_KEY_7: return "7";
+        case GLFW_KEY_8: return "8";
+        case GLFW_KEY_9: return "9";
+        case GLFW_KEY_SEMICOLON: return ";";
+        case GLFW_KEY_EQUAL: return "=";
+        case GLFW_KEY_A: return "a";
+        case GLFW_KEY_B: return "b";
+        case GLFW_KEY_C: return "c";
+        case GLFW_KEY_D: return "d";
+        case GLFW_KEY_E: return "e";
+        case GLFW_KEY_F: return "f";
+        case GLFW_KEY_G: return "g";
+        case GLFW_KEY_H: return "h";
+        case GLFW_KEY_I: return "i";
+        case GLFW_KEY_J: return "j";
+        case GLFW_KEY_K: return "k";
+        case GLFW_KEY_L: return "l";
+        case GLFW_KEY_M: return "m";
+        case GLFW_KEY_N: return "n";
+        case GLFW_KEY_O: return "o";
+        case GLFW_KEY_P: return "p";
+        case GLFW_KEY_Q: return "q";
+        case GLFW_KEY_R: return "r";
+        case GLFW_KEY_S: return "s";
+        case GLFW_KEY_T: return "t";
+        case GLFW_KEY_U: return "u";
+        case GLFW_KEY_V: return "v";
+        case GLFW_KEY_W: return "w";
+        case GLFW_KEY_X: return "x";
+        case GLFW_KEY_Y: return "y";
+        case GLFW_KEY_Z: return "z";
+        case GLFW_KEY_LEFT_BRACKET: return "[";
+        case GLFW_KEY_BACKSLASH: return "\\";
+        case GLFW_KEY_RIGHT_BRACKET: return "/";
+        case GLFW_KEY_GRAVE_ACCENT: return "`";
+        case GLFW_KEY_WORLD_1: return "world1";
+        case GLFW_KEY_WORLD_2: return "world2";
+        case GLFW_KEY_ESCAPE: return "escape";
+        case GLFW_KEY_ENTER: return "enter";
+        case GLFW_KEY_TAB: return "tab";
+        case GLFW_KEY_BACKSPACE: return "backspace";
+        case GLFW_KEY_INSERT: return "insert";
+        case GLFW_KEY_DELETE: return "delete";
+        case GLFW_KEY_RIGHT: return "right";
+        case GLFW_KEY_LEFT: return "left";
+        case GLFW_KEY_DOWN: return "down";
+        case GLFW_KEY_UP: return "up";
+        case GLFW_KEY_PAGE_UP: return "pageup";
+        case GLFW_KEY_PAGE_DOWN: return "pagedown";
+        case GLFW_KEY_HOME: return "home";
+        case GLFW_KEY_END: return "end";
+        case GLFW_KEY_CAPS_LOCK: return "capslock";
+        case GLFW_KEY_SCROLL_LOCK: return "scrolllock";
+        case GLFW_KEY_NUM_LOCK: return "numlock";
+        case GLFW_KEY_PRINT_SCREEN: return "printscreen";
+        case GLFW_KEY_PAUSE: return "pause";
+        case GLFW_KEY_F1: return "f1";
+        case GLFW_KEY_F2: return "f2";
+        case GLFW_KEY_F3: return "f3";
+        case GLFW_KEY_F4: return "f4";
+        case GLFW_KEY_F5: return "f5";
+        case GLFW_KEY_F6: return "f6";
+        case GLFW_KEY_F7: return "f7";
+        case GLFW_KEY_F8: return "f8";
+        case GLFW_KEY_F9: return "f9";
+        case GLFW_KEY_F10: return "f10";
+        case GLFW_KEY_F11: return "f11";
+        case GLFW_KEY_F12: return "f12";
+        case GLFW_KEY_F13: return "f13";
+        case GLFW_KEY_F14: return "f14";
+        case GLFW_KEY_F15: return "f15";
+        case GLFW_KEY_F16: return "f16";
+        case GLFW_KEY_F17: return "f17";
+        case GLFW_KEY_F18: return "f18";
+        case GLFW_KEY_F19: return "f19";
+        case GLFW_KEY_F20: return "f20";
+        case GLFW_KEY_F21: return "f21";
+        case GLFW_KEY_F22: return "f22";
+        case GLFW_KEY_F23: return "f23";
+        case GLFW_KEY_F24: return "f24";
+        case GLFW_KEY_F25: return "f25";
+        case GLFW_KEY_KP_0: return "kp0";
+        case GLFW_KEY_KP_1: return "kp1";
+        case GLFW_KEY_KP_2: return "kp2";
+        case GLFW_KEY_KP_3: return "kp3";
+        case GLFW_KEY_KP_4: return "kp4";
+        case GLFW_KEY_KP_5: return "kp5";
+        case GLFW_KEY_KP_6: return "kp6";
+        case GLFW_KEY_KP_7: return "kp7";
+        case GLFW_KEY_KP_8: return "kp8";
+        case GLFW_KEY_KP_9: return "kp9";
+        case GLFW_KEY_KP_DECIMAL: return "kp.";
+        case GLFW_KEY_KP_DIVIDE: return "kp/";
+        case GLFW_KEY_KP_MULTIPLY: return "kp*";
+        case GLFW_KEY_KP_SUBTRACT: return "kp-";
+        case GLFW_KEY_KP_ADD: return "kp+";
+        case GLFW_KEY_KP_ENTER: return "kpenter";
+        case GLFW_KEY_KP_EQUAL: return "kpequal";
+        case GLFW_KEY_LEFT_SHIFT: return "lshift";
+        case GLFW_KEY_LEFT_CONTROL: return "lcontorl";
+        case GLFW_KEY_LEFT_ALT: return "lalt";
+        case GLFW_KEY_LEFT_SUPER: return "lsuper";
+        case GLFW_KEY_RIGHT_SHIFT: return "rshift";
+        case GLFW_KEY_RIGHT_CONTROL: return "rcontorl";
+        case GLFW_KEY_RIGHT_ALT: return "ralt";
+        case GLFW_KEY_RIGHT_SUPER: return "rsuper";
+        case GLFW_KEY_MENU: return "menu";
+        case GLFW_KEY_UNKNOWN:
+        default: return "unknown";
+    }
 }
 
 static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
     if (window != game_window) return;
-    PlatformButton button = get_pbutton(key);
-    if (button == PBUTTON_OTHER) return;
-    PlatformButtonAction pba = action == GLFW_PRESS ? PBA_DOWN : PBA_UP;
-    if (action == GLFW_PRESS) {
-        button_flags |= (1 << button);
-    } else {
-        button_flags &= ~(1 << button);
-    }
-    if (current_state.button) {
-        current_state.button(button, pba);
-    }
-}
-
-static double xmold = 0, ymold = 0;
-static int cursor_tracking_started = 0;
-static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
-    if (window != game_window) return;
-    if (!cursor_tracking_started) {
-        cursor_tracking_started = 1;
-        xmold = xpos; ymold = ypos;
-    } else {
-        if (pointer_mode == PPOINTERMODE_LOCKED) {
-            platform_axes[0] = (xpos - xmold) * _platform_delta;
-            platform_axes[1] = (ypos - ymold) * _platform_delta;
-            xmold = xpos;
-            ymold = ypos;
-        } else if (pointer_mode == PPOINTERMODE_FREE) {
-            platform_axes[0] = _platform_width * 2 / xpos - 1;
-            platform_axes[1] = _platform_height * 2 / ypos - 1;
-        } else { // PPOINTERMODE_PIXEL
-            platform_axes[0] = xpos;
-            platform_axes[1] = ypos;
-        }
-    }
-}
-
-void platform_set_pointer_mode(PlatformPointerMode mode) {
-    if (pointer_mode == mode) return;
-    pointer_mode = mode;
-    cursor_tracking_started = 0;
-    if (mode == PPOINTERMODE_LOCKED) {
-        glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        platform_axes[0] = platform_axes[1] = 0;
-    } else {
-        glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
+    luai_event(&les_keyboard, platform_get_key(key), platform_get_action(action), (double) scancode, (double) mods);
 }
 
 static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods) {
     if (window != game_window) return;
-    PlatformButton b = PBUTTON_OTHER;
-    if (button == GLFW_MOUSE_BUTTON_LEFT) b = PBUTTON_S1;
-    if (button == GLFW_MOUSE_BUTTON_RIGHT) b = PBUTTON_S2;
-    PlatformButtonAction pba = PBA_HOLD;
-    switch(action) {
-        case GLFW_PRESS:
-            pba = PBA_DOWN;
-            button_flags |= (1 << b);
-            break;
-        case GLFW_RELEASE:
-            pba = PBA_UP;
-            button_flags &= ~(1 << b);
-            break;
-        default:
-            break;
-    }
-    if (current_state.button)
-        current_state.button(b, pba);
-}
-
-static inline int ckey(int k) {
-    return GLFW_PRESS == glfwGetKey(game_window, k);
-}
-
-static void process_down_keys() {
-    int left = ckey(GLFW_KEY_A) || ckey(GLFW_KEY_LEFT);
-    int right = ckey(GLFW_KEY_D) || ckey(GLFW_KEY_RIGHT);
-    int up = ckey(GLFW_KEY_W) || ckey(GLFW_KEY_UP);
-    int down = ckey(GLFW_KEY_S) || ckey(GLFW_KEY_DOWN);
-    platform_axes[2] = (left && !right) ? -1.0f : 0.0f;
-    platform_axes[2] = (!left && right) ? 1.0f : platform_axes[2];
-    platform_axes[3] = (down && !up) ? -1.0f : 0.0f;
-    platform_axes[3] = (!down && up) ? 1.0f : platform_axes[3];
-    if (current_state.button)
-        for (int i = 0; i < PBUTTON_OTHER; i++)
-            if (button_flags & (1 << i))
-                current_state.button(i, PBA_HOLD);
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    luai_event(&les_mouse, (double) button, platform_get_action(action), xpos, ypos);
 }
 
 static void window_resize_callback(int width, int height) {
-    Gamestate gs = current_state;
     glViewport(0, 0, width, height);
     _platform_width = width;
     _platform_height = height;
     mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
-    scene_resize(width, height);
-    if (gs.resize)
-        gs.resize(width, height);
+    luai_event(&les_resize, (double) width, (double) height);
 }
 
 static void error_callback(int error, const char * message) {
     fprintf(stderr, "Error code %d: ", error);
     uerr(message);
 }
+
+void platform_mainloop() {
+    double frametime = 0;
+    double last_frametime = 0;
+
+    int framecount = 0;
+    double fps_check_time = glfwGetTime();
+
+    while (!glfwWindowShouldClose(game_window)) {
+        int width, height;
+        glfwGetFramebufferSize(game_window, &width, &height);
+        if (width != _platform_width && height != _platform_height) {
+            window_resize_callback(width, height);
+        }
+        framecount++;
+        last_frametime = frametime;
+        frametime = glfwGetTime();
+        glfwSwapBuffers(game_window);
+        glfwPollEvents();
+        _platform_delta = frametime - last_frametime;
+        if (frametime > fps_check_time + 1) {
+            _platform_fps = framecount / (frametime - fps_check_time);
+            framecount = 0;
+            fps_check_time = frametime;
+            luai_event(&les_tick);
+        }
+        luai_event(&les_update, _platform_delta);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        luai_event(&les_draw);
+        console_draw();
+    }
+}
+
+void platform_exit() {
+    glfwSetWindowShouldClose(game_window, 1);
+}
+
+// LUA INTEROP
+
+static int luai_platform_quit(lua_State * L) {
+    platform_exit();
+    return 0;
+}
+
+// INITIALIZATION / DEINITIALIZATION
 
 void platform_init() {
 
@@ -423,78 +408,38 @@ void platform_init() {
     // Initialize input
     glfwSetKeyCallback(game_window, &key_callback);
     glfwSetMouseButtonCallback(game_window, &mouse_button_callback);
-    glfwSetCursorPosCallback(game_window, &cursor_position_callback);
     glfwSetInputMode(game_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Misc
     mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
+
+    luai_init();
+    const luaL_Reg module[] = {
+        {"quit", luai_platform_quit},
+        {NULL, NULL}
+    };
+    luai_addtomainmodule(module);
     console_init();
     qd_init();
     audio_init();
-    luai_init();
+    fntdraw_loadlib();
+
+    luai_doresource("scripts/bootstrap.lua");
 
     luai_event(&les_load);
-}
-
-void platform_mainloop(Gamestate * initial_state) {
-    current_index = 0;
-    memset(&current_state, 0, sizeof(Gamestate));
-    gamestate_switch(initial_state);
-    double frametime = 0;
-    double last_frametime = 0;
-
-    int framecount = 0;
-    double fps_check_time = glfwGetTime();
-
-    while (!glfwWindowShouldClose(game_window)) {
-
-        int width, height;
-        glfwGetFramebufferSize(game_window, &width, &height);
-        if (width != _platform_width && height != _platform_height) {
-            window_resize_callback(width, height);
-        }
-        framecount++;
-        last_frametime = frametime;
-        frametime = glfwGetTime();
-        glfwSwapBuffers(game_window);
-        if (pointer_mode == PPOINTERMODE_LOCKED)
-            platform_axes[0] = platform_axes[1] = 0.0f;
-        glfwPollEvents();
-        process_down_keys();
-        _platform_delta = frametime - last_frametime;
-        if (frametime > fps_check_time + 1) {
-            _platform_fps = framecount / (frametime - fps_check_time);
-            framecount = 0;
-            fps_check_time = frametime;
-            if (current_state.updateTick) {
-                current_state.updateTick();
-            }
-            luai_event(&les_tick);
-        }
-        gamestate_update(_platform_delta);
-        luai_event(&les_update, _platform_delta);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        gamestate_draw();
-        luai_event(&les_draw);
-        console_draw();
-    }
 }
 
 void platform_deinit() {
 
     luai_event(&les_unload);
 
-    luai_deinit();
     console_deinit();
     qd_deinit();
     audio_deinit();
 
-    if (current_state.deinit) current_state.deinit();
+    luai_deinit();
+
     glfwDestroyWindow(game_window);
     glfwTerminate();
 
-}
-
-void platform_exit() {
-    glfwSetWindowShouldClose(game_window, 1);
 }

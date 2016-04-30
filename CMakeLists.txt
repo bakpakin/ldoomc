@@ -29,7 +29,6 @@ src/mesh.c
 src/texture.c
 src/camera.c
 src/fntdraw.c
-src/arenastate.c
 src/quickdraw.c
 src/scene.c
 src/mob.c

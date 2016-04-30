@@ -1,10 +1,10 @@
 #include "fntdraw.h"
 #include "platform.h"
-
-#include <stdlib.h>
+#include "luainterop.h"
 #include "shader.h"
 #include "util.h"
 #include <stdarg.h>
+#include <stdlib.h>
 
 #define CHAR_VERT_SIZE 8
 #define CHAR_SIZE (CHAR_VERT_SIZE * 4)
@@ -187,20 +187,16 @@ static const char text_shader_source[] =
 "#endif\n";
 
 static void text_shader_init() {
-
     // Distance Field;
     program_init_quick(&text_shader_program, text_shader_source);
-
     shader_tex_loc = glGetUniformLocation(text_shader_program.id, "tex");
     shader_mvp_loc = glGetUniformLocation(text_shader_program.id, "mvp");
     shader_offset_loc = glGetUniformLocation(text_shader_program.id, "offset");
     shader_color_loc = glGetUniformLocation(text_shader_program.id, "textcolor");
     shader_smoothing_loc = glGetUniformLocation(text_shader_program.id, "smoothing");
     shader_threshold_loc = glGetUniformLocation(text_shader_program.id, "threshold");
-
     // No Distace Field
     program_init_quick(&text_shader_nodf_program, text_shader_nodf_source);
-
     nodf_shader_tex_loc = glGetUniformLocation(text_shader_nodf_program.id, "tex");
     nodf_shader_mvp_loc = glGetUniformLocation(text_shader_nodf_program.id, "mvp");
     nodf_shader_offset_loc = glGetUniformLocation(text_shader_nodf_program.id, "offset");
@@ -208,10 +204,8 @@ static void text_shader_init() {
 }
 
 static void text_shader_deinit() {
-
     program_deinit(&text_shader_program);
     program_deinit(&text_shader_nodf_program);
-
 }
 
 // Text Shaders end
@@ -230,19 +224,19 @@ static int is_eol(const char c) {
 }
 
 static int is_whitespace(const char c) {
-    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+    return c <= 32;
 }
 
 static void skip_whitespace_notabs(const char ** p) {
     const char * c = *p;
-    while (*c == ' '|| *c == '\n' || *c == '\r')
+    while (*c > 32 && *c != '\t')
         c++;
     *p = c;
 }
 
 static void skip_nonwhitespace(const char ** p) {
     const char * c = *p;
-    while (*c != ' ' && *c != '\t' && *c != '\n' && *c != '\r' && *c != 0)
+    while (*c > 32)
         c++;
     *p = c;
 }
@@ -342,79 +336,59 @@ static void resolve_path_name(const char * path, const char * file, char * buf, 
     unsigned filelen = strlen(file);
     if (filelen + pathlen + 1 > max_len)
         uerr("Buffer overflow.");
-
     strncpy(buf, path, max_len);
     strncpy(buf + (c - path ) + 1, file, max_len - (c - path) - 1);
 }
 
 FontDef * fnt_init(FontDef * fd, const char * resource) {
-
-#define BUFLEN 200
-
-    char path[BUFLEN];
-    platform_res2file(resource, path, BUFLEN);
-
+    char * path = platform_res2file_ez(resource);
     if (fntdef_count == 0) {
         text_shader_init();
     }
     fntdef_count++;
-
+    static const size_t BUFLEN = 100;
     char buf[BUFLEN];
-
     long source_len;
     char * source = util_slurp(path, &source_len);
     const char * srcp = source;
-
     // Extract basic font def information.
     line_find_value(srcp, "size", buf, BUFLEN);
     fd->size = atoi(buf);
     srcp = line_next(srcp);
-
     // Get some more basic information on the next line.
     line_find_value(srcp, "lineHeight", buf, BUFLEN);
     fd->lineHeight = atof(buf);
     line_find_value(srcp, "base", buf, BUFLEN);
     fd->base = atof(buf);
     srcp = line_next(srcp);
-
     // Get the texture
     line_find_value(srcp, "file", buf, BUFLEN);
-
     char buf2[BUFLEN];
     resolve_path_name(path, buf, buf2, BUFLEN);
     texture_init_file(&fd->tex, buf2, -1);
     srcp = line_next(srcp);
-
     // Get the number of characters
     line_find_value(srcp, "count", buf, BUFLEN);
     fd->charcount = atoi(buf);
-
     FontCharDef * cd = fd->chars = calloc(256, sizeof(FontCharDef));
-
     for(;;) {
-
         srcp = line_next(srcp);
         if (!srcp || (line_get_type(srcp) != FNT_CHAR_TYPE)) {
             break;
         }
-
         unsigned id;
         unsigned x, y, w, h;
         float xoff, yoff, xadvance;
-
         line_find_value(srcp, "id", buf, BUFLEN); id = atoi(buf);
         line_find_value(srcp, "x", buf, BUFLEN); x = atoi(buf);
         line_find_value(srcp, "y", buf, BUFLEN); y = atoi(buf);
         line_find_value(srcp, "width", buf, BUFLEN); w = atoi(buf);
         line_find_value(srcp, "height", buf, BUFLEN); h = atoi(buf);
-
         line_find_value(srcp, "xoffset", buf, BUFLEN); xoff = atof(buf);
         line_find_value(srcp, "yoffset", buf, BUFLEN); yoff = atof(buf);
         line_find_value(srcp, "xadvance", buf, BUFLEN); xadvance = atof(buf);
-
         // Ignore non ascii and extended characters. Unicode support would be awesome, though.
         if (id > 255) continue;
-
         cd[id].valid = 1;
         cd[id].x = x;
         cd[id].y = y;
@@ -424,9 +398,7 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
         cd[id].yoffset = yoff;
         cd[id].xadvance = xadvance;
         cd[id].kerning.data = NULL;
-
     }
-
     // Infer tabs to be 4 x spaces
     if (!cd[9].valid && cd[32].valid) {
         cd[9].valid = 1;
@@ -439,45 +411,32 @@ FontDef * fnt_init(FontDef * fd, const char * resource) {
         cd[9].xadvance = 4 * cd[32].xadvance;
         cd[9].kerning.data = NULL;
     }
-
     if (srcp)  {
-
         line_find_value(srcp, "count", buf, BUFLEN);
         int kerningcount = atoi(buf);
-
         for (int ii = 0; ii < kerningcount; ii++) {
             srcp = line_next(srcp);
-
             line_find_value(srcp, "first", buf, BUFLEN);
             unsigned long first = atoi(buf);
             line_find_value(srcp, "second", buf, BUFLEN);
             unsigned long second = atoi(buf);
             line_find_value(srcp, "amount", buf, BUFLEN);
             float amount = atof(buf);
-
             SparseArray * sa = (SparseArray *) &cd[first].kerning;
-
             if (!sa->data)
                 sarray_init(sa, 10);
 
             sarray_set(sa, second, amount);
-
         }
-
         for (int id = 0; id < 128; id++) {
             if (cd[id].valid && cd[id].kerning.data) {
                 sarray_trim((SparseArray *) &cd[id].kerning);
             }
         }
-
     }
-
     free(source);
-
+    uqfree_if_needed();
     return fd;
-
-#undef BUFLEN
-
 }
 
 // File Reader end
@@ -578,8 +537,9 @@ static float get_kerning(FontCharDef * fcd, unsigned long next) {
 // Count the number of lines that need to be rendered in order to fit
 // in the space given. This includes newlines and linebreaks inserted
 // when a word goes outside the clip width.
+// This algorithm was a pain in the ass. It's probably broken or "improvable"
+// In some ways, but be warned. Here be dragons.
 static void calc_wrap(Text * t) {
-
     const char * text = t->text;
     const FontDef * fd = t->fontdef;
     float max_width = t->max_width;
@@ -587,7 +547,6 @@ static void calc_wrap(Text * t) {
     int escape = t->flags & FNTDRAW_TEXT_MARKUP_BIT;
     unsigned capacity;
     TextLine * lines;
-
     if (t->lines) { // We're just refilling the old line buffer
         capacity = t->line_count;
         lines = t->lines;
@@ -595,19 +554,17 @@ static void calc_wrap(Text * t) {
         capacity = 10;
         lines = malloc(capacity * sizeof(TextLine));
     }
-
     unsigned line = 0;
-    unsigned lineCharCount = 0;
-    float current_length = 0.0f;
-    float valid_length = 0.0f;
+    unsigned lineCharCount, lastLineCharCount;
+    float current_length, valid_length;
     const char * first, *  last;
     first = text;
-    while (*first != '\0') {
+    while (*first) {
         if (line >= capacity) {
             capacity = line * 2;
             lines = realloc(lines, capacity * sizeof(TextLine));
         }
-        lineCharCount = 0;
+        lastLineCharCount = 0;
         valid_length = current_length = 0;
         const char * next, * current;
         current = last = first_printable_token(first, escape);
@@ -617,7 +574,7 @@ static void calc_wrap(Text * t) {
         FontCharDef * fcd = fd->chars + *current; if (!fcd->valid) fcd = fd->chars + ' ';
         valid_length = current_length = fcd->xadvance * scale;
         next = first_printable_token(current + 1, escape);
-        lineCharCount = 1;
+        lastLineCharCount = lineCharCount = 1;
         for(;;) {
             if (is_eol(*next)) {
                 break;
@@ -626,18 +583,26 @@ static void calc_wrap(Text * t) {
             float kerning = get_kerning(fcd, *next);
             current_length += (fcd->xadvance + kerning) * scale;
             lineCharCount++;
-            if (max_width != 0 && current_length > max_width) break;
+            if (max_width != 0 && current_length > max_width){
+                if (lastLineCharCount == 1) { // Prevent really long lines from splitting into too many lines
+                    valid_length = current_length - (fcd->xadvance + kerning) * scale;
+                    lastLineCharCount = lineCharCount - 1;
+                    last = current;
+                }
+                break;
+            }
             current = next;
             next = first_printable_token(current + 1, escape);
             if (is_whitespace(*next) || is_eol(*next)) {
                 valid_length = current_length;
+                lastLineCharCount = lineCharCount;
                 last = current;
             }
         }
         lines[line].first = first - text;
         lines[line].last = last - text;
         lines[line].width = valid_length;
-        lines[line].visibleCharCount = lineCharCount;
+        lines[line].visibleCharCount = lastLineCharCount;
         line++;
         first = last + 1;
         skip_whitespace_notabs(&first);
@@ -667,25 +632,19 @@ static unsigned read_hex_digit(const char * c) {
 }
 
 static void fill_buffers(Text * t) {
-
     float xcurrent = 0;
     float ycurrent = 0;
-
     unsigned index = 0;
     GLushort * els = t->elementBuffer;
     GLfloat * vs = t->vertexBuffer;
-
     float tw = t->fontdef->tex.w;
     float th = t->fontdef->tex.h;
     float invtw = 1.0f / tw;
     float invth = 1.0f / th;
-
     float max_width = t->max_width;
     float scale = t->pt / (double) t->fontdef->size;
-
     float kerning = 0.0f;
     float vcolor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-
     switch (t->valign) {
         case ALIGN_TOP:
             ycurrent = 0.0f;
@@ -699,11 +658,8 @@ static void fill_buffers(Text * t) {
         default:
             break;
     }
-
     for (unsigned i = 0; i < t->line_count; i++) {
-
         TextLine tl = t->lines[i];
-
         switch(t->halign) {
             case ALIGN_LEFT:
                 xcurrent = 0.0f;
@@ -718,15 +674,11 @@ static void fill_buffers(Text * t) {
                 xcurrent = 0.0f;
                 break;
         }
-
         // Make a quad for each letter of the line.
         for (unsigned j = tl.first; j <= tl.last; j++) {
-
             char c = t->text[j];
-
             // Test for special characters (Escape character)
             if ((t->flags & FNTDRAW_TEXT_MARKUP_BIT) && c == FNTDRAW_ESCAPE) {
-
                 c = t->text[++j];
                 switch(c) {
                     case FNTDRAW_ALPHA:
@@ -746,50 +698,40 @@ static void fill_buffers(Text * t) {
                     default:
                         break;
                 }
-
             }
-
             FontCharDef * fcd = t->fontdef->chars + c;
             if (!fcd->valid) {
                 fcd = t->fontdef->chars + ' ';
             }
             kerning = get_kerning(fcd, t->text[j + 1]);
-
             float x1 = xcurrent + fcd->xoffset * scale;
             float x2 = x1 + fcd->w * scale;
             float y1 = ycurrent + fcd->yoffset * scale;
             float y2 = y1 + fcd->h * scale;
-
             float u1 = fcd->x * invtw;
             float u2 = u1 + fcd->w * invtw;
             float v1 = fcd->y * invth;
             float v2 = v1 + fcd->h * invth;
-
             GLfloat * tmp_vs = vs;
-
             // Neg x, Neg y corner
             tmp_vs[0] = x1; tmp_vs[1] = y1; tmp_vs[2] = u1; tmp_vs[3] = v1;
             tmp_vs += CHAR_VERT_SIZE;
-
             // Neg x, Pos y corner
             tmp_vs[0] = x1; tmp_vs[1] = y2; tmp_vs[2] = u1; tmp_vs[3] = v2;
             tmp_vs += CHAR_VERT_SIZE;
-
             // Pos x, Neg y corner
             tmp_vs[0] = x2; tmp_vs[1] = y1; tmp_vs[2] = u2; tmp_vs[3] = v1;
             tmp_vs += CHAR_VERT_SIZE;
-
             // Pos x, Pos y corner
             tmp_vs[0] = x2; tmp_vs[1] = y2; tmp_vs[2] = u2; tmp_vs[3] = v2;
             tmp_vs += CHAR_VERT_SIZE;
-
+            // Set elements in buffer
             els[0] = index + 0;
             els[1] = index + 1;
             els[2] = index + 2;
             els[3] = index + 1;
             els[4] = index + 3;
             els[5] = index + 2;
-
             // Per Character attributes
             for(int ii = 0; ii < 4; ii++) {
                 vs[CHAR_VERT_SIZE * ii + 4] = vcolor[0];
@@ -797,77 +739,57 @@ static void fill_buffers(Text * t) {
                 vs[CHAR_VERT_SIZE * ii + 6] = vcolor[2];
                 vs[CHAR_VERT_SIZE * ii + 7] = vcolor[3];
             }
-
             // Increment the pointers for the next letter quad.
             vs += CHAR_SIZE;
             els += 6;
             index += 4;
-
+            // Move the location of the next character to the right.
             xcurrent += (fcd->xadvance + kerning) * scale;
         }
-
+        // Move the next line down.
         ycurrent += t->fontdef->lineHeight * scale;
-
     }
 }
 
 static void text_buffer_data(Text * t) {
-
     GLenum drawtype = (t->flags & FNTDRAW_TEXT_DYNAMIC_BIT) ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
-
     glBindBuffer(GL_ARRAY_BUFFER, t->VBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, t->EBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * CHAR_SIZE * t->num_quads, t->vertexBuffer, drawtype);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * 6 * t->num_quads, t->elementBuffer, drawtype);
-
 }
 
 void text_loadbuffer(Text * t) {
-
     if (t->flags & FNTDRAW_TEXT_LOADED_BIT) {
         return;
     }
-
     t->flags |= FNTDRAW_TEXT_LOADED_BIT;
-
     glGenBuffers(1, &t->VBO);
     glGenBuffers(1, &t->EBO);
     glGenVertexArrays(1, &t->VAO);
-
     glBindVertexArray(t->VAO);
-
     text_buffer_data(t);
-
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, CHAR_VERT_SIZE * sizeof(GL_FLOAT), 0);
-
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, CHAR_VERT_SIZE * sizeof(GL_FLOAT), (GLvoid *)(2 * sizeof(GL_FLOAT)));
-
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, CHAR_VERT_SIZE * sizeof(GL_FLOAT), (GLvoid *)(4 * sizeof(GL_FLOAT)));
-
     glBindVertexArray(0);
-
 }
 
 void text_unloadbuffer(Text * t) {
-
     if (!(t->flags & FNTDRAW_TEXT_LOADED_BIT)) {
         return;
     }
-
     t->flags &= ~FNTDRAW_TEXT_LOADED_BIT;
-
     glBindVertexArray(0);
     glDeleteBuffers(1, &t->VBO);
     glDeleteBuffers(1, &t->EBO);
     glDeleteVertexArrays(1, &t->VAO);
-
 }
 
 static void text_init_common(Text * t, const TextOptions * options, size_t slen) {
-
     // Initilaize basic variables
     t->flags = (options->dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0) |
                (options->useMarkup ? FNTDRAW_TEXT_MARKUP_BIT : 0);
@@ -883,15 +805,12 @@ static void text_init_common(Text * t, const TextOptions * options, size_t slen)
         t->color[i] = options->startColor[i];
     for (int i = 0; i < 2; i++)
         t->position[0] = options->position[i];
-
     // Get the number of lines and store the line buffer.
     t->lines = NULL;
     t->line_count = 0;
     calc_wrap(t);
-
     // Calculate how many quads need to be drawn.
     t->num_quads = calc_num_quads(t);
-
     // Allocate vertex buffers
     size_t vbuf_size = sizeof(GLfloat) * CHAR_SIZE * t->num_quads;
     size_t ebuf_size = sizeof(GLushort) * 6 * t->num_quads;
@@ -899,7 +818,6 @@ static void text_init_common(Text * t, const TextOptions * options, size_t slen)
     t->vertexBuffer = (ptr);
     t->elementBuffer = (ptr + vbuf_size);
     t->quad_capacity = t->num_quads;
-
     fill_buffers(t);
     text_loadbuffer(t);
 }
@@ -921,17 +839,13 @@ static int text_set_formatv_impl(Text * t, const char * format, va_list list) {
 }
 
 Text * text_init(Text * t, const TextOptions * options, const char * text) {
-
     size_t slen = strlen(text);
-
     // Allocate text buffer
     t->text = malloc(slen + 1);
     t->text_capacity = slen;
     t->text_length = slen;
     memcpy(t->text, text, slen + 1);
-
     text_init_common(t, options, slen);
-
     return t;
 }
 
@@ -973,16 +887,13 @@ Text * text_init_multi(Text * t, const TextOptions * options, int n, const char 
 }
 
 void text_deinit(Text * t) {
-
     text_unloadbuffer(t);
-
     free(t->text);
     free(t->vertexBuffer);
     free(t->lines);
 }
 
 static void update_buffers(Text * t) {
-
     unsigned new_num_quads = calc_num_quads(t);
     if (new_num_quads > t->quad_capacity) {
         t->quad_capacity = new_num_quads;
@@ -992,29 +903,21 @@ static void update_buffers(Text * t) {
         t->vertexBuffer = (ptr);
         t->elementBuffer = (ptr + vbuf_size);
     }
-
     t->num_quads = new_num_quads;
-
     fill_buffers(t);
-
     if (t->flags & FNTDRAW_TEXT_LOADED_BIT)
         text_buffer_data(t);
-
 }
 
 void text_set(Text * t, const char * newtext) {
-
     unsigned slen = strlen(newtext);
     t->text_length = slen;
-
     if (slen > t->text_capacity) {
         t->text_capacity = slen;
         t->text = realloc(t->text, slen + 1);
     }
     memcpy(t->text, newtext, slen + 1);
-
     calc_wrap(t);
-
     update_buffers(t);
 }
 
@@ -1048,22 +951,16 @@ void text_set_multi(Text * t, int n, const char * separator, const char ** messa
 }
 
 static void bind_shader(const Text * t, const mat4 mvp) {
-
     if (t->flags & FNTDRAW_TEXT_NODF_BIT) {
-
         glUseProgram(text_shader_nodf_program.id);
-
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
         glUniform1i(nodf_shader_tex_loc, 0);
         glUniform4fv(nodf_shader_color_loc, 1, t->color);
         glUniform2fv(nodf_shader_offset_loc, 1, t->position);
         glUniformMatrix4fv(nodf_shader_mvp_loc, 1, GL_FALSE, mvp);
-
     } else {
-
         glUseProgram(text_shader_program.id);
-
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, t->fontdef->tex.id);
         glUniform1i(shader_tex_loc, 0);
@@ -1072,18 +969,14 @@ static void bind_shader(const Text * t, const mat4 mvp) {
         glUniformMatrix4fv(shader_mvp_loc, 1, GL_FALSE, mvp);
         glUniform1f(shader_smoothing_loc, t->smoothing);
         glUniform1f(shader_threshold_loc, t->threshold);
-
     }
 }
 
 void text_draw(Text * t, const mat4 mvp) {
-
     bind_shader(t, mvp);
-
     glBindVertexArray(t->VAO);
     glDrawElements(GL_TRIANGLES, t->num_quads * 6, GL_UNSIGNED_SHORT, 0);
     glBindVertexArray(0);
-
 }
 
 void text_draw_screen(Text * t) {
@@ -1091,17 +984,13 @@ void text_draw_screen(Text * t) {
 }
 
 void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length) {
-
     if (start + length > t->text_length) {
         uerr("Range not renderable.");
     }
-
     bind_shader(t, mvp);
-
     glBindVertexArray(t->VAO);
     glDrawElements(GL_TRIANGLES, length * 6, GL_UNSIGNED_SHORT, (GLvoid *)(start * 6 * sizeof(GLushort)));
     glBindVertexArray(0);
-
 }
 
 void text_draw_range_screen(Text * t, unsigned start, unsigned length) {
@@ -1213,6 +1102,95 @@ char * textutil_join(int n, const char ** parts, const char * sep) {
     char * buf = malloc(fntdraw_string_join_len(n, parts, sep) + 1);
     fntdraw_string_join(buf, n, parts, sep);
     return buf;
+}
+
+// LUA INTEROP
+
+static TextOptions fntdraw_lua_default_options;
+
+static FontDef * luai_fnt_check(lua_State * L) {
+    void * ud = luaL_checkudata(L, 1, "ldoom.Font");
+    luaL_argcheck(L, ud != NULL, 1, "'ldoom.Font' expected.");
+    return (FontDef *) ud;
+}
+
+static int luai_fntdraw_loadfont(lua_State * L) {
+    const char * resource = lua_tostring(L, -1);
+    FontDef * fd = lua_newuserdata(L, sizeof(FontDef));
+    luaL_getmetatable(L, "ldoom.Font");
+    lua_setmetatable(L, -2);
+    fnt_init(fd, resource);
+    return 1;
+}
+
+static int luai_fntdraw_deinit(lua_State * L) {
+    FontDef * fd = luai_fnt_check(L);
+    if (fd)
+        fnt_deinit(fd);
+    return 0;
+}
+
+static int luai_fnt_maketext(lua_State * L) {
+    FontDef * fd = luai_fnt_check(L);
+    if (fd) {
+        TextOptions * to = &fntdraw_lua_default_options;
+        to->font = fd;
+        // TODO: Use custom text otions if provided.
+        Text * text = lua_newuserdata(L, sizeof(Text));
+        luaL_getmetatable(L, "ldoom.Text");
+        lua_setmetatable(L, -1);
+        text_init(text, to, "Hello?");
+        return 1;
+    }
+    return 0;
+}
+
+static Text * luai_text_check(lua_State * L) {
+    void * ud = luaL_checkudata(L, 1, "ldoom.Text");
+    luaL_argcheck(L, ud != NULL, 1, "'ldoom.Text' expected.");
+    return (Text *) ud;
+}
+
+static int luai_text_draw(lua_State * L) {
+    Text * t = luai_text_check(L);
+    if (t) {
+        text_draw_screen(t);
+    }
+    return 0;
+}
+
+static int luai_text_deinit(lua_State * L) {
+    Text * t = luai_text_check(L);
+    if (t)
+        text_deinit(t);
+    return 0;
+}
+
+void fntdraw_loadlib() {
+    fnt_default_options(NULL, &fntdraw_lua_default_options);
+    const luaL_Reg textmethods[] = {
+        {"draw", luai_text_draw},
+        {NULL, NULL}
+    };
+    const luaL_Reg textmetamethods[] = {
+        {"__gc", luai_text_deinit},
+        {NULL, NULL}
+    };
+    const luaL_Reg fontmethods[] = {
+        {"newText", luai_fnt_maketext},
+        {NULL, NULL}
+    };
+    const luaL_Reg fontmetamethods[] = {
+        {"__gc", luai_fntdraw_deinit},
+        {NULL, NULL}
+    };
+    const luaL_Reg module[] = {
+        {"loadFont", luai_fntdraw_loadfont},
+        {NULL, NULL}
+    };
+    luai_newclass("ldoom.Text", textmethods, textmetamethods);
+    luai_newclass("ldoom.Font", fontmethods, fontmetamethods);
+    luai_addsubmodule("text", module);
 }
 
 #undef CHAR_VERT_SIZE

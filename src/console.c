@@ -4,6 +4,7 @@
 #include "ldmath.h"
 #include "quickdraw.h"
 #include "util.h"
+#include "luainterop.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,8 +37,6 @@ static size_t console_write_buffer_len = 0;
 
 static char console_visible = 1;
 
-static const char * CONSOLE_TIME_STR = "$@F00%T:$@FFF ";
-
 static inline float textpad(Text * t) {
     return t->line_count * (console_fd.lineHeight / console_fd.size * t->pt + CONSOLE_PADDING);
 }
@@ -57,26 +56,16 @@ void console_logv(const char * format, va_list args) {
     Text * next = nth_history(history_len);
     if (history_len == history_capacity) {
         history_start = (history_start + 1) % history_capacity;
-        history_ysize -= textpad(next);
+        float old_tpad = textpad(next);
         text_set_formatv(next, format, args);
-        history_ysize += textpad(next);
+        history_ysize += textpad(next) - old_tpad;
     } else {
         history_len++;
         text_init_formatv(next, &console_text_options, format, args);
         history_ysize += textpad(next);
     }
-}
-
-void console_logn(int n, const char ** args) {
-    Text * next = nth_history(history_len);
-    if (history_len == history_capacity) {
-        history_start = (history_start + 1) % history_capacity;
-        history_ysize -= textpad(next);
-        text_set_multi(next, n, "\t", args);
-        history_ysize += textpad(next);
-    } else {
-        history_len++;
-        text_init_multi(next, &console_text_options, n, "\t", args);
+    if (next->line_count == 0) {
+        text_set(next, " ");
         history_ysize += textpad(next);
     }
 }
@@ -148,8 +137,89 @@ void console_set_visible(int visible) {
     console_visible = visible;
 }
 
-void console_init() {
+void console_push(const char * string) {
+    console_pushn(string, strlen(string));
+}
 
+void console_pushn(const char * string, size_t n) {
+    size_t oldlen = console_write_buffer_len;
+    console_write_buffer_len = oldlen + n;
+    if (console_write_buffer_len > console_write_buffer_capacity) {
+        console_write_buffer_capacity = console_write_buffer_len * 1.5 + 1;
+        console_write_buffer = realloc(console_write_buffer, console_write_buffer_capacity + 1);
+    }
+    strcpy(console_write_buffer + oldlen, string);
+}
+
+void console_flush(int useMarkup) {
+    if (console_write_buffer_len == 0) return;
+    if (!useMarkup) {
+        size_t newlen = textutil_get_escapedlength(console_write_buffer);
+        if (newlen > console_write_buffer_capacity) {
+            console_write_buffer_capacity = newlen;
+            console_write_buffer = realloc(console_write_buffer, newlen + 1);
+        }
+        textutil_escape_inplace(console_write_buffer, newlen + 1);
+    }
+    console_log("%s", console_write_buffer);
+    console_write_buffer_len = 0;
+}
+
+void console_clearflush() {
+    console_write_buffer_len = 0;
+}
+
+// LUA INTEROP
+
+int luai_console_log_impl(lua_State * L) {
+    int n = lua_gettop(L);  /* number of arguments */
+    int i;
+    lua_getglobal(L, "tostring");
+    for (i=1; i<=n; i++) {
+        const char *s;
+        size_t l;
+        lua_pushvalue(L, -1);  /* function to be called */
+        lua_pushvalue(L, i);   /* value to print */
+        lua_call(L, 1, 1);
+        s = lua_tolstring(L, -1, &l);  /* get result */
+        if (s == NULL) {
+            console_clearflush();
+            return luaL_error(L,
+                    LUA_QL("tostring") " must return a string to " LUA_QL("print"));
+        }
+        if (i>1) console_pushn("\t", 1);
+        console_pushn(s, l);
+        lua_pop(L, 1);  /* pop result */
+    }
+    return 0;
+}
+
+int luai_console_log(lua_State * L) {
+    console_clearflush();
+    int result = luai_console_log_impl(L);
+    console_flush(0);
+    return result;
+}
+
+int luai_console_logc(lua_State * L) {
+    console_clearflush();
+    int result = luai_console_log_impl(L);
+    console_flush(1);
+    return result;
+}
+
+void luai_console_loadlib() {
+    const luaL_Reg module[] = {
+        {"log", luai_console_log},
+        {"logc", luai_console_logc},
+        {NULL, NULL}
+    };
+    luai_addsubmodule("console", module);
+}
+
+// INITIALIZATION / DEINITIALIZATION
+
+void console_init() {
     fnt_init(&console_fd, CONSOLE_FONT_NAME);
     fnt_default_options(&console_fd, &console_text_options);
     console_text_options.width = CONSOLE_FONT_WIDTH;
@@ -168,10 +238,10 @@ void console_init() {
     console_write_buffer_len = 0;
     console_write_buffer = malloc(console_write_buffer_capacity + 1);
 
+    luai_console_loadlib();
 }
 
 void console_deinit() {
-
     fnt_deinit(&console_fd);
     for(unsigned i = 0; i < history_len; i++) {
         Text * t = history + ((history_start + i) % history_capacity);
@@ -180,48 +250,3 @@ void console_deinit() {
     free(history);
     free(console_write_buffer);
 }
-
-void console_push(const char * string) {
-    console_pushn(string, strlen(string));
-}
-
-void console_pushn(const char * string, size_t n) {
-    size_t oldlen = console_write_buffer_len;
-    console_write_buffer_len = oldlen + n;
-    if (console_write_buffer_len > console_write_buffer_capacity) {
-        console_write_buffer_capacity = console_write_buffer_len * 1.5 + 1;
-        console_write_buffer = realloc(console_write_buffer, console_write_buffer_capacity + 1);
-    }
-    strcpy(console_write_buffer + oldlen, string);
-}
-
-static void console_escape_buffer() {
-    size_t newlen = textutil_get_escapedlength(console_write_buffer);
-    if (newlen > console_write_buffer_capacity) {
-        console_write_buffer_capacity = newlen;
-        console_write_buffer = realloc(console_write_buffer, newlen + 1);
-    }
-    textutil_escape_inplace(console_write_buffer, newlen + 1);
-}
-
-void console_flush(int includeTime, int useMarkup) {
-    if (console_write_buffer_len == 0) return;
-    if (!useMarkup)
-        console_escape_buffer();
-    printf("Console buffer: %s\n", console_write_buffer);
-    if (includeTime) {
-        char pred[32];
-        time_t now = time(0);
-        struct tm * info = localtime(&now);
-        strftime(pred, 32, CONSOLE_TIME_STR, info);
-        console_log("%s%s", pred, console_write_buffer);
-    } else {
-        console_log("%s", console_write_buffer);
-    }
-    console_write_buffer_len = 0;
-}
-
-void console_clearflush() {
-    console_write_buffer_len = 0;
-}
-

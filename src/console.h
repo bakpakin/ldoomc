@@ -6,11 +6,10 @@
 
 void console_log(const char * format, ...);
 void console_logv(const char * format, va_list args);
-void console_logn(int n, const char ** args);
 
 void console_pushn(const char * string, size_t n);
 void console_push(const char * string);
-void console_flush(int includeTime, int useMarkup);
+void console_flush(int useMarkup);
 void console_clearflush();
 
 void console_init();

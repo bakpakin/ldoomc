@@ -77,26 +77,6 @@ static void ARS_deinit() {
     scene_deinit();
 }
 
-static void ARS_show() {
-
-}
-
-static void ARS_hide() {
-
-}
-
-static void ARS_button(PlatformButton b, PlatformButtonAction a) {
-    if (a == PBA_DOWN && b == PBUTTON_SYS) {
-        platform_set_pointer_mode(
-                platform_get_pointer_mode() == PPOINTERMODE_LOCKED ?
-                PPOINTERMODE_FREE : PPOINTERMODE_LOCKED);
-    } else if (b == PBUTTON_SPECIAL) {
-        platform_exit();
-    } else {
-        console_log("hi.");
-    }
-}
-
 static void ARS_update(double dt) {
     if (platform_get_pointer_mode() == PPOINTERMODE_LOCKED) {
         ARS_yaw -= platform_poll_axis(PAXIS_X1) * platform_delta() * 8;
@@ -127,19 +107,3 @@ static void ARS_draw() {
     qd_rgb(1, 0, 0);
     qd_circle(platform_width() / 2, platform_height() / 2, 30, 50, QD_LINELOOP);
 }
-
-static void ARS_updateTick() {
-
-}
-
-Gamestate arenastate = {
-    ARS_init,
-    ARS_deinit,
-    ARS_hide,
-    ARS_show,
-    ARS_update,
-    ARS_button,
-    ARS_draw,
-    NULL,
-    ARS_updateTick
-};

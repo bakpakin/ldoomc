@@ -1,9 +1,12 @@
-function ldoom.load()
+function levent.load()
     snd = ldoom.audio.loadOgg("snd.ogg")
-    ldoom.console.log "$@F0FHi"
-    ldoom.console.writec "Hi"
+    ldoom.console.logc "$@F0FHi"
 end
 
-function ldoom.tick()
-    snd:play()
+function levent.keyboard(key, action)
+    if key == "q" then
+        ldoom.quit()
+    end
+    ldoom.console.logc(string.byte(key), key, action)
+    snd:play("hello.")
 end
