@@ -25,6 +25,12 @@ under the global table `levent`.
 
 ### ldoom.console
 
+### ldoom.audio
+
+### ldoom.g3d
+
+### ldoom.g2d
+
 ### ldoom.text
 
 ### ldoom.math

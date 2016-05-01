@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 void console_log(const char * format, ...);
-void console_logv(const char * format, va_list args);
 
 void console_pushn(const char * string, size_t n);
 void console_push(const char * string);

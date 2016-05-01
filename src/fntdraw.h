@@ -109,19 +109,13 @@ TextOptions * fnt_default_options(FontDef * fd, TextOptions * out);
 
 Text * text_init(Text * t, const TextOptions * options, const char * text);
 
-Text * text_init_format(Text * t, const TextOptions * options, const char * format, ...);
+Text * text_initn(Text * t, const TextOptions * options, const char * string, size_t len);
 
-Text * text_init_formatv(Text * t, const TextOptions * options, const char * format, va_list args);
-
-Text * text_init_multi(Text * t, const TextOptions * options, int n, const char * separator, const char ** messages);
+Text * text_init_nocopy(Text * t, const TextOptions * options, char * text);
 
 void text_set(Text * t, const char * newtext);
 
-int text_set_format(Text * t, const char * format, ...);
-
-int text_set_formatv(Text * t, const char * format, va_list args);
-
-void text_set_multi(Text * t, int n, const char * separator, const char ** messages);
+void text_setn(Text * t, const char * string, size_t len);
 
 void text_deinit(Text * t);
 

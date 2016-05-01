@@ -227,13 +227,6 @@ static int is_whitespace(const char c) {
     return c <= 32;
 }
 
-static void skip_whitespace_notabs(const char ** p) {
-    const char * c = *p;
-    while (*c > 32 && *c != '\t')
-        c++;
-    *p = c;
-}
-
 static void skip_nonwhitespace(const char ** p) {
     const char * c = *p;
     while (*c > 32)
@@ -314,7 +307,7 @@ static const char * line_find_value(const char * str, const char * key, char * b
 static const char * line_next(const char * str) {
     if (str == NULL || *str == 0)
         return NULL;
-    while (*++str != '\n' && *str != 0)
+    while (*++str != '\n' && *str != '\r' && *str != 0)
         ;
     if (*str == 0)
         return NULL;
@@ -456,8 +449,8 @@ void fnt_deinit(FontDef * fd) {
 
 TextOptions * fnt_default_options(FontDef * fd, TextOptions * out) {
     out->width = 500;
-    out->halign = ALIGN_CENTER;
-    out->valign = ALIGN_CENTER;
+    out->halign = ALIGN_LEFT;
+    out->valign = ALIGN_TOP;
     out->font = fd;
     out->pt = 14;
     out->dynamic = 1;
@@ -476,28 +469,26 @@ static const char * first_printable_token(const char * c, int escape) {
         int n;
         switch(next) {
             case FNTDRAW_6COLOR:
-                n = 7;
-                // Skip 7 chracters, or until there is an end of string.
-                while(n-- && *++c)
-                    ;
-                return first_printable_token(c, 1);
+                n = 7; break;
             case FNTDRAW_3COLOR:
-                n = 4;
-                // Skip 4 chracters, or until there is an end of string.
-                while(n-- && *++c)
-                    ;
-                return first_printable_token(c, 1);
+                n = 4; break;
             case FNTDRAW_ALPHA:
-                n = 3;
-                // Skip 3 characters, or until there is an end of string.
-                while(n-- && *++c)
-                    ;
-                return first_printable_token(c, 1);
+                n = 3; break;
             default:
                 return c;
         }
+        while(n-- && *++c)
+            ;
+        return first_printable_token(c, escape);
     }
     return c;
+}
+
+static inline const char * next_token(const char * c, int escape) {
+    if (*c == '\0')
+        return c;
+    else
+        return first_printable_token(c + 1, escape);
 }
 
 static size_t fntdraw_string_join_len(int n, const char ** strings, const char * sep) {
@@ -526,26 +517,45 @@ static void fntdraw_string_join(char * buffer, int n, const char ** strings, con
     *current = 0;
 }
 
+#define CHARNONE ((unsigned long) -1)
+
 // Gets the kerning between two characters
-static float get_kerning(FontCharDef * fcd, unsigned long next) {
+static float get_kerning(const FontCharDef * fcd, unsigned long next) {
     if (!fcd->kerning.data)
         return 0.0f;
     SparseArray * sa = (SparseArray *) &fcd->kerning;
     return sarray_get(sa, next);
 }
 
-// Count the number of lines that need to be rendered in order to fit
-// in the space given. This includes newlines and linebreaks inserted
-// when a word goes outside the clip width.
-// This algorithm was a pain in the ass. It's probably broken or "improvable"
-// In some ways, but be warned. Here be dragons.
+// Gets the width and kerning between two characters.
+// Behavior depends on if c1 or c2 are CHARNONE
+static float get_charwidth(const FontDef * fd, unsigned long c1, unsigned long c2) {
+    const FontCharDef * fcds, * fcd1, * fcd2;
+    if (c1 == CHARNONE) return get_charwidth(fd, c2, c1);
+    fcds = fd->chars;
+    fcd1 = fcds + c1; if (!fcd1->valid) fcd1 = fcds + ' ';
+    if (c2 == CHARNONE) {
+        if (c1 < 255 && is_eol(c1)) return 0;
+        return fcd1->xadvance;
+    }
+    fcd2 = fcds + c2; if (!fcd2->valid) fcd2 = fcds + ' ';
+    if (c2 == CHARNONE) return fcd1->xadvance;
+    if (!fcd1->kerning.data)
+        return fcd2->xadvance;
+    SparseArray * sa = (SparseArray *) &fcd1->kerning;
+    float kerning = sarray_get(sa, c2);
+    return kerning + fcd2->xadvance;
+}
+
 static void calc_wrap(Text * t) {
+    // Initialize
     const char * text = t->text;
+    const char * textend = text + t->text_length;
     const FontDef * fd = t->fontdef;
     float max_width = t->max_width;
-    float scale = t->pt / fd->size;
+    float scale = t->pt / t->fontdef->size;
     int escape = t->flags & FNTDRAW_TEXT_MARKUP_BIT;
-    unsigned capacity;
+    unsigned capacity, line, lastCount, count;
     TextLine * lines;
     if (t->lines) { // We're just refilling the old line buffer
         capacity = t->line_count;
@@ -554,62 +564,76 @@ static void calc_wrap(Text * t) {
         capacity = 10;
         lines = malloc(capacity * sizeof(TextLine));
     }
-    unsigned line = 0;
-    unsigned lineCharCount, lastLineCharCount;
+    line = 0;
     float current_length, valid_length;
-    const char * first, *  last;
+    const char * first, * last, * current, * next;
     first = text;
-    while (*first) {
+
+#define ADDLINE \
+        lines[line].first = first - text; \
+        lines[line].last = last - text; \
+        lines[line].visibleCharCount = lastCount; \
+        lines[line].width = valid_length; \
+        line++; \
+        first = is_eol(*last) ? last + 1 : last; \
+        while (*first == ' ') first++; \
+        continue;
+
+    while (first < textend) {
         if (line >= capacity) {
-            capacity = line * 2;
+            capacity = line > 15 ? line * 1.4 : line * 2;
             lines = realloc(lines, capacity * sizeof(TextLine));
         }
-        lastLineCharCount = 0;
-        valid_length = current_length = 0;
-        const char * next, * current;
-        current = last = first_printable_token(first, escape);
-        if (is_eol(*current)) {
+        current = first_printable_token(first, escape);
+        if (*current == '\0') {
             break;
+        } else if (is_eol(*current)) {
+            first = last = current;
+            valid_length = 0;
+            lastCount = 0;
+            ADDLINE;
         }
-        FontCharDef * fcd = fd->chars + *current; if (!fcd->valid) fcd = fd->chars + ' ';
-        valid_length = current_length = fcd->xadvance * scale;
-        next = first_printable_token(current + 1, escape);
-        lastLineCharCount = lineCharCount = 1;
-        for(;;) {
-            if (is_eol(*next)) {
-                break;
-            }
-            fcd = fd->chars + *current; if (!fcd->valid) fcd = fd->chars + ' ';
-            float kerning = get_kerning(fcd, *next);
-            current_length += (fcd->xadvance + kerning) * scale;
-            lineCharCount++;
-            if (max_width != 0 && current_length > max_width){
-                if (lastLineCharCount == 1) { // Prevent really long lines from splitting into too many lines
-                    valid_length = current_length - (fcd->xadvance + kerning) * scale;
-                    lastLineCharCount = lineCharCount - 1;
-                    last = current;
+        count = lastCount = 1;
+        current_length = valid_length = get_charwidth(fd, *current, CHARNONE);
+        next = next_token(current, escape);
+        while (1) {
+
+            float dlen = get_charwidth(fd, *current, *next) * scale;
+            current_length += dlen;
+            current = next;
+            next = next_token(current, escape);
+
+            if (max_width != 0 && current_length > max_width) {
+                if (lastCount < 2) { // Prevent really long lines from splitting into too many lines
+                    valid_length = current_length - dlen;
+                    last = next;
+                    lastCount = count;
                 }
                 break;
             }
-            current = next;
-            next = first_printable_token(current + 1, escape);
-            if (is_whitespace(*next) || is_eol(*next)) {
-                valid_length = current_length;
-                lastLineCharCount = lineCharCount;
+
+            if (is_whitespace(*current) || is_eol(*current)) {
                 last = current;
+                lastCount = count;
+                valid_length = current_length;
+                if (is_eol(*current))
+                    break;
             }
+            count++;
         }
-        lines[line].first = first - text;
-        lines[line].last = last - text;
-        lines[line].width = valid_length;
-        lines[line].visibleCharCount = lastLineCharCount;
-        line++;
-        first = last + 1;
-        skip_whitespace_notabs(&first);
+        ADDLINE;
     }
-    t->lines = realloc(lines, line * sizeof(TextLine));
+    t->lines = lines;
     t->line_count = line;
+    printf("Text: %.*s\n", t->text_length, t->text);
+    for (unsigned i = 0; i < line; i++) {
+        TextLine * l = lines + i;
+        printf("%d, %d, %d\n", l->first, l->last, l->visibleCharCount);
+    }
 }
+
+#undef CHARNONE
+#undef ADDLINE
 
 static unsigned calc_num_quads(Text * t) {
     unsigned num_quads = 0;
@@ -643,7 +667,6 @@ static void fill_buffers(Text * t) {
     float invth = 1.0f / th;
     float max_width = t->max_width;
     float scale = t->pt / (double) t->fontdef->size;
-    float kerning = 0.0f;
     float vcolor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     switch (t->valign) {
         case ALIGN_TOP:
@@ -675,7 +698,7 @@ static void fill_buffers(Text * t) {
                 break;
         }
         // Make a quad for each letter of the line.
-        for (unsigned j = tl.first; j <= tl.last; j++) {
+        for (unsigned j = tl.first; j < tl.last; j++) {
             char c = t->text[j];
             // Test for special characters (Escape character)
             if ((t->flags & FNTDRAW_TEXT_MARKUP_BIT) && c == FNTDRAW_ESCAPE) {
@@ -703,7 +726,7 @@ static void fill_buffers(Text * t) {
             if (!fcd->valid) {
                 fcd = t->fontdef->chars + ' ';
             }
-            kerning = get_kerning(fcd, t->text[j + 1]);
+            float kerning = get_kerning(fcd, t->text[j + 1]);
             float x1 = xcurrent + fcd->xoffset * scale;
             float x2 = x1 + fcd->w * scale;
             float y1 = ycurrent + fcd->yoffset * scale;
@@ -789,110 +812,6 @@ void text_unloadbuffer(Text * t) {
     glDeleteVertexArrays(1, &t->VAO);
 }
 
-static void text_init_common(Text * t, const TextOptions * options, size_t slen) {
-    // Initilaize basic variables
-    t->flags = (options->dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0) |
-               (options->useMarkup ? FNTDRAW_TEXT_MARKUP_BIT : 0);
-    t->fontdef = options->font;
-    t->text_length = slen;
-    t->pt = options->pt;
-    t->halign = options->halign;
-    t->valign = options->valign;
-    t->max_width = options->width;
-    t->smoothing = options->smoothing;
-    t->threshold = options->threshold;
-    for (int i = 0; i < 4; i++)
-        t->color[i] = options->startColor[i];
-    for (int i = 0; i < 2; i++)
-        t->position[0] = options->position[i];
-    // Get the number of lines and store the line buffer.
-    t->lines = NULL;
-    t->line_count = 0;
-    calc_wrap(t);
-    // Calculate how many quads need to be drawn.
-    t->num_quads = calc_num_quads(t);
-    // Allocate vertex buffers
-    size_t vbuf_size = sizeof(GLfloat) * CHAR_SIZE * t->num_quads;
-    size_t ebuf_size = sizeof(GLushort) * 6 * t->num_quads;
-    void * ptr = malloc(vbuf_size + ebuf_size);
-    t->vertexBuffer = (ptr);
-    t->elementBuffer = (ptr + vbuf_size);
-    t->quad_capacity = t->num_quads;
-    fill_buffers(t);
-    text_loadbuffer(t);
-}
-
-static int text_set_formatv_impl(Text * t, const char * format, va_list list) {
-    va_list vcopy;
-    va_copy(vcopy, list);
-    int result = vsnprintf(t->text, t->text_capacity, format, list);
-    if (result < 0) {
-        return result;
-    } else if (((unsigned) result) >= t->text_capacity) {
-        t->text_capacity = result + 1;
-        t->text = realloc(t->text, t->text_capacity);
-        return vsnprintf(t->text, t->text_capacity, format, vcopy);
-    } else {
-        t->text_length = (unsigned) result;
-        return result;
-    }
-}
-
-Text * text_init(Text * t, const TextOptions * options, const char * text) {
-    size_t slen = strlen(text);
-    // Allocate text buffer
-    t->text = malloc(slen + 1);
-    t->text_capacity = slen;
-    t->text_length = slen;
-    memcpy(t->text, text, slen + 1);
-    text_init_common(t, options, slen);
-    return t;
-}
-
-Text * text_init_format(Text * t, const TextOptions * options, const char * format, ...) {
-    t->text_capacity = (strlen(format) * 3) / 2 ;
-    t->text = malloc(t->text_capacity);
-    va_list list;
-    va_start(list, format);
-    int result = text_set_formatv_impl(t, format, list);
-    va_end(list);
-    if (result < 0) {
-        free(t->text);
-        return NULL;
-    }
-    text_init_common(t, options, t->text_length);
-    return t;
-}
-
-Text * text_init_formatv(Text * t, const TextOptions * options, const char * format, va_list args) {
-    t->text_capacity = (strlen(format) * 3) / 2 ;
-    t->text = malloc(t->text_capacity);
-    int result = text_set_formatv_impl(t, format, args);
-    if (result < 0) {
-        free(t->text);
-        return NULL;
-    }
-    text_init_common(t, options, t->text_length);
-    return t;
-}
-
-Text * text_init_multi(Text * t, const TextOptions * options, int n, const char * separator, const char ** messages) {
-    unsigned slen = fntdraw_string_join_len(n, messages, separator);
-    t->text_length = slen;
-    t->text_capacity = slen;
-    t->text = malloc(slen + 1);
-    fntdraw_string_join(t->text, n, messages, separator);
-    text_init_common(t, options, t->text_length);
-    return t;
-}
-
-void text_deinit(Text * t) {
-    text_unloadbuffer(t);
-    free(t->text);
-    free(t->vertexBuffer);
-    free(t->lines);
-}
-
 static void update_buffers(Text * t) {
     unsigned new_num_quads = calc_num_quads(t);
     if (new_num_quads > t->quad_capacity) {
@@ -907,47 +826,6 @@ static void update_buffers(Text * t) {
     fill_buffers(t);
     if (t->flags & FNTDRAW_TEXT_LOADED_BIT)
         text_buffer_data(t);
-}
-
-void text_set(Text * t, const char * newtext) {
-    unsigned slen = strlen(newtext);
-    t->text_length = slen;
-    if (slen > t->text_capacity) {
-        t->text_capacity = slen;
-        t->text = realloc(t->text, slen + 1);
-    }
-    memcpy(t->text, newtext, slen + 1);
-    calc_wrap(t);
-    update_buffers(t);
-}
-
-int text_set_formatv(Text * t, const char * format, va_list args) {
-    int result = text_set_formatv_impl(t, format, args);
-    if (result >= 0) {
-        calc_wrap(t);
-        update_buffers(t);
-    }
-    return result;
-}
-
-int text_set_format(Text * t, const char * format, ...) {
-    va_list list;
-    va_start(list, format);
-    int result = text_set_formatv(t, format, list);
-    va_end(list);
-    return result;
-}
-
-void text_set_multi(Text * t, int n, const char * separator, const char ** messages) {
-    unsigned slen = fntdraw_string_join_len(n, messages, separator);
-    t->text_length = slen;
-    if (slen > t->text_capacity) {
-        t->text_capacity = slen;
-        t->text = realloc(t->text, slen + 1);
-    }
-    fntdraw_string_join(t->text, n, messages, separator);
-    calc_wrap(t);
-    update_buffers(t);
 }
 
 static void bind_shader(const Text * t, const mat4 mvp) {
@@ -995,6 +873,99 @@ void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length) 
 
 void text_draw_range_screen(Text * t, unsigned start, unsigned length) {
     text_draw_range(t, platform_screen_matrix(), start, length);
+}
+
+static void text_init_common(Text * t, const TextOptions * options, size_t slen) {
+    // Initilaize basic variables
+    t->flags = (options->dynamic ? FNTDRAW_TEXT_DYNAMIC_BIT : 0) |
+               (options->useMarkup ? FNTDRAW_TEXT_MARKUP_BIT : 0);
+    t->fontdef = options->font;
+    t->text_length = slen;
+    t->pt = options->pt;
+    t->halign = options->halign;
+    t->valign = options->valign;
+    t->max_width = options->width;
+    t->smoothing = options->smoothing;
+    t->threshold = options->threshold;
+    for (int i = 0; i < 4; i++)
+        t->color[i] = options->startColor[i];
+    for (int i = 0; i < 2; i++)
+        t->position[0] = options->position[i];
+    // Get the number of lines and store the line buffer.
+    t->lines = NULL;
+    t->line_count = 0;
+    calc_wrap(t);
+    // Calculate how many quads need to be drawn.
+    t->num_quads = calc_num_quads(t);
+    // Allocate vertex buffers
+    size_t vbuf_size = sizeof(GLfloat) * CHAR_SIZE * t->num_quads;
+    size_t ebuf_size = sizeof(GLushort) * 6 * t->num_quads;
+    void * ptr = malloc(vbuf_size + ebuf_size);
+    t->vertexBuffer = (ptr);
+    t->elementBuffer = (ptr + vbuf_size);
+    t->quad_capacity = t->num_quads;
+    fill_buffers(t);
+    text_loadbuffer(t);
+}
+
+Text * text_init(Text * t, const TextOptions * options, const char * text) {
+    size_t slen = strlen(text);
+    // Allocate text buffer
+    t->text = malloc(slen + 1);
+    t->text_capacity = slen;
+    t->text_length = slen;
+    memcpy(t->text, text, slen + 1);
+    text_init_common(t, options, slen);
+    return t;
+}
+
+Text * text_init_nocopy(Text * t, const TextOptions * options, char * text) {
+    size_t slen = strlen(text);
+    t->text = text;
+    t->text_capacity = slen;
+    t->text_length = slen;
+    text_init_common(t, options, slen);
+    return t;
+}
+
+Text * text_initn(Text * t, const TextOptions * options, const char * text, size_t len) {
+    // Allocate text buffer
+    t->text = malloc(len + 1);
+    t->text_capacity = len;
+    t->text_length = len;
+    strncpy(t->text, text, len);
+    text_init_common(t, options, len);
+    return t;
+}
+
+void text_deinit(Text * t) {
+    text_unloadbuffer(t);
+    free(t->text);
+    free(t->vertexBuffer);
+    free(t->lines);
+}
+
+void text_set(Text * t, const char * newtext) {
+    unsigned slen = strlen(newtext);
+    t->text_length = slen;
+    if (slen > t->text_capacity) {
+        t->text_capacity = slen;
+        t->text = realloc(t->text, slen + 1);
+    }
+    strcpy(t->text, newtext);
+    calc_wrap(t);
+    update_buffers(t);
+}
+
+void text_setn(Text * t, const char * string, size_t len) {
+    t->text_length = len;
+    if (len > t->text_capacity) {
+        t->text_capacity = len;
+        t->text = realloc(t->text, len + 1);
+    }
+    strncpy(t->text, string, len);
+    calc_wrap(t);
+    update_buffers(t);
 }
 
 // TEXT UTIL
@@ -1138,17 +1109,27 @@ static int luai_fnt_maketext(lua_State * L) {
         // TODO: Use custom text otions if provided.
         Text * text = lua_newuserdata(L, sizeof(Text));
         luaL_getmetatable(L, "ldoom.Text");
-        lua_setmetatable(L, -1);
-        text_init(text, to, "Hello?");
+        lua_setmetatable(L, -2);
+        size_t l;
+        const char * string = lua_tolstring(L, 2, &l);
+        text_initn(text, to, string, l);
         return 1;
     }
     return 0;
 }
 
+LUAI_MAKECHECKER(Text)
 static Text * luai_text_check(lua_State * L) {
     void * ud = luaL_checkudata(L, 1, "ldoom.Text");
     luaL_argcheck(L, ud != NULL, 1, "'ldoom.Text' expected.");
     return (Text *) ud;
+}
+
+static int luai_text_deinit(lua_State * L) {
+    Text * t = luai_text_check(L);
+    if (t)
+        text_deinit(t);
+    return 0;
 }
 
 static int luai_text_draw(lua_State * L) {
@@ -1159,17 +1140,24 @@ static int luai_text_draw(lua_State * L) {
     return 0;
 }
 
-static int luai_text_deinit(lua_State * L) {
-    Text * t = luai_text_check(L);
-    if (t)
-        text_deinit(t);
-    return 0;
-}
+LUAI_SETTER1N(Text, setX, t->position[0] = v1)
+LUAI_SETTER1N(Text, setY, t->position[1] = v1)
+LUAI_SETTER2N(Text, setPosition, t->position[0] = v1, t->position[1] = v2)
+
+LUAI_GETTER1N(Text, getX, t->position[0])
+LUAI_GETTER1N(Text, getY, t->position[1])
+LUAI_GETTER2N(Text, getPosition, t->position[0], t->position[1])
 
 void fntdraw_loadlib() {
     fnt_default_options(NULL, &fntdraw_lua_default_options);
     const luaL_Reg textmethods[] = {
         {"draw", luai_text_draw},
+        {"setX", LUAI_F(Text, setX)},
+        {"setY", LUAI_F(Text, setY)},
+        {"setPosition", LUAI_F(Text, setPosition)},
+        {"getX", LUAI_F(Text, getX)},
+        {"getY", LUAI_F(Text, getY)},
+        {"getPosition", LUAI_F(Text, getPosition)},
         {NULL, NULL}
     };
     const luaL_Reg textmetamethods[] = {

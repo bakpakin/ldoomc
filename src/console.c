@@ -45,29 +45,37 @@ static inline Text * nth_history(unsigned n) {
     return history + (history_start + n) % history_capacity;
 }
 
-void console_log(const char * format, ...) {
-    va_list list;
-    va_start(list, format);
-    console_logv(format, list);
-    va_end(list);
-}
-
-void console_logv(const char * format, va_list args) {
+void console_lograw(const char * message) {
     Text * next = nth_history(history_len);
     if (history_len == history_capacity) {
         history_start = (history_start + 1) % history_capacity;
         float old_tpad = textpad(next);
-        text_set_formatv(next, format, args);
+        text_set(next, message);
         history_ysize += textpad(next) - old_tpad;
     } else {
         history_len++;
-        text_init_formatv(next, &console_text_options, format, args);
+        text_init(next, &console_text_options, message);
         history_ysize += textpad(next);
     }
     if (next->line_count == 0) {
         text_set(next, " ");
         history_ysize += textpad(next);
     }
+}
+
+void console_log(const char * format, ...) {
+    va_list list;
+    va_start(list, format);
+    int neededlen = vsnprintf(NULL, 0, format, list);
+    if (neededlen < 0) return;
+    uqfree_if_needed();
+    char * buffer = uqmalloc(neededlen + 1);
+    va_end(list);
+    va_start(list, format);
+    vsnprintf(buffer, neededlen + 1, format, list);
+    console_lograw(buffer);
+    va_end(list);
+    uqfree_if_needed();
 }
 
 void console_clear() {
@@ -148,11 +156,12 @@ void console_pushn(const char * string, size_t n) {
         console_write_buffer_capacity = console_write_buffer_len * 1.5 + 1;
         console_write_buffer = realloc(console_write_buffer, console_write_buffer_capacity + 1);
     }
-    strcpy(console_write_buffer + oldlen, string);
+    strncpy(console_write_buffer + oldlen, string, n);
 }
 
 void console_flush(int useMarkup) {
     if (console_write_buffer_len == 0) return;
+    console_write_buffer[console_write_buffer_len] = '\0';
     if (!useMarkup) {
         size_t newlen = textutil_get_escapedlength(console_write_buffer);
         if (newlen > console_write_buffer_capacity) {
@@ -161,7 +170,7 @@ void console_flush(int useMarkup) {
         }
         textutil_escape_inplace(console_write_buffer, newlen + 1);
     }
-    console_log("%s", console_write_buffer);
+    console_lograw(console_write_buffer);
     console_write_buffer_len = 0;
 }
 

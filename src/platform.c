@@ -8,6 +8,7 @@
 #include "fntdraw.h"
 #include "glfw.h"
 #include "audio.h"
+#include "stretchy_buffer.h"
 #include <string.h>
 #include <ctype.h>
 
@@ -275,14 +276,22 @@ static const char * platform_get_key(int key) {
 
 static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
     if (window != game_window) return;
-    luai_event(&les_keyboard, platform_get_key(key), platform_get_action(action), (double) scancode, (double) mods);
+    luai_event(&les_keyboard,
+            platform_get_key(key),
+            platform_get_action(action),
+            (double) scancode,
+            (double) mods);
 }
 
 static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods) {
     if (window != game_window) return;
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
-    luai_event(&les_mouse, (double) button, platform_get_action(action), xpos, ypos);
+    luai_event(&les_mouse,
+            (double) button,
+            platform_get_action(action),
+            xpos,
+            ypos);
 }
 
 static void window_resize_callback(int width, int height) {

@@ -1,12 +1,20 @@
 function levent.load()
-    snd = ldoom.audio.loadOgg("snd.ogg")
-    ldoom.console.logc "$@F0FHi"
+    myfont = ldoom.text.loadFont("hud.txt")
+    mytext = myfont:newText("Hello, hello?\nHowdy?\n\n\nhi")
+    mytext:setPosition(300, 300)
 end
 
 function levent.keyboard(key, action)
-    if key == "q" then
+    if key == "escape" then
         ldoom.quit()
     end
-    ldoom.console.logc(string.byte(key), key, action)
-    snd:play("hello.")
+    ldoom.console.logc(action)
+end
+
+function levent.tick()
+    skjackacjba:kaj()
+end
+
+function levent.draw()
+    mytext:draw()
 end
