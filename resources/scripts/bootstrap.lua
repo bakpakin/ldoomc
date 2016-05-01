@@ -11,10 +11,6 @@ function levent.keyboard(key, action)
     ldoom.console.logc(action)
 end
 
-function levent.tick()
-    skjackacjba:kaj()
-end
-
 function levent.draw()
     mytext:draw()
 end

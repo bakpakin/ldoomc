@@ -625,11 +625,6 @@ static void calc_wrap(Text * t) {
     }
     t->lines = lines;
     t->line_count = line;
-    printf("Text: %.*s\n", t->text_length, t->text);
-    for (unsigned i = 0; i < line; i++) {
-        TextLine * l = lines + i;
-        printf("%d, %d, %d\n", l->first, l->last, l->visibleCharCount);
-    }
 }
 
 #undef CHARNONE
@@ -700,20 +695,25 @@ static void fill_buffers(Text * t) {
         // Make a quad for each letter of the line.
         for (unsigned j = tl.first; j < tl.last; j++) {
             char c = t->text[j];
+            if (is_eol(c)) break;
             // Test for special characters (Escape character)
             if ((t->flags & FNTDRAW_TEXT_MARKUP_BIT) && c == FNTDRAW_ESCAPE) {
                 c = t->text[++j];
+                if (is_eol(c)) break;
                 switch(c) {
                     case FNTDRAW_ALPHA:
+                        if (j + 2 >= tl.last) break;
                         vcolor[3] = (16 * read_hex_digit(t->text + j + 1) + read_hex_digit(t->text + j + 2)) / 255.0f;
                         j += 2;
                         continue;
                     case FNTDRAW_3COLOR:
+                        if (j + 3 >= tl.last) break;
                         for (int ii = 0; ii < 3; ii++)
                             vcolor[ii] = (17 * read_hex_digit(t->text + j + ii + 1)) / 255.0f;
                         j += 3;
                         continue;
                     case FNTDRAW_6COLOR:
+                        if (j + 6 >= tl.last) break;
                         for (int ii = 0; ii < 3; ii++)
                             vcolor[ii] = (16 * read_hex_digit(t->text + j + 2 * ii + 1) + read_hex_digit(t->text + j + 2 * ii + 2)) / 255.0f;
                         j += 6;
