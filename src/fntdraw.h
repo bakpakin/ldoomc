@@ -68,15 +68,12 @@ typedef struct {
 } TextOptions;
 
 typedef struct {
-
     // Misc
     unsigned flags;
-
     // Text data
     char * text;
     unsigned text_length;
     unsigned text_capacity;
-
     // Rendering
     const FontDef * fontdef;
     GLuint VBO; // Vertex Buffer Object for position and texture coordinate data
@@ -89,7 +86,6 @@ typedef struct {
     float smoothing;
     float threshold;
     float color[4];
-
     // Metrics
     vec2 position;
     float pt;
@@ -97,8 +93,8 @@ typedef struct {
     TextAlign halign;
     TextAlign valign;
     unsigned line_count;
+    unsigned line_capacity;
     TextLine * lines;
-
 } Text;
 
 FontDef * fnt_init(FontDef * fd, const char * resource);

@@ -1,7 +1,14 @@
 function levent.load()
     myfont = ldoom.text.loadFont("hud.txt")
-    mytext = myfont:newText("Hello, hello?\nHowdy?\n\n\nhi")
-    mytext:setPosition(300, 300)
+    mytext = myfont:newText[[When you use Meteor you ARE using Node.js.\nkajsncka"
+    akjbckasbckjasc
+    aksbckjsac
+    ajsca
+$@F05     sahcsas
+    cashjvcas
+    caschjvsacascasjvcsac
+    kasckjsabckjsac
+    hjvsachjcsa]]
 end
 
 function levent.keyboard(key, action)

@@ -8,7 +8,6 @@
 #include "fntdraw.h"
 #include "glfw.h"
 #include "audio.h"
-#include "stretchy_buffer.h"
 #include <string.h>
 #include <ctype.h>
 

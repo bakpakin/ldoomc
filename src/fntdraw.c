@@ -547,84 +547,103 @@ static float get_charwidth(const FontDef * fd, unsigned long c1, unsigned long c
     return kerning + fcd2->xadvance;
 }
 
+char* escape(const char* buffer, size_t l){
+    unsigned i,j;
+    char esc_char[]= { '\a','\b','\f','\n','\r','\t','\v','\\'};
+    char essc_str[]= {  'a', 'b', 'f', 'n', 'r', 't', 'v','\\'};
+  char* dest  =  (char*)calloc( l*2,sizeof(char));
+    char* ptr=dest;
+    for(i=0;i<l;i++){
+        for(j=0; j< 8 ;j++){
+            if( buffer[i]==esc_char[j] ){
+              *ptr++ = '\\';
+              *ptr++ = essc_str[j];
+                 break;
+            }
+        }
+        if(j == 8 )
+      *ptr++ = buffer[i];
+    }
+  *ptr='\0';
+    return dest;
+}
+
+static void print_lines_debug(Text * t) {
+    printf("t->line_count: %d\n", t->line_count);
+    for (unsigned i = 0; i < t->line_count; i++) {
+        TextLine * l = t->lines + i;
+        char * mtext = escape(t->text + l->first, l->last - l->first);
+        printf("\ttext:%s\n", mtext);
+        printf("\t%d, %d, %d\n", l->first, l->last, l->visibleCharCount);
+        free(mtext);
+    }
+}
+
+static const char * append_line(Text * t, TextLine tl) {
+    if (!t->lines) { // We're just refilling the old line buffer
+        t->line_capacity = 10;
+        t->lines = malloc(t->line_capacity * sizeof(TextLine));
+    }
+    unsigned line = t->line_count++;
+    if (line >= t->line_capacity) {
+        t->line_capacity = (line > 15 ? line * 1.4 : line * 2) + 1;
+        t->lines = realloc(t->lines, t->line_capacity * sizeof(TextLine));
+    }
+    TextLine * newline = t->lines + line;
+    *newline = tl;
+    const char * ret = t->text + tl.last;
+    if (is_eol(*ret)) ret++;
+    while (*ret == ' ') ret++;
+    return ret;
+}
+
 static void calc_wrap(Text * t) {
-    // Initialize
+    TextLine tl;
     const char * text = t->text;
     const char * textend = text + t->text_length;
     const FontDef * fd = t->fontdef;
     float max_width = t->max_width;
     float scale = t->pt / t->fontdef->size;
     int escape = t->flags & FNTDRAW_TEXT_MARKUP_BIT;
-    unsigned capacity, line, lastCount, count;
-    TextLine * lines;
-    if (t->lines) { // We're just refilling the old line buffer
-        capacity = t->line_count;
-        lines = t->lines;
-    } else { // Allocate a new buffer
-        capacity = 10;
-        lines = malloc(capacity * sizeof(TextLine));
-    }
-    line = 0;
+    unsigned lastCount, count;
     float current_length, valid_length;
-    const char * first, * last, * current, * next;
+    const char * first, * last;
     first = text;
-
-#define ADDLINE \
-        lines[line].first = first - text; \
-        lines[line].last = last - text; \
-        lines[line].visibleCharCount = lastCount; \
-        lines[line].width = valid_length; \
-        line++; \
-        first = is_eol(*last) ? last + 1 : last; \
-        while (*first == ' ') first++; \
-        continue;
-
     while (first < textend) {
-        if (line >= capacity) {
-            capacity = line > 15 ? line * 1.4 : line * 2;
-            lines = realloc(lines, capacity * sizeof(TextLine));
-        }
-        current = first_printable_token(first, escape);
+        tl.first = first - text;
+        const char * current = first_printable_token(first, escape);
         if (*current == '\0') {
             break;
         } else if (is_eol(*current)) {
-            first = last = current;
-            valid_length = 0;
-            lastCount = 0;
-            ADDLINE;
+            tl.width = 0; tl.last = current - text; tl.visibleCharCount = 0;
+            first = append_line(t, tl);
+            continue;
         }
         count = lastCount = 1;
         current_length = valid_length = get_charwidth(fd, *current, CHARNONE);
-        next = next_token(current, escape);
+        int spaceEncountered = 0;
         while (1) {
-
-            float dlen = get_charwidth(fd, *current, *next) * scale;
+            float dlen = get_charwidth(fd, *current, *next_token(current, escape)) * scale;
             current_length += dlen;
-            current = next;
-            next = next_token(current, escape);
-
-            if (max_width != 0 && current_length > max_width) {
-                if (lastCount < 2) { // Prevent really long lines from splitting into too many lines
-                    valid_length = current_length - dlen;
-                    last = next;
-                    lastCount = count;
-                }
-                break;
-            }
-
-            if (is_whitespace(*current) || is_eol(*current)) {
+            current = next_token(current, escape);
+            if (max_width != 0 && current_length > max_width) break;
+            if (!spaceEncountered || is_whitespace(*current) || is_eol(*current)) {
                 last = current;
                 lastCount = count;
                 valid_length = current_length;
                 if (is_eol(*current))
                     break;
+                if (!is_whitespace(*current))
+                    spaceEncountered = 1;
             }
             count++;
         }
-        ADDLINE;
+        tl.last = last - text;
+        tl.visibleCharCount = lastCount;
+        tl.width = valid_length;
+        first = append_line(t, tl);
     }
-    t->lines = lines;
-    t->line_count = line;
+    /* print_lines_debug(t); */
 }
 
 #undef CHARNONE
@@ -1105,6 +1124,7 @@ static int luai_fnt_maketext(lua_State * L) {
     FontDef * fd = luai_fnt_check(L);
     if (fd) {
         TextOptions * to = &fntdraw_lua_default_options;
+        to->pt = 24;
         to->font = fd;
         // TODO: Use custom text otions if provided.
         Text * text = lua_newuserdata(L, sizeof(Text));
@@ -1143,10 +1163,12 @@ static int luai_text_draw(lua_State * L) {
 LUAI_SETTER1N(Text, setX, t->position[0] = v1)
 LUAI_SETTER1N(Text, setY, t->position[1] = v1)
 LUAI_SETTER2N(Text, setPosition, t->position[0] = v1, t->position[1] = v2)
+LUAI_SETTER1S(Text, setText, text_set(t, v1))
 
 LUAI_GETTER1N(Text, getX, t->position[0])
 LUAI_GETTER1N(Text, getY, t->position[1])
 LUAI_GETTER2N(Text, getPosition, t->position[0], t->position[1])
+LUAI_GETTER1S(Text, getText, t->text);
 
 void fntdraw_loadlib() {
     fnt_default_options(NULL, &fntdraw_lua_default_options);
@@ -1155,9 +1177,11 @@ void fntdraw_loadlib() {
         {"setX", LUAI_F(Text, setX)},
         {"setY", LUAI_F(Text, setY)},
         {"setPosition", LUAI_F(Text, setPosition)},
+        {"setText", LUAI_F(Text, setText)},
         {"getX", LUAI_F(Text, getX)},
         {"getY", LUAI_F(Text, getY)},
         {"getPosition", LUAI_F(Text, getPosition)},
+        {"getText", LUAI_F(Text, getText)},
         {NULL, NULL}
     };
     const luaL_Reg textmetamethods[] = {
