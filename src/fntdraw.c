@@ -1099,33 +1099,29 @@ char * textutil_join(int n, const char ** parts, const char * sep) {
 
 static TextOptions fntdraw_lua_default_options;
 
-static FontDef * luai_fnt_check(lua_State * L) {
-    void * ud = luaL_checkudata(L, 1, "ldoom.Font");
-    luaL_argcheck(L, ud != NULL, 1, "'ldoom.Font' expected.");
-    return (FontDef *) ud;
-}
+LUAI_MAKECHECKER(FontDef);
 
 static int luai_fntdraw_loadfont(lua_State * L) {
-    const char * resource = lua_tostring(L, -1);
+    const char * resource = lua_tostring(L, 1);
     FontDef * fd = lua_newuserdata(L, sizeof(FontDef));
-    luaL_getmetatable(L, "ldoom.Font");
+    luaL_getmetatable(L, "ldoom.FontDef");
     lua_setmetatable(L, -2);
     fnt_init(fd, resource);
     return 1;
 }
 
 static int luai_fntdraw_deinit(lua_State * L) {
-    FontDef * fd = luai_fnt_check(L);
+    FontDef * fd = luai_FontDef_check(L);
     if (fd)
         fnt_deinit(fd);
     return 0;
 }
 
 static int luai_fnt_maketext(lua_State * L) {
-    FontDef * fd = luai_fnt_check(L);
+    FontDef * fd = luai_FontDef_check(L);
     if (fd) {
         TextOptions * to = &fntdraw_lua_default_options;
-        to->pt = 24;
+        to->pt = 54;
         to->font = fd;
         // TODO: Use custom text otions if provided.
         Text * text = lua_newuserdata(L, sizeof(Text));
@@ -1165,11 +1161,15 @@ LUAI_SETTER1N(Text, setX, t->position[0] = v1)
 LUAI_SETTER1N(Text, setY, t->position[1] = v1)
 LUAI_SETTER2N(Text, setPosition, t->position[0] = v1, t->position[1] = v2)
 LUAI_SETTER1S(Text, setText, text_set(t, v1))
+LUAI_SETTER1N(Text, setSmoothing, t->smoothing = ldm_clamp(v1, 0, 1));
+LUAI_SETTER1N(Text, setThreshold, t->threshold = ldm_clamp(v1, 0, 1));
 
 LUAI_GETTER1N(Text, getX, t->position[0])
 LUAI_GETTER1N(Text, getY, t->position[1])
 LUAI_GETTER2N(Text, getPosition, t->position[0], t->position[1])
 LUAI_GETTER1S(Text, getText, t->text);
+LUAI_GETTER1N(Text, getSmoothing, t->smoothing);
+LUAI_GETTER1N(Text, getThreshold, t->threshold);
 
 void fntdraw_loadlib() {
     fnt_default_options(NULL, &fntdraw_lua_default_options);
@@ -1179,10 +1179,14 @@ void fntdraw_loadlib() {
         {"setY", LUAI_F(Text, setY)},
         {"setPosition", LUAI_F(Text, setPosition)},
         {"setText", LUAI_F(Text, setText)},
+        {"setSmoothing", LUAI_F(Text, setSmoothing)},
+        {"setThreshold", LUAI_F(Text, setThreshold)},
         {"getX", LUAI_F(Text, getX)},
         {"getY", LUAI_F(Text, getY)},
         {"getPosition", LUAI_F(Text, getPosition)},
         {"getText", LUAI_F(Text, getText)},
+        {"getSmoothing", LUAI_F(Text, getSmoothing)},
+        {"getThreshold", LUAI_F(Text, getThreshold)},
         {NULL, NULL}
     };
     const luaL_Reg textmetamethods[] = {
@@ -1202,7 +1206,7 @@ void fntdraw_loadlib() {
         {NULL, NULL}
     };
     luai_newclass("ldoom.Text", textmethods, textmetamethods);
-    luai_newclass("ldoom.Font", fontmethods, fontmetamethods);
+    luai_newclass("ldoom.FontDef", fontmethods, fontmetamethods);
     luai_addsubmodule("text", module);
 }
 

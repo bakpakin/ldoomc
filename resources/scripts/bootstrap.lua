@@ -9,7 +9,6 @@ $@F0 sahcsas
     caschjvsacascasjvcsac
     kasckjsabckjsac
     hjvsachjcsa]]
-    mytext:setText("")
 end
 
 function levent.keyboard(key, action)
