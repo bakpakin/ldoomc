@@ -24,7 +24,7 @@ local t = 0
 function levent.update(dt)
     t = t + dt
     local s = math.sin(0.5 * t)
-    mytext:setThreshold(0.5 + 0.1 * s)
+    mytext:setPoint(25 + 15 * s)
 end
 
 function levent.draw()

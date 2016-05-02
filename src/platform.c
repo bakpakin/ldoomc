@@ -104,16 +104,15 @@ int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
 // End platform specific resource resolution
 #else
 
-static char *platform_path_predicate = "resources"
 #ifdef _WIN32
-"\\";
+static const char *platform_path_predicate = "..\\resources\\";
 #else
-"/";
+static const char *platform_path_predicate = "../resources/";
 #endif
 
-static size_t platform_buffer_predsize = 10; // strlen(platform_path_predicate);
+static size_t platform_buffer_predsize = 13; // strlen(platform_path_predicate);
 
-// For now, just let it build. This should be replaced with platfrom specifics later.
+// For now, just let it build. This should be replaced with platform specifics later.
 int platform_res2file(const char * resource, char * pathbuf, unsigned bufsize) {
     size_t slen = strlen(resource);
     if (slen + platform_buffer_predsize > bufsize + 1) {

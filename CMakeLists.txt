@@ -103,16 +103,6 @@ if(CMAKE_BUILD_TYPE EQUAL "Release")
 else()
     set(CMAKE_BUILD_TYPE "Debug")
     add_executable(${TARGET_NAME} ${SOURCES})
-    add_custom_target(copy_resources)
-    foreach(filename ${RESOURCES})
-        set(SRC "${CMAKE_SOURCE_DIR}/${filename}")
-        set(DST "${CMAKE_BINARY_DIR}/${filename}")
-        add_custom_command(
-            TARGET copy_resources
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC} ${DST}
-            COMMENT "Copying file: ${filename}")
-    endforeach(filename)
-    add_dependencies(${TARGET_NAME} copy_resources)
 endif()
 
 # LuaJIT Compilation using external build system.
