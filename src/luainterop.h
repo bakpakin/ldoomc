@@ -44,67 +44,42 @@ void luai_addtomainmodule(const luaL_Reg * regs);
 
 #define LUAI_F(T, UID) luai_##T##_function_##UID
 
-#define LUAI_GETTER1N(T, UID, EXP) static int LUAI_F(T, UID) (lua_State * L) { \
+#define LUAI_FWRAPPER(T, UID, BODY) static int LUAI_F(T, UID) (lua_State * L) { \
     T * t = LUAI_CHECKER(T)(L); \
     if (t) { \
-        lua_pushnumber(L, EXP); \
-        return 1; \
+        BODY \
     } \
     return 0; \
 }
 
-#define LUAI_GETTER2N(T, UID, EXP1, EXP2) static int LUAI_F(T, UID) (lua_State * L) { \
-    T * t = LUAI_CHECKER(T)(L); \
-    if (t) { \
-        lua_pushnumber(L, EXP1); \
-        lua_pushnumber(L, EXP2); \
-        return 2; \
-    } \
-    return 0; \
-}
+#define LUAI_GETTER1N(T, UID, EXP) LUAI_FWRAPPER(T, UID, lua_pushnumber(L, EXP); return 1;)
+#define LUAI_GETTER1S(T, UID, EXP) LUAI_FWRAPPER(T, UID, lua_pushstring(L, EXP); return 1;)
+#define LUAI_GETTER1B(T, UID, EXP) LUAI_FWRAPPER(T, UID, lua_pushboolean(L, EXP); return 1;)
+#define LUAI_GETTER2N(T, UID, EXP1, EXP2) LUAI_FWRAPPER(T, UID, lua_pushnumber(L, EXP1); lua_pushnumber(L, EXP2); return 2;)
+#define LUAI_GETTER2S(T, UID, EXP1, EXP2) LUAI_FWRAPPER(T, UID, lua_pushstring(L, EXP1); lua_pushstring(L, EXP2); return 2;)
 
-#define LUAI_GETTER1S(T, UID, EXP) static int LUAI_F(T, UID) (lua_State * L) { \
-    T * t = LUAI_CHECKER(T)(L); \
-    if (t) { \
-        lua_pushstring(L, EXP); \
-        return 1; \
-    } \
-    return 0; \
-}
-
-#define LUAI_SETTER1N(T, UID, STMNT) static int LUAI_F(T, UID) (lua_State * L) { \
-    T * t = LUAI_CHECKER(T)(L); \
-    if (t) { \
+#define LUAI_SETTER1N(T, UID, STMNT) LUAI_FWRAPPER(T, UID, \
         double v1 = luaL_checknumber(L, 2); \
         if (v1 != 0 || lua_isnumber(L, 2)) { \
             STMNT; \
-        } \
-    } \
-    return 0; \
-}
+        })
 
-#define LUAI_SETTER2N(T, UID, STMNT1, STMNT2) static int LUAI_F(T, UID) (lua_State * L) { \
-    T * t = LUAI_CHECKER(T)(L); \
-    if (t) { \
+#define LUAI_SETTER2N(T, UID, STMNT1, STMNT2) LUAI_FWRAPPER(T, UID, \
         double v1 = luaL_checknumber(L, 2); \
         double v2 = luaL_checknumber(L, 3); \
         if ((v1 != 0 || lua_isnumber(L, 2)) && (v2 != 0 || lua_isnumber(L, 3))) { \
             STMNT1; \
             STMNT2; \
-        } \
-    } \
-    return 0; \
-}
+        })
 
-#define LUAI_SETTER1S(T, UID, STMNT) static int LUAI_F(T, UID) (lua_State * L) { \
-    T * t = LUAI_CHECKER(T)(L); \
-    if (t) { \
+#define LUAI_SETTER1S(T, UID, STMNT) LUAI_FWRAPPER(T, UID, \
         const char * v1 = luaL_checkstring(L, 2); \
         if (v1 != 0 || lua_isstring(L, 2)) { \
             STMNT; \
-        } \
-    } \
-    return 0; \
-}
+        })
+
+#define LUAI_SETTER1B(T, UID, STMNT) LUAI_FWRAPPER(T, UID, \
+        int v1 = lua_toboolean(L, 2); \
+        STMNT; )
 
 #endif /* end of include guard: LUAINTEROP_HEADER */

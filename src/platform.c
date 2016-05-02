@@ -349,6 +349,16 @@ static int luai_platform_quit(lua_State * L) {
     return 0;
 }
 
+static int luai_platform_getFPS(lua_State * L) {
+    lua_pushnumber(L, _platform_fps);
+    return 1;
+}
+
+static int luai_platform_getDelta(lua_State * L) {
+    lua_pushnumber(L, _platform_delta);
+    return 1;
+}
+
 // INITIALIZATION / DEINITIALIZATION
 
 void platform_init() {
@@ -424,6 +434,8 @@ void platform_init() {
     luai_init();
     const luaL_Reg module[] = {
         {"quit", luai_platform_quit},
+        {"getDelta", luai_platform_getDelta},
+        {"getFPS", luai_platform_getFPS},
         {NULL, NULL}
     };
     luai_addtomainmodule(module);

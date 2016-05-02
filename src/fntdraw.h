@@ -40,9 +40,10 @@ typedef struct {
 #define FNTDRAW_TEXT_DYNAMIC_BIT 0x02
 #define FNTDRAW_TEXT_NODF_BIT 0x04
 #define FNTDRAW_TEXT_MARKUP_BIT 0x08
+#define FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE 0x10
 
 typedef enum {
-    ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, ALIGN_JUSTIFY, ALIGN_TOP, ALIGN_BOTTOM
+    ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM
 } TextAlign;
 
 typedef struct {
@@ -126,6 +127,8 @@ void text_draw_screen(Text * t);
 void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length);
 
 void text_draw_range_screen(Text * t, unsigned start, unsigned length);
+
+#define text_mark2update(t) ((t)->flags |= FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE)
 
 // Auxilary
 

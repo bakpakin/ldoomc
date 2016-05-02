@@ -846,6 +846,7 @@ static void update_buffers(Text * t) {
     fill_buffers(t);
     if (t->flags & FNTDRAW_TEXT_LOADED_BIT)
         text_buffer_data(t);
+    t->flags &= ~FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE;
 }
 
 static void bind_shader(const Text * t, const mat4 mvp) {
@@ -871,6 +872,10 @@ static void bind_shader(const Text * t, const mat4 mvp) {
 }
 
 void text_draw(Text * t, const mat4 mvp) {
+    if (t->flags & FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE) {
+        calc_wrap(t);
+        update_buffers(t);
+    }
     bind_shader(t, mvp);
     glBindVertexArray(t->VAO);
     glDrawElements(GL_TRIANGLES, t->num_quads * 6, GL_UNSIGNED_SHORT, 0);
@@ -882,6 +887,10 @@ void text_draw_screen(Text * t) {
 }
 
 void text_draw_range(Text * t, const mat4 mvp, unsigned start, unsigned length) {
+    if (t->flags & FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE) {
+        calc_wrap(t);
+        update_buffers(t);
+    }
     if (start + length > t->text_length) {
         uerr("Range not renderable.");
     }
@@ -953,7 +962,8 @@ Text * text_initn(Text * t, const TextOptions * options, const char * text, size
     t->text = malloc(len + 1);
     t->text_capacity = len;
     t->text_length = len;
-    strncpy(t->text, text, len);
+    memcpy(t->text, text, len);
+    t->text[len] = '\0';
     text_init_common(t, options, len);
     return t;
 }
@@ -973,6 +983,7 @@ void text_set(Text * t, const char * newtext) {
         t->text = realloc(t->text, slen + 1);
     }
     strcpy(t->text, newtext);
+    t->flags |= FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE;
     calc_wrap(t);
     update_buffers(t);
 }
@@ -983,7 +994,9 @@ void text_setn(Text * t, const char * string, size_t len) {
         t->text_capacity = len;
         t->text = realloc(t->text, len + 1);
     }
-    strncpy(t->text, string, len);
+    memcpy(t->text, string, len);
+    t->text[len] = '\0';
+    t->flags |= FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE;
     calc_wrap(t);
     update_buffers(t);
 }
@@ -1099,6 +1112,29 @@ char * textutil_join(int n, const char ** parts, const char * sep) {
 
 static TextOptions fntdraw_lua_default_options;
 
+static const char * fntdraw_get_align(TextAlign ta) {
+    switch(ta) {
+        case ALIGN_LEFT: return "left";
+        case ALIGN_RIGHT: return "right";
+        case ALIGN_CENTER: return "center";
+        case ALIGN_TOP: return "top";
+        case ALIGN_BOTTOM: return "bottom";
+        default: return "center";
+    }
+}
+
+static TextAlign fntdraw_set_align(const char * align) {
+    switch(*align) {
+        case 'l': if (strcmp(align, "left") == 0) return ALIGN_LEFT;
+        case 'r': if (strcmp(align, "right") == 0) return ALIGN_RIGHT;
+        case 'c': if (strcmp(align, "center") == 0) return ALIGN_CENTER;
+        case 't': if (strcmp(align, "top") == 0) return ALIGN_TOP;
+        case 'b': if (strcmp(align, "bottom") == 0) return ALIGN_BOTTOM;
+        default:
+        return ALIGN_CENTER;
+    }
+}
+
 LUAI_MAKECHECKER(FontDef);
 
 static int luai_fntdraw_loadfont(lua_State * L) {
@@ -1161,32 +1197,67 @@ LUAI_SETTER1N(Text, setX, t->position[0] = v1)
 LUAI_SETTER1N(Text, setY, t->position[1] = v1)
 LUAI_SETTER2N(Text, setPosition, t->position[0] = v1, t->position[1] = v2)
 LUAI_SETTER1S(Text, setText, text_set(t, v1))
+LUAI_SETTER1S(Text, setHAlign, t->halign = fntdraw_set_align(v1); text_mark2update(t);)
+LUAI_SETTER1S(Text, setVAlign, t->valign = fntdraw_set_align(v1); text_mark2update(t);)
 LUAI_SETTER1N(Text, setSmoothing, t->smoothing = ldm_clamp(v1, 0, 1));
 LUAI_SETTER1N(Text, setThreshold, t->threshold = ldm_clamp(v1, 0, 1));
+LUAI_SETTER1N(Text, setPoint, t->pt = v1; text_mark2update(t););
+LUAI_SETTER1N(Text, setWidth, t->max_width = v1; text_mark2update(t););
+LUAI_SETTER1B(Text, setUseDistanceField,
+        if (v1)
+            t->flags &= ~FNTDRAW_TEXT_NODF_BIT;
+        else
+            t->flags |= FNTDRAW_TEXT_NODF_BIT;)
+LUAI_SETTER1B(Text, setUseMarkup,
+        if (v1)
+            t->flags |= FNTDRAW_TEXT_MARKUP_BIT;
+        else
+            t->flags &= ~FNTDRAW_TEXT_MARKUP_BIT;
+        text_mark2update(t);)
 
 LUAI_GETTER1N(Text, getX, t->position[0])
 LUAI_GETTER1N(Text, getY, t->position[1])
 LUAI_GETTER2N(Text, getPosition, t->position[0], t->position[1])
 LUAI_GETTER1S(Text, getText, t->text);
+LUAI_GETTER1S(Text, getHAlign, fntdraw_get_align(t->halign))
+LUAI_GETTER1S(Text, getVAlign, fntdraw_get_align(t->valign))
 LUAI_GETTER1N(Text, getSmoothing, t->smoothing);
 LUAI_GETTER1N(Text, getThreshold, t->threshold);
+LUAI_GETTER1N(Text, getPoint, t->pt);
+LUAI_GETTER1N(Text, getWidth, t->max_width);
+LUAI_GETTER1B(Text, getUseMarkup, (t->flags & FNTDRAW_TEXT_NEEDS_BUFFER_UPDATE))
+LUAI_GETTER1B(Text, getUseDistanceField, (!(t->flags & FNTDRAW_TEXT_NODF_BIT)))
 
 void fntdraw_loadlib() {
     fnt_default_options(NULL, &fntdraw_lua_default_options);
     const luaL_Reg textmethods[] = {
         {"draw", luai_text_draw},
+        // Setters
         {"setX", LUAI_F(Text, setX)},
         {"setY", LUAI_F(Text, setY)},
         {"setPosition", LUAI_F(Text, setPosition)},
         {"setText", LUAI_F(Text, setText)},
+        {"setHAlign", LUAI_F(Text, setHAlign)},
+        {"setVAlign", LUAI_F(Text, setVAlign)},
         {"setSmoothing", LUAI_F(Text, setSmoothing)},
         {"setThreshold", LUAI_F(Text, setThreshold)},
+        {"setPoint", LUAI_F(Text, setPoint)},
+        {"setWidth", LUAI_F(Text, setWidth)},
+        {"setUseMarkup", LUAI_F(Text, setUseMarkup)},
+        {"setUseDistanceField", LUAI_F(Text, setUseDistanceField)},
+        // Getters
         {"getX", LUAI_F(Text, getX)},
         {"getY", LUAI_F(Text, getY)},
         {"getPosition", LUAI_F(Text, getPosition)},
         {"getText", LUAI_F(Text, getText)},
+        {"getHAlign", LUAI_F(Text, getHAlign)},
+        {"getVAlign", LUAI_F(Text, getVAlign)},
         {"getSmoothing", LUAI_F(Text, getSmoothing)},
         {"getThreshold", LUAI_F(Text, getThreshold)},
+        {"getPoint", LUAI_F(Text, getPoint)},
+        {"getWidth", LUAI_F(Text, getWidth)},
+        {"getUseMarkup", LUAI_F(Text, getUseMarkup)},
+        {"getUseDistanceField", LUAI_F(Text, getUseDistanceField)},
         {NULL, NULL}
     };
     const luaL_Reg textmetamethods[] = {
