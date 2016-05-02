@@ -32,6 +32,7 @@ src/fntdraw.c
 src/quickdraw.c
 src/scene.c
 src/mob.c
+src/model.c
 src/console.c
 src/sky.c
 src/glad.c

@@ -14,6 +14,10 @@ typedef struct {
     const int * arg_types;
 } LuaEventSignature;
 
+int luai_load(const char * file);
+
+int luai_do(const char * file);
+
 int luai_loadresource(const char * resource);
 
 int luai_doresource(const char * resource);

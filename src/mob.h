@@ -29,7 +29,7 @@ typedef struct {
     float aggression;
 
     // Rendering
-    Model * model;
+    ModelInstance * model;
 
     // User defined data.
     void * user;

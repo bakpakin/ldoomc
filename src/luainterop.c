@@ -9,6 +9,14 @@ lua_State * globalLuaState;
 
 // CODE EXECUTION
 
+int luai_load(const char * file) {
+    return luaL_loadfile(globalLuaState, file);
+}
+
+int luai_do(const char * file) {
+    return luaL_dofile(globalLuaState, file);
+}
+
 int luai_loadresource(const char * resource) {
     return luaL_loadfile(globalLuaState, platform_res2file_ez(resource));
 }

@@ -20,10 +20,6 @@ static Mob ** scene_mobs;
 static size_t scene_mob_capacity;
 static size_t scene_mob_count;
 
-static Model ** scene_models;
-static size_t scene_model_capacity;
-static size_t scene_model_count;
-
 void scene_init(void) {
 
     program_init_resource(&diffuseshader, "diffuseshader.glsl");
@@ -38,10 +34,6 @@ void scene_init(void) {
     scene_mob_count = 0;
     scene_mobs = malloc(scene_mob_capacity * sizeof(Mob *));
 
-    scene_model_capacity = 10;
-    scene_model_count = 0;
-    scene_models = malloc(scene_model_capacity * sizeof(Model *));
-
     timeBuffer = 0.0;
 
     // Generate buffers
@@ -55,7 +47,6 @@ void scene_deinit() {
 
     // Deinitialize space for mobs
     free(scene_mobs);
-    free(scene_models);
 
     // Deallocate buffers
     //glDeleteFramebuffers(1, &gBuffer);
@@ -85,51 +76,11 @@ void scene_remove_mob(Mob * mob) {
      }
 }
 
-void scene_add_model(Model * model) {
-    if (scene_model_count + 1 >= scene_model_capacity) {
-        scene_model_capacity = 2 * scene_model_count + 1;
-        scene_models = realloc(scene_models, scene_model_capacity * sizeof(Model *));
-    }
-    scene_models[scene_model_count++] = model;
-}
-
-void scene_remove_model(Model * model) {
-
-}
-
 void scene_resize(int width, int height) {
     camera_set_perspective(&scene_camera, scene_camera.data.perspective.fovY, width / (float) height, 0.05f, 100.0f);
 }
 
 void scene_render() {
-
-    // For now, just render everything as diffuse. No spatial partitioning yet.
-    glUseProgram(diffuseshader.id);
-
-    for (Mob ** mobp = scene_mobs; mobp < scene_mobs + scene_mob_count; mobp++) {
-        Mob * mob = *mobp;
-        Model * model = mob->type->model;
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, model->diffuse.id);
-        glUniform1i(diffuse_diffuse_loc, 0);
-        mat4 mvp;
-        mat4 rot;
-        mat4_rot_y(rot, atan2(mob->facing[0], mob->facing[2]));
-        mat4_translation_vec3(mvp, mob->position);
-        mat4_mul(mvp, rot, mvp);
-        mat4_mul(mvp, mvp, camera_matrix(&scene_camera));
-        glUniformMatrix4fv(diffuse_mvp_loc, 1, GL_FALSE, mvp);
-        mesh_draw(model->mesh);
-    }
-
-    for (Model ** modp = scene_models; modp < scene_models + scene_model_count; modp++) {
-        Model * model = *modp;
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, model->diffuse.id);
-        glUniform1i(diffuse_diffuse_loc, 0);
-        glUniformMatrix4fv(diffuse_mvp_loc, 1, GL_FALSE, camera_matrix(&scene_camera));
-        mesh_draw(model->mesh);
-    }
 
     // Draw sky last
     sky_render(&scene_camera);
