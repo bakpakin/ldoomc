@@ -4,11 +4,12 @@ function levent.load()
     akjbckasbckjasc
     aksbckjsac
     ajsca
-$@F05     sahcsas
+$@F0 sahcsas
     cashjvcas
     caschjvsacascasjvcsac
     kasckjsabckjsac
     hjvsachjcsa]]
+    mytext:setText("")
 end
 
 function levent.keyboard(key, action)

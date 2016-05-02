@@ -599,6 +599,7 @@ static const char * append_line(Text * t, TextLine tl) {
 
 static void calc_wrap(Text * t) {
     TextLine tl;
+    t->line_count = 0;
     const char * text = t->text;
     const char * textend = text + t->text_length;
     const FontDef * fd = t->fontdef;
