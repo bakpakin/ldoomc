@@ -38,7 +38,6 @@ src/sky.c
 src/glad.c
 src/luainterop.c
 ## Thirdparty static libs
-src/lodepng.c
 src/stb_vorbis.c
 )
 

@@ -1,28 +1,21 @@
 #include "texture.h"
 #include "util.h"
 #include <stdlib.h>
-#include "lodepng.h"
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_ONLY_PNG
+// Undo only png define if we decide to use other images
+#include "stb_image.h"
 #include "platform.h"
 
 static unsigned char * loadImage(const char * path, int pathlen, unsigned * w, unsigned * h) {
 
-    unsigned error;
-    unsigned char* image;
+    int width, height, comp;
+    unsigned char * image = stbi_load(path, &width, &height, &comp, STBI_rgb_alpha);
 
-    #define BUFLEN 40
-    char buf[BUFLEN];
-
-    if (pathlen >= 0) {
-        if (pathlen + 1 > BUFLEN)
-            uerr("Texture path buffer overflow.");
-        path = buf;
-        strncpy(buf, path, pathlen);
+    if (image != NULL) {
+        *w = width;
+        *h = height;
     }
-    #undef BUFLEN
-
-    error = lodepng_decode32_file(&image, w, h, path);
-    if(error)
-        uerr(lodepng_error_text(error));
 
 	return image;
 
@@ -59,9 +52,7 @@ Texture * texture_init_file(Texture * t, const char * path, int pathlen) {
  * Loads a tetxture from a named resource.
  */
 Texture * texture_init_resource(Texture * t, const char * resource) {
-    char file[200];
-    platform_res2file(resource, file, 200);
-    return texture_init_file(t, file, -1);
+    return texture_init_file(t, platform_res2file_ez(resource), -1);
 }
 
 /*
