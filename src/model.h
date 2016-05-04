@@ -3,7 +3,6 @@
 
 #include "mesh.h"
 #include "texture.h"
-#include "ldmath.h"
 #include "glfw.h"
 #include <stdint.h>
 
@@ -16,24 +15,38 @@
 
 #define MODEL_ANIMATION_LOOPS_BIT 0x01
 
+typedef struct ModelVertex {
+
+    float position[3];
+    float normal[3];
+    float texcoord[2];
+    uint8_t boneIndicies[4];
+    uint8_t boneWeights[4];
+
+} ModelVertex;
+
 typedef struct ModelBone {
 
     uint32_t id;
     int32_t parent; // less than 0 is a root bone.
 
-    uint32_t vertexCount;
-    struct {
-        uint32_t id;
-        float weight;
-    } verts[0];
+    float restingPosition[3];
+    float restingRotation[4];
+    float restingScale[3];
 
 } ModelBone;
 
+typedef struct ModelTriangle {
+
+    uint32_t verts[3];
+
+} ModelTriangle;
+
 typedef struct ModelBonePose {
 
-    vec3 position;
-    vec3 scale;
-    quat rotation;
+    float position[3];
+    float rotation[4];
+    float scale[3];
 
 } ModelBonePose;
 
@@ -55,35 +68,24 @@ typedef struct ModelMaterial {
 
 } ModelMaterial;
 
-typedef struct ModelMaterialRange {
+typedef struct ModelMesh {
 
     uint32_t material;
     uint32_t firstTriangle;
     uint32_t triangleCount;
 
-} ModelMaterialRange;
+} ModelMesh;
 
 typedef struct Model {
 
     uint32_t flags;
 
-    uint32_t vertexCount;
-    Vertex * verts;
-
-    uint32_t triangleCount;
-    uint32_t * triangles; // Triangles are groups of three vertex ids.
-
-    uint32_t materialCount;
-    ModelMaterial * materials;
-
-    uint32_t boneCount;
-    ModelBone * bones;
-
-    uint32_t animationCount;
-    ModelAnimation * animations;
-
-    uint32_t materialRangeCounts;
-    ModelMaterialRange * materialRanges;
+    uint32_t vertexCount;        ModelVertex * vertices;
+    uint32_t triangleCount;      ModelTriangle * triangles;
+    uint32_t materialCount;      ModelMaterial * materials;
+    uint32_t boneCount;          ModelBone * bones;
+    uint32_t animationCount;     ModelAnimation * animations;
+    uint32_t meshCount;          ModelMesh * meshes;
 
 } Model;
 
@@ -92,16 +94,16 @@ typedef struct ModelInstance {
     uint32_t flags;
 
     Model * model;
-    Mesh * meshes; // There are model->materialRangesCount meshes
+    ModelVertex * mesh;
 
     uint32_t animation;
     float frame; // frame can be non integer, in which case the frame positions will be interpolated.
 
 } ModelInstance;
 
-Model * model_loadfile(Model * model, const char * file);
+int model_loadfile(Model * model, const char * file);
 
-Model * model_loadresource(Model * model, const char * resource);
+int model_loadresource(Model * model, const char * resource);
 
 void model_deinit(Model * model);
 
