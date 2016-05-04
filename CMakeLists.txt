@@ -121,7 +121,7 @@ if(APPLE)
 endif(APPLE)
 
 # Add custom flags
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s -DRELEASE -O3 -ffast-math -fno-math-errno -Wno-unused-parameter")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s -DRELEASE -O4 -ffast-math -fno-math-errno -Wall -Wextra -Wno-unused-parameter")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -Wall -Wextra -ffast-math -fno-math-errno -Wno-unused-parameter")
 
 # Include Library Headers and set up linking

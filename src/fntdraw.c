@@ -547,38 +547,6 @@ static float get_charwidth(const FontDef * fd, unsigned long c1, unsigned long c
     return kerning + fcd2->xadvance;
 }
 
-char* escape(const char* buffer, size_t l){
-    unsigned i,j;
-    char esc_char[]= { '\a','\b','\f','\n','\r','\t','\v','\\'};
-    char essc_str[]= {  'a', 'b', 'f', 'n', 'r', 't', 'v','\\'};
-  char* dest  =  (char*)calloc( l*2,sizeof(char));
-    char* ptr=dest;
-    for(i=0;i<l;i++){
-        for(j=0; j< 8 ;j++){
-            if( buffer[i]==esc_char[j] ){
-              *ptr++ = '\\';
-              *ptr++ = essc_str[j];
-                 break;
-            }
-        }
-        if(j == 8 )
-      *ptr++ = buffer[i];
-    }
-  *ptr='\0';
-    return dest;
-}
-
-static void print_lines_debug(Text * t) {
-    printf("t->line_count: %d\n", t->line_count);
-    for (unsigned i = 0; i < t->line_count; i++) {
-        TextLine * l = t->lines + i;
-        char * mtext = escape(t->text + l->first, l->last - l->first);
-        printf("\ttext:%s\n", mtext);
-        printf("\t%d, %d, %d\n", l->first, l->last, l->visibleCharCount);
-        free(mtext);
-    }
-}
-
 static const char * append_line(Text * t, TextLine tl) {
     if (!t->lines) { // We're just refilling the old line buffer
         t->line_capacity = 10;
@@ -609,7 +577,7 @@ static void calc_wrap(Text * t) {
     unsigned lastCount, count;
     float current_length, valid_length;
     const char * first, * last;
-    first = text;
+    last = first = text;
     while (first < textend) {
         tl.first = first - text;
         const char * current = first_printable_token(first, escape);
@@ -644,7 +612,6 @@ static void calc_wrap(Text * t) {
         tl.width = valid_length;
         first = append_line(t, tl);
     }
-    /* print_lines_debug(t); */
 }
 
 #undef CHARNONE
