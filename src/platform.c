@@ -4,7 +4,8 @@
 #include "console.h"
 #include "quickdraw.h"
 #include "scene.h"
-#include "luainterop.h"
+#include "lua_interop.h"
+#include "lua_modules.h"
 #include "fntdraw.h"
 #include "glfw.h"
 #include "audio.h"
@@ -341,23 +342,6 @@ void platform_exit() {
     glfwSetWindowShouldClose(game_window, 1);
 }
 
-// LUA INTEROP
-
-static int luai_platform_quit(lua_State * L) {
-    platform_exit();
-    return 0;
-}
-
-static int luai_platform_getFPS(lua_State * L) {
-    lua_pushnumber(L, _platform_fps);
-    return 1;
-}
-
-static int luai_platform_getDelta(lua_State * L) {
-    lua_pushnumber(L, _platform_delta);
-    return 1;
-}
-
 // INITIALIZATION / DEINITIALIZATION
 
 void platform_init() {
@@ -431,17 +415,19 @@ void platform_init() {
     mat4_proj_ortho(screen_matrix, -1, width, height, 0, 0, 1);
 
     luai_init();
-    const luaL_Reg module[] = {
-        {"quit", luai_platform_quit},
-        {"getDelta", luai_platform_getDelta},
-        {"getFPS", luai_platform_getFPS},
-        {NULL, NULL}
-    };
-    luai_addtomainmodule(module);
     console_init();
     qd_init();
     audio_init();
-    fntdraw_loadlib();
+
+    luai_load_audio();
+    luai_load_fntdraw();
+    luai_load_platform();
+    luai_load_model();
+    luai_load_quickdraw();
+    luai_load_shader();
+    luai_load_math();
+    luai_load_camera();
+    luai_load_texture();
 
     luai_doresource("scripts/bootstrap.lua");
 

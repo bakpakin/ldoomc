@@ -150,8 +150,4 @@ char * textutil_escapex(const char * text);
 
 char * textutil_normalizex(const char * text);
 
-// Lua Interop
-
-void fntdraw_loadlib();
-
 #endif

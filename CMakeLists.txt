@@ -5,7 +5,6 @@ cmake_minimum_required(VERSION 2.8)
 project(Ldoom)
 
 # Options
-option(LDOOMC_DEBUG "Debug build (on) or release build (off)." ON)
 option(LDOOMC_AMALG "Build all c files together. Might make binary more efficient, or might not work at all." OFF)
 
 # Set Some Variables
@@ -36,7 +35,18 @@ src/model.c
 src/console.c
 src/sky.c
 src/glad.c
-src/luainterop.c
+src/lua_interop.c
+## Lua Interop
+src/lua_audio.c
+src/lua_camera.c
+src/lua_console.c
+src/lua_fntdraw.c
+src/lua_math.c
+src/lua_model.c
+src/lua_platform.c
+src/lua_quickdraw.c
+src/lua_shader.c
+src/lua_texture.c
 ## Thirdparty static libs
 src/stb_vorbis.c
 )
@@ -121,7 +131,7 @@ if(APPLE)
 endif(APPLE)
 
 # Add custom flags
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s -DRELEASE -O4 -ffast-math -fno-math-errno -Wall -Wextra -Wno-unused-parameter")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s -O4 -DRELEASE -ffast-math -fno-math-errno -Wall -Wextra -Wno-unused-parameter")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -Wall -Wextra -ffast-math -fno-math-errno -Wno-unused-parameter")
 
 # Include Library Headers and set up linking

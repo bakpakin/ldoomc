@@ -1,4 +1,4 @@
-#include "luainterop.h"
+#include "lua_interop.h"
 #include "platform.h"
 #include "util.h"
 #include "console.h"

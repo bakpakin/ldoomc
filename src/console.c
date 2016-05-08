@@ -4,7 +4,6 @@
 #include "ldmath.h"
 #include "quickdraw.h"
 #include "util.h"
-#include "luainterop.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,44 +21,43 @@
 #define CONSOLE_BORDER_RIGHT 5
 #define CONSOLE_PADDING 8
 
-static FontDef console_fd;
-static TextOptions console_text_options;
-
-static Text * history;
-static size_t history_len;
-static size_t history_start;
-static size_t history_capacity;
-static float history_ysize = 0;
-
-static char * console_write_buffer = NULL;
-static size_t console_write_buffer_capacity = 0;
-static size_t console_write_buffer_len = 0;
-
-static char console_visible = 1;
+static struct {
+    FontDef fd;
+    TextOptions text_options;
+    Text * history;
+    size_t history_len;
+    size_t history_start;
+    size_t history_capacity;
+    float history_ysize;
+    char * write_buffer;
+    size_t write_buffer_capacity;
+    size_t write_buffer_len;
+    char visible;
+} console_globals;
 
 static inline float textpad(Text * t) {
-    return t->line_count * (console_fd.lineHeight / console_fd.size * t->pt + CONSOLE_PADDING);
+    return t->line_count * (console_globals.fd.lineHeight / console_globals.fd.size * t->pt + CONSOLE_PADDING);
 }
 
 static inline Text * nth_history(unsigned n) {
-    return history + (history_start + n) % history_capacity;
+    return console_globals.history + (console_globals.history_start + n) % console_globals.history_capacity;
 }
 
 void console_lograw(const char * message) {
-    Text * next = nth_history(history_len);
-    if (history_len == history_capacity) {
-        history_start = (history_start + 1) % history_capacity;
+    Text * next = nth_history(console_globals.history_len);
+    if (console_globals.history_len == console_globals.history_capacity) {
+        console_globals.history_start = (console_globals.history_start + 1) % console_globals.history_capacity;
         float old_tpad = textpad(next);
         text_set(next, message);
-        history_ysize += textpad(next) - old_tpad;
+        console_globals.history_ysize += textpad(next) - old_tpad;
     } else {
-        history_len++;
-        text_init(next, &console_text_options, message);
-        history_ysize += textpad(next);
+        console_globals.history_len++;
+        text_init(next, &console_globals.text_options, message);
+        console_globals.history_ysize += textpad(next);
     }
     if (next->line_count == 0) {
         text_set(next, " ");
-        history_ysize += textpad(next);
+        console_globals.history_ysize += textpad(next);
     }
 }
 
@@ -79,31 +77,31 @@ void console_log(const char * format, ...) {
 }
 
 void console_clear() {
-    for (unsigned i = 0; i < history_len; i++) {
+    for (unsigned i = 0; i < console_globals.history_len; i++) {
         Text * t = nth_history(i);
         text_deinit(t);
     }
-    history_ysize = 0;
+    console_globals.history_ysize = 0;
 }
 
 void console_draw() {
 
-    if (!console_visible) return;
+    if (!console_globals.visible) return;
 
     // Get out of the way if there is nothing to draw.
-    if (history_len == 0) return;
+    if (console_globals.history_len == 0) return;
 
     qd_rgba(0.2f, 0.2f, 0.2f, 0.8f);
     qd_rect(
             -1,
             -1,
             CONSOLE_FONT_WIDTH + CONSOLE_BORDER_LEFT + CONSOLE_BORDER_RIGHT + 1,
-            history_ysize + CONSOLE_BORDER_TOP + CONSOLE_BORDER_BOTTOM + 1,
+            console_globals.history_ysize + CONSOLE_BORDER_TOP + CONSOLE_BORDER_BOTTOM + 1,
             QD_FILL);
     qd_rgba(1, 1, 1, 1);
 
     float y = CONSOLE_BORDER_TOP;
-    for (unsigned i = 0; i < history_len; i++) {
+    for (unsigned i = 0; i < console_globals.history_len; i++) {
         Text * t = nth_history(i);
         t->position[0] = CONSOLE_BORDER_LEFT;
         t->position[1] = y;
@@ -115,34 +113,34 @@ void console_draw() {
 
 void console_set_history(unsigned length) {
 
-    if (length < history_len) { // Delete the oldest text logs
-        for (unsigned i = length; i < history_len; i++) {
+    if (length < console_globals.history_len) { // Delete the oldest text logs
+        for (unsigned i = length; i < console_globals.history_len; i++) {
             Text * t = nth_history(i);
-            history_ysize -= textpad(t);
+            console_globals.history_ysize -= textpad(t);
             text_deinit(t);
         }
-        history_len = length;
+        console_globals.history_len = length;
     }
     Text * history_tmp = malloc(sizeof(Text) * length);
-    for (unsigned i = 0; i < history_len; i++) {
+    for (unsigned i = 0; i < console_globals.history_len; i++) {
         memcpy(history_tmp + i, nth_history(i), sizeof(Text));
     }
-    history = history_tmp;
-    history_start = 0;
+    console_globals.history = history_tmp;
+    console_globals.history_start = 0;
 
-    history_capacity = length;
+    console_globals.history_capacity = length;
 }
 
 int console_get_history() {
-    return history_capacity;
+    return console_globals.history_capacity;
 }
 
 int console_get_visible() {
-    return console_visible;
+    return console_globals.visible;
 }
 
 void console_set_visible(int visible) {
-    console_visible = visible;
+    console_globals.visible = visible;
 }
 
 void console_push(const char * string) {
@@ -150,112 +148,66 @@ void console_push(const char * string) {
 }
 
 void console_pushn(const char * string, size_t n) {
-    size_t oldlen = console_write_buffer_len;
-    console_write_buffer_len = oldlen + n;
-    if (console_write_buffer_len > console_write_buffer_capacity) {
-        console_write_buffer_capacity = console_write_buffer_len * 1.5 + 1;
-        console_write_buffer = realloc(console_write_buffer, console_write_buffer_capacity + 1);
+    size_t oldlen = console_globals.write_buffer_len;
+    console_globals.write_buffer_len = oldlen + n;
+    if (console_globals.write_buffer_len > console_globals.write_buffer_capacity) {
+        console_globals.write_buffer_capacity = console_globals.write_buffer_len * 1.5 + 1;
+        console_globals.write_buffer = realloc(console_globals.write_buffer, console_globals.write_buffer_capacity + 1);
     }
-    strncpy(console_write_buffer + oldlen, string, n);
+    strncpy(console_globals.write_buffer + oldlen, string, n);
 }
 
 void console_flush(int useMarkup) {
-    if (console_write_buffer_len == 0) return;
-    console_write_buffer[console_write_buffer_len] = '\0';
+    if (console_globals.write_buffer_len == 0) return;
+    console_globals.write_buffer[console_globals.write_buffer_len] = '\0';
     if (!useMarkup) {
-        size_t newlen = textutil_get_escapedlength(console_write_buffer);
-        if (newlen > console_write_buffer_capacity) {
-            console_write_buffer_capacity = newlen;
-            console_write_buffer = realloc(console_write_buffer, newlen + 1);
+        size_t newlen = textutil_get_escapedlength(console_globals.write_buffer);
+        if (newlen > console_globals.write_buffer_capacity) {
+            console_globals.write_buffer_capacity = newlen;
+            console_globals.write_buffer = realloc(console_globals.write_buffer, newlen + 1);
         }
-        textutil_escape_inplace(console_write_buffer, newlen + 1);
+        textutil_escape_inplace(console_globals.write_buffer, newlen + 1);
     }
-    console_lograw(console_write_buffer);
-    console_write_buffer_len = 0;
+    console_lograw(console_globals.write_buffer);
+    console_globals.write_buffer_len = 0;
 }
 
 void console_clearflush() {
-    console_write_buffer_len = 0;
-}
-
-// LUA INTEROP
-
-int luai_console_log_impl(lua_State * L) {
-    int n = lua_gettop(L);  /* number of arguments */
-    int i;
-    lua_getglobal(L, "tostring");
-    for (i=1; i<=n; i++) {
-        const char *s;
-        size_t l;
-        lua_pushvalue(L, -1);  /* function to be called */
-        lua_pushvalue(L, i);   /* value to print */
-        lua_call(L, 1, 1);
-        s = lua_tolstring(L, -1, &l);  /* get result */
-        if (s == NULL) {
-            console_clearflush();
-            return luaL_error(L,
-                    LUA_QL("tostring") " must return a string to " LUA_QL("print"));
-        }
-        if (i>1) console_pushn("\t", 1);
-        console_pushn(s, l);
-        lua_pop(L, 1);  /* pop result */
-    }
-    return 0;
-}
-
-int luai_console_log(lua_State * L) {
-    console_clearflush();
-    int result = luai_console_log_impl(L);
-    console_flush(0);
-    return result;
-}
-
-int luai_console_logc(lua_State * L) {
-    console_clearflush();
-    int result = luai_console_log_impl(L);
-    console_flush(1);
-    return result;
-}
-
-void luai_console_loadlib() {
-    const luaL_Reg module[] = {
-        {"log", luai_console_log},
-        {"logc", luai_console_logc},
-        {NULL, NULL}
-    };
-    luai_addsubmodule("console", module);
+    console_globals.write_buffer_len = 0;
 }
 
 // INITIALIZATION / DEINITIALIZATION
 
 void console_init() {
-    fnt_init(&console_fd, CONSOLE_FONT_NAME);
-    fnt_default_options(&console_fd, &console_text_options);
-    console_text_options.width = CONSOLE_FONT_WIDTH;
-    console_text_options.pt = CONSOLE_FONT_POINT;
-    console_text_options.valign = ALIGN_TOP;
-    console_text_options.halign = ALIGN_LEFT;
-    console_text_options.threshold = CONSOLE_FONT_THRESHOLD;
-    console_text_options.smoothing = 1.0f / 4.0f;
 
-    history_capacity = 10;
-    history_len = 0;
-    history_start = 0;
-    history = malloc(sizeof(Text) * history_capacity);
+    // Set globals
+    console_globals.visible = 1;
 
-    console_write_buffer_capacity = 63;
-    console_write_buffer_len = 0;
-    console_write_buffer = malloc(console_write_buffer_capacity + 1);
+    fnt_init(&console_globals.fd, CONSOLE_FONT_NAME);
+    fnt_default_options(&console_globals.fd, &console_globals.text_options);
+    console_globals.text_options.width = CONSOLE_FONT_WIDTH;
+    console_globals.text_options.pt = CONSOLE_FONT_POINT;
+    console_globals.text_options.valign = ALIGN_TOP;
+    console_globals.text_options.halign = ALIGN_LEFT;
+    console_globals.text_options.threshold = CONSOLE_FONT_THRESHOLD;
+    console_globals.text_options.smoothing = 1.0f / 4.0f;
 
-    luai_console_loadlib();
+    console_globals.history_capacity = 10;
+    console_globals.history_len = 0;
+    console_globals.history_start = 0;
+    console_globals.history = malloc(sizeof(Text) * console_globals.history_capacity);
+
+    console_globals.write_buffer_capacity = 63;
+    console_globals.write_buffer_len = 0;
+    console_globals.write_buffer = malloc(console_globals.write_buffer_capacity + 1);
 }
 
 void console_deinit() {
-    fnt_deinit(&console_fd);
-    for(unsigned i = 0; i < history_len; i++) {
-        Text * t = history + ((history_start + i) % history_capacity);
+    fnt_deinit(&console_globals.fd);
+    for(unsigned i = 0; i < console_globals.history_len; i++) {
+        Text * t = console_globals.history + ((console_globals.history_start + i) % console_globals.history_capacity);
         text_deinit(t);
     }
-    free(history);
-    free(console_write_buffer);
+    free(console_globals.history);
+    free(console_globals.write_buffer);
 }
