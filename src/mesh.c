@@ -195,6 +195,16 @@ Mesh * mesh_init_mem(Mesh * m,
 
 }
 
+void mesh_set(Mesh * m, const float * data) {
+    memcpy(m->vertices.floats, data, get_size(m->mesh_type) * m->vcount);
+    mesh_reload(m);
+}
+
+void mesh_reload(Mesh * m) {
+    glBindBuffer(GL_ARRAY_BUFFER, m->VBO);
+    glBufferData(GL_ARRAY_BUFFER, get_size(m->mesh_type) * m->vcount, m->vertices.v, m->draw_type);
+}
+
 void mesh_load(Mesh * m) {
     if (m->flags & ACTIVE_BIT)
         return;

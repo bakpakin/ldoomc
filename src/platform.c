@@ -419,6 +419,7 @@ void platform_init() {
     qd_init();
     audio_init();
 
+    // Lua Interop
     luai_load_audio();
     luai_load_fntdraw();
     luai_load_platform();
@@ -428,6 +429,7 @@ void platform_init() {
     luai_load_math();
     luai_load_camera();
     luai_load_texture();
+    luai_load_console();
 
     luai_doresource("scripts/bootstrap.lua");
 

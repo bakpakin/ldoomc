@@ -183,17 +183,56 @@ void model_deinit(Model * model) {
     }
 }
 
-void model_drawdebug(Model * model) {
-
+static void modeli_setmeshes(ModelInstance * instance) {
+    Model * model = instance->model;
+    uint32_t numMeshes = model->meshCount;
+    ModelVertex * verts = model->vertices;
+    for (uint32_t i = 0; i < numMeshes; i++) {
+        ModelMesh * mm = model->meshes + i;
+        Mesh * m = instance->meshes + i;
+        // Set each vertex of mesh with model data plus animation data (Animation data NYI)
+        Vertex * v = m->vertices.v;
+        for (uint32_t j = 0; j < mm->vertexCount; j++) {
+            vec3_assign(v[j].position, verts[mm->firstVertex + j].position);
+            vec3_assign(v[j].normal, verts[mm->firstVertex + j].normal);
+            vec2_assign(v[j].texcoords, verts[mm->firstVertex + j].texcoord);
+        }
+        mesh_reload(m);
+    }
 }
 
 ModelInstance * model_instance(Model * model, ModelInstance * instance) {
-
+    instance->flags = 0;
+    instance->model = model;
+    instance->meshes = malloc(sizeof(Mesh) * model->meshCount);
+    instance->frame = 0;
+    instance->animation = -1;
+    ModelVertex * verts = model->vertices;
+    for (uint32_t i = 0; i < model->meshCount; i++) {
+        ModelMesh * mm = model->meshes + i;
+        Mesh * m = instance->meshes + i;
+        size_t vsize = sizeof(Vertex) * mm->vertexCount;
+        size_t esize = sizeof(GLushort) * mm->triangleCount * 3;
+        void * memory = malloc(vsize + esize);
+        Vertex * vs = memory;
+        GLushort * es = memory + vsize;
+        for (uint32_t j = 0; j < mm->vertexCount; j++) {
+            vec3_assign(vs[j].position, verts[mm->firstVertex + j].position);
+            vec3_assign(vs[j].normal, verts[mm->firstVertex + j].normal);
+            vec2_assign(vs[j].texcoords, verts[mm->firstVertex + j].texcoord);
+        }
+        for (uint32_t j = 0; j < mm->triangleCount; j++) {
+            es[3*j + 0]=model->triangles[mm->firstTriangle + j].verts[0];
+            es[3*j + 1]=model->triangles[mm->firstTriangle + j].verts[1];
+            es[3*j + 2]=model->triangles[mm->firstTriangle + j].verts[2];
+        }
+        mesh_init_mem(m, MESHTYPE_3D, GL_DYNAMIC_DRAW, 8 * mm->vertexCount, (float *)vs, 1, mm->triangleCount * 3, es, 0);
+    }
     return instance;
 }
 
 void modeli_deinit(ModelInstance * instance) {
-
+    free(instance->meshes);
 }
 
 void modeli_set_animation(ModelInstance * instance) {
@@ -201,7 +240,8 @@ void modeli_set_animation(ModelInstance * instance) {
 }
 
 void modeli_update(ModelInstance * instance, float dt) {
-
+    instance->frame += dt;
+    modeli_setmeshes(instance);
 }
 
 void modeli_drawdebug(ModelInstance * instance) {

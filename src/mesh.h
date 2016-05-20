@@ -99,6 +99,16 @@ Mesh * mesh_init_mem(Mesh * m,
         int elemdata_owned);
 
 /*
+ * Sets the vertex data of a mesh
+ */
+void mesh_set(Mesh * m, const float * data);
+
+/*
+ * Updates mesh data in memory. Use after modifying mesh data manually.
+ */
+void mesh_reload(Mesh * m);
+
+/*
  * Pushes the mesh data into the gl context. Called automatically after mesh_inits.
  */
 void mesh_load(Mesh * m);

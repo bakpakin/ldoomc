@@ -103,10 +103,10 @@ typedef struct ModelInstance {
     uint32_t flags;
 
     Model * model;
-    ModelVertex * mesh;
+    Mesh * meshes;
 
-    uint32_t animation;
-    uint32_t frame;
+    int32_t animation; // Less than 0 is no animation.
+    float frame;
 
 } ModelInstance;
 
@@ -115,8 +115,6 @@ int model_loadfile(Model * model, const char * file);
 int model_loadresource(Model * model, const char * resource);
 
 void model_deinit(Model * model);
-
-void model_drawdebug(Model * model);
 
 ModelInstance * model_instance(Model * mode, ModelInstance * instance);
 
