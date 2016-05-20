@@ -7,6 +7,7 @@ prototypes, which were coded in Lua with a plan to move to C, and envisioned to 
 * Cross Platform (Linux, Mac, (Windows soon))
 * 3D rendering
 * Physics
+* Lua API for scripting
 
 ## Building
 ```bash
@@ -15,9 +16,7 @@ cd Ldoomc
 mkdir build && cd build
 cmake ..
 make
-# Run the project on OSX
-open Ldoom.app
-# Linux
+# Run the project on Linux and OSX
 ./Ldoom
 ```
 Ldoomc is built with Cmake. Should build straight out of the box on OSX, and with
