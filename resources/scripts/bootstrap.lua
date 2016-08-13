@@ -30,4 +30,5 @@ end
 function levent.draw()
     fpstext:draw()
     mytext:draw()
+    ldoom.quickdraw.rect('lines', 100, 100, 100, 100)
 end

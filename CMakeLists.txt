@@ -34,6 +34,7 @@ src/mob.c
 src/model.c
 src/console.c
 src/sky.c
+src/gen.c
 src/glad.c
 src/lua_interop.c
 ## Lua Interop
