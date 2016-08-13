@@ -17,6 +17,13 @@ else ()
     set (CMAKE_C_STANDARD 99)
 endif ()
 
+# Don't build GLFW examples and other crap.
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/GL/include/)
+
 set(SOURCES
 src/main.c
 src/audio.c
@@ -35,7 +42,7 @@ src/model.c
 src/console.c
 src/sky.c
 src/gen.c
-src/glad.c
+src/GL/src/glad.c
 src/lua_interop.c
 ## Lua Interop
 src/lua_audio.c
@@ -118,12 +125,12 @@ endif()
 
 # LuaJIT Compilation using external build system.
 # (make on Mac and linux, and custom build script on Windows)
-set(LUAJIT_LIB ${CMAKE_SOURCE_DIR}/luajit/src/libluajit.a)
+set(LUAJIT_LIB ${CMAKE_SOURCE_DIR}/LuaJIT/src/libluajit.a)
 add_custom_target(libluajit DEPENDS ${LUAJIT_LIB})
 add_dependencies(${TARGET_NAME} libluajit)
 add_custom_command(
     OUTPUT ${LUAJIT_LIB}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/luajit/src
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/LuaJIT/src
     COMMAND make amalg
     VERBATIM
 )
