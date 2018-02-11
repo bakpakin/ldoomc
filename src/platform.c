@@ -34,9 +34,6 @@ static const LuaEventSignature les_error = { "error", 1, les_error_args };
 static const int les_resize_args[] = { LUA_TNUMBER, LUA_TNUMBER };
 static const LuaEventSignature les_resize = { "resize", 2, les_resize_args };
 
-static const int les_wheel_args[] = { LUA_TNUMBER, LUA_TNUMBER };
-static const LuaEventSignature les_wheel = { "wheel", 2, les_wheel_args };
-
 // Platform stuff
 
 static double _platform_delta = 0.0;
@@ -306,6 +303,7 @@ static void error_callback(int error, const char * message) {
     uerr(message);
 }
 
+static int platform_mainloop_running = 1;
 void platform_mainloop() {
     double frametime = 0;
     double last_frametime = 0;
@@ -313,7 +311,8 @@ void platform_mainloop() {
     int framecount = 0;
     double fps_check_time = glfwGetTime();
 
-    while (!glfwWindowShouldClose(game_window)) {
+    platform_mainloop_running = 1;
+    while (platform_mainloop_running) {
         int width, height;
         glfwGetFramebufferSize(game_window, &width, &height);
         if (width != _platform_width && height != _platform_height) {
@@ -336,10 +335,11 @@ void platform_mainloop() {
         luai_event(&les_draw);
         console_draw();
     }
+    glfwSetWindowShouldClose(game_window, 1);
 }
 
 void platform_exit() {
-    glfwSetWindowShouldClose(game_window, 1);
+    platform_mainloop_running = 0;
 }
 
 // INITIALIZATION / DEINITIALIZATION
@@ -356,8 +356,8 @@ void platform_init() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
-	glfwWindowHint(GLFW_SAMPLES, 16);
+	/* glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE); */
+	/* glfwWindowHint(GLFW_SAMPLES, 16); */
 
     GLFWmonitor * monitor = glfwGetPrimaryMonitor();
     int mcount;
@@ -389,6 +389,7 @@ void platform_init() {
     // Use GLAD to get stuff.
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         glfwTerminate();
+        return;
     }
 
     // GL initializing
